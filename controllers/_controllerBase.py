@@ -24,9 +24,9 @@ class _ControllerBase(_CoreComponent):
         self.gcode: deque = deque()
 
         self.eventActions = {
-                "%s:connect" % self.label:
+                self.keyGen("connect"):
                 ("desiredConnectionStatus", ConnectionState.CONNECTED),
-                "%s:disconnect" % self.label:
+                self.keyGen("disconnect"):
                 ("desiredConnectionStatus", ConnectionState.NOT_CONNECTED),
                 }
 
@@ -53,13 +53,13 @@ class _ControllerBase(_CoreComponent):
         return str(command) in self.SUPPORTED_GCODE
 
     def exportToGui(self) -> Dict:
-        """ Export values in this class to be consumed by GUI.
+        """ Export values to be consumed by GUI.
         Returns:
             A Dict where the key is the key of the GUI widget to be populated
             and the value is a member od this class. """
         return {
-                "%s:label" % self.label: self.label,
-                "%s:connectionStatus" % self.label: self.connectionStatus,
-                "%s:desiredConnectionStatus" % self.label: self.desiredConnectionStatus,
+                self.keyGen("label"): self.label,
+                self.keyGen("connectionStatus"): self.connectionStatus,
+                self.keyGen("desiredConnectionStatus"): self.desiredConnectionStatus,
                 }
 

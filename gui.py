@@ -1,10 +1,22 @@
+from typing import Dict
 from enum import Enum
 
 import PySimpleGUI as sg
 
 from coordinator.coordinator import Coordinator
 
-def diffDicts(original, new):
+def diffDicts(original: Dict, new: Dict) -> Dict:
+    """ Compare 2 Dicts, returning any values that differ.
+    It is presumed that the new Dict will contain all keys that are in the
+    original Dict. The new Dict may have some keys that were not in the original.
+    We also convert any numerical string values to floats as this is the most
+    likely use.
+    Args:
+        original: A Dict to compare "new" against.
+        new: A Dict of the expected values.
+    Returns:
+        A Dict of key:value pairs from "new" where either the key did not exist
+            in "original" or the value differs. """
     diff = {}
     for key in new:
 
@@ -20,29 +32,33 @@ def diffDicts(original, new):
             if value != original[key]:
                 diff[key] = value
         else:
+            # New key:value.
+            # key did not exist in original.
             diff[key] = value
 
-        return diff
+    return diff
 
 class Gui:
     def __init__(self, coordinator: Coordinator):
         self.coordinator = coordinator
 
-        tab1_layout = coordinator.activeController.guiLayout()
-        
-        tab2_layout = coordinator.interfaces["jogWidget"].guiLayout()
+        allComponents = (
+                list(coordinator.controllers.values()) +
+                list(coordinator.interfaces.values()) +
+                [coordinator])
 
-        tab3_layout = [[sg.T('This is inside tab 3')],
-                       [sg.In(key='in2')]]
+        tabs = []
+        for component in allComponents:
+            if hasattr(component, "guiLayout"):
+                componentLayout = component.guiLayout()
+                if componentLayout:
+                    tabs.append(sg.Tab(component.label, componentLayout))
 
-        self.layout = [[sg.TabGroup(
-            [[  sg.Tab('Connect', tab1_layout),
-                sg.Tab('Control', tab2_layout),
-                sg.Tab('Gcode', tab3_layout),
-            ]])],
-            ]
+        self.layout = [[sg.TabGroup([tabs])]]
 
-        self.window = sg.Window("CNCtastic", self.layout, resizable=True, size=(600,600))
+        self.window = sg.Window("CNCtastic", self.layout,
+                                resizable=True, size=(600,600),
+                                return_keyboard_events=True)
 
         # Combine all the "exportToGui" methods in one place so we can iterate
         # through them quickly later.
@@ -57,6 +73,10 @@ class Gui:
         self._lastvalues: Dict = {}
 
     def service(self) -> bool:
+        """ To be called once per frame.
+        Returns:
+            bool: True: Continue execution.
+                  False: An "Exit" or empty event occurred. Stop execution. """
         event, values = self.window.read(timeout=1000)
         if event is None or values is None:
             return False

@@ -21,18 +21,19 @@ class JogWidget(_GuiInterfaceBase):
         self.readyForPush = True
         self.readyForPull = False
 
+        # Map events to local member variables and callback methods.
         self.eventActions = {
-                ("%s:multiply" % label): ("_xyJogStepMultiply", 10),
-                ("%s:divide" % label): ("_xyJogStepMultiply", 0.1),
-                ("%s:xyJogStep" % label): ("_xyJogStep", None),
-                ("%s:ul" % label): ("_moveHandler", (-1, -1)),
-                ("%s:uc" % label): ("_moveHandler", (0, -1)),
-                ("%s:ur" % label): ("_moveHandler", (1, -1)),
-                ("%s:cl" % label): ("_moveHandler", (-1, 0)),
-                ("%s:cr" % label): ("_moveHandler", (1, 0)),
-                ("%s:dl" % label): ("_moveHandler", (-1, 1)),
-                ("%s:dc" % label): ("_moveHandler", (0, 1)),
-                ("%s:dr" % label): ("_moveHandler", (1, 1)),
+                self.keyGen("multiply"): ("_xyJogStepMultiply", 10),
+                self.keyGen("divide"): ("_xyJogStepMultiply", 0.1),
+                self.keyGen("xyJogStep"): ("_xyJogStep", None),
+                self.keyGen("ul"): ("_moveHandler", (-1, -1)),
+                self.keyGen("uc"): ("_moveHandler", (0, -1)),
+                self.keyGen("ur"): ("_moveHandler", (1, -1)),
+                self.keyGen("cl"): ("_moveHandler", (-1, 0)),
+                self.keyGen("cr"): ("_moveHandler", (1, 0)),
+                self.keyGen("dl"): ("_moveHandler", (-1, 1)),
+                self.keyGen("dc"): ("_moveHandler", (0, 1)),
+                self.keyGen("dr"): ("_moveHandler", (1, 1)),
                 }
 
         self._xyJogStep = 10
@@ -45,37 +46,37 @@ class JogWidget(_GuiInterfaceBase):
         self.moveTo(x=self._xyJogStep * values[0], y=self._xyJogStep * values[1])
 
     def exportToGui(self) -> Dict:
-        """ Export values in this class to be consumed by GUI.
+        """ Export values to be consumed by GUI.
         Returns:
             A Dict where the key is the key of the GUI widget to be populated
             and the value is a member od this class. """
         return {
-                "%s:xyJogStep" % self.label: self._xyJogStep,
+                self.keyGen("xyJogStep"): self._xyJogStep,
                 }
 
     def guiLayout(self):
         layout = [
-                [sg.Button("", key=("%s:ul" % self.label), size=(4, 2), pad=(0, 0)),
-                 sg.Button("^", key=("%s:uc" % self.label), size=(4, 2), pad=(0, 0)),
-                 sg.Button("", key=("%s:ur" % self.label), size=(4, 2), pad=(0, 0)),
+                [sg.Button("", key=self.keyGen("ul"), size=(4, 2), pad=(0, 0)),
+                 sg.Button("^", key=self.keyGen("uc"), size=(4, 2), pad=(0, 0)),
+                 sg.Button("", key=self.keyGen("ur"), size=(4, 2), pad=(0, 0)),
                  sg.Text(" "),
-                 sg.Button("x10", key=("%s:multiply" % self.label), size=(2, 1), pad=(0, 0)),
-                 #sg.Button("+", key=("%s:add" % self.label, 10), size=(2, 1), pad=(0, 0))
+                 sg.Button("x10", key=self.keyGen("multiply"), size=(2, 1), pad=(0, 0)),
+                 #sg.Button("+", key=self.keyGen("add"), size=(2, 1), pad=(0, 0))
                  ],
-                [sg.Button("<", key=("%s:cl" % self.label), size=(4, 2), pad=(0, 0)),
-                 sg.Button("0", key=("%s:cc" % self.label), size=(4, 2), pad=(0, 0)),
-                 sg.Button(">", key=("%s:cr" % self.label), size=(4, 2), pad=(0, 0)),
+                [sg.Button("<", key=self.keyGen("cl"), size=(4, 2), pad=(0, 0)),
+                 sg.Button("0", key=self.keyGen("cc"), size=(4, 2), pad=(0, 0)),
+                 sg.Button(">", key=self.keyGen("cr"), size=(4, 2), pad=(0, 0)),
                  sg.Text(" "),
-                 sg.Drop(key="%s:xyJogStep" % self.label,
+                 sg.Drop(key=self.keyGen("xyJogStep"),
                      values=[0.001, 0.01, 0.1, 1, 10, 100, 1000],
                      default_value=self._xyJogStep, size=(6, 1)),
                  ],
-                [sg.Button("", key=("%s:dl" % self.label), size=(4, 2), pad=(0, 0)),
-                 sg.Button("v", key=("%s:dc" % self.label), size=(4, 2), pad=(0, 0)),
-                 sg.Button("", key=("%s:dr" % self.label), size=(4, 2), pad=(0, 0)),
+                [sg.Button("", key=self.keyGen("dl"), size=(4, 2), pad=(0, 0)),
+                 sg.Button("v", key=self.keyGen("dc"), size=(4, 2), pad=(0, 0)),
+                 sg.Button("", key=self.keyGen("dr"), size=(4, 2), pad=(0, 0)),
                  sg.Text(" "),
-                 sg.Button("/10", key=("%s:divide" % self.label), size=(2, 1), pad=(0, 0)),
-                 #sg.Button("-", key=("%s:minus" % self.label, 10), size=(2, 1), pad=(0, 0))
+                 sg.Button("/10", key=self.keyGen("divide"), size=(2, 1), pad=(0, 0)),
+                 #sg.Button("-", key=self.keyGen("minus"), size=(2, 1), pad=(0, 0))
                 ],
                 ]
         return layout

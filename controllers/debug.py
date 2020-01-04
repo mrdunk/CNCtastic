@@ -6,7 +6,7 @@ import PySimpleGUI as sg
 from controllers._controllerBase import _ControllerBase
 from definitions import Command, Response, ConnectionState
 
-CONNECT_DELAY = 10  # seconds
+CONNECT_DELAY =  4  # seconds
 PUSH_DELAY = 1      # seconds
 PULL_DELAY = 1      # seconds
 
@@ -41,24 +41,24 @@ class DebugController(_ControllerBase):
 
     def guiLayout(self):
         layout = [
-                [sg.Text("Title:"), sg.Text("unknown", key="%s:label" % self.label)],
+                [sg.Text("Title:"), sg.Text("unknown", key=self.keyGen("label"))],
                 [sg.Text("Sequence:"), sg.Text(size=(6,1), key="confirmedSequence")],
                 [sg.Text("Connection state:"),
-                    sg.Text(size=(18,1), key="%s:connectionStatus" % self.label)],
+                    sg.Text(size=(18,1), key=self.keyGen("connectionStatus"))],
                 [sg.Text("Desired:"),
-                    sg.Text(size=(18,1), key="%s:desiredConnectionStatus" % self.label)],
-                [sg.Multiline(default_text="gcode", size=(200, 10), key="%s:gcode" % self.label,
+                    sg.Text(size=(18,1), key=self.keyGen("desiredConnectionStatus"))],
+                [sg.Multiline(default_text="gcode", size=(200, 10), key=self.keyGen("gcode"),
                               autoscroll=True, disabled=True)],
                 [
-                    sg.Button('Connect', key="%s:connect" % self.label),
-                    sg.Button('Disconnect', key="%s:disconnect" % self.label),
+                    sg.Button('Connect', key=self.keyGen("connect")),
+                    sg.Button('Disconnect', key=self.keyGen("disconnect")),
                     sg.Exit()
                     ],
                 ]
         return layout
     
     def exportToGui(self) -> Dict:
-        """ Export values in this class to be consumed by GUI.
+        """ Export values to be consumed by GUI.
         Returns:
             A Dict where the key is the key of the GUI widget to be populated
             and the value is a member od this class. """
@@ -67,7 +67,7 @@ class DebugController(_ControllerBase):
         gcode = ""
         for block in self.gcode:
             gcode += str(block["gcode"].gcodes) + "\n"
-        returnVal["%s:gcode" % self.label] = gcode
+        returnVal[self.keyGen("gcode")] = gcode
 
         return returnVal
 
@@ -82,7 +82,8 @@ class DebugController(_ControllerBase):
         if data.gcode:
             self._sequences.append(data)
             self.gcode.append(data.gcode)
-            print(len(self.gcode))
+            print("CONTROLLER: %s  RECEIVED: %s  BUFFER: %s" %
+                    (self.label, data.gcode["gcode"].gcodes, len(self.gcode)))
         self.readyForPush = False
         return True
 

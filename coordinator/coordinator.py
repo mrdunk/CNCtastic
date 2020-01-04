@@ -44,6 +44,9 @@ class _CoreComponent:
         raise NotImplementedError
         return {}
 
+    def keyGen(self, tag):
+        return "%s:%s" % (self.label, tag)
+
 class Coordinator(_CoreComponent):
     """ Contains all system data.
     Handles polling all other components for new data and updating them as they
@@ -183,4 +186,12 @@ class Coordinator(_CoreComponent):
             self.gcode.append({"gcode": gcodes, "jog": True})
         else:
             self.gcode.append({"gcode": gcodes})
+
+    def __del__(self):
+        print("Disconnect controllers.")
+        for controller in self.controllers:
+            controller.disconnect()
+        print("Disconnect interfaces.")
+        for interface in self.interfaces:
+            interface.disconnect()
 

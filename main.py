@@ -5,7 +5,7 @@ from definitions import ConnectionState
 from coordinator.coordinator import Coordinator
 from gui import Gui
 
-sg.theme('DarkAmber') 
+#sg.theme('DarkAmber') 
 
 def main():
 
@@ -24,6 +24,8 @@ def main():
         if not gui.service():
             break
 
+    del gui
+    del coordinator
 
 if __name__ == "__main__":
     main()
