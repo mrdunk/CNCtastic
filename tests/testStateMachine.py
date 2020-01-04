@@ -5,12 +5,11 @@ sys.path.insert(0, os.path.abspath(os.path.join(testdir, srcdir)))
 
 import unittest
 from pygcode import block, GCodeCublcSpline
-from definitions import FlagState, Command
+from definitions import FlagState, Command, ConnectionState
 from coordinator.coordinator import Coordinator
 from interfaces.mockInterface import MockWidget
 from controllers.mockController import MockController
 from interfaces._interfaceBase import InterfaceState
-from controllers._controllerBase import ConnectionState
 
 
 class TestCoordinatorInterfacesPull(unittest.TestCase):
@@ -19,11 +18,6 @@ class TestCoordinatorInterfacesPull(unittest.TestCase):
         self.mockController = MockController()
         self.coordinator = Coordinator([self.mockWidget], [self.mockController])
         self.coordinator.activeController = self.mockController
-
-        #self.assertDictEqual( self.coordinator.state.vm.pos.values,
-        #                      {"X": 0, "Y": 0, "Z": 0})
-        #self.assertFalse(self.coordinator.state.halt)
-        #self.assertFalse(self.coordinator.state.pause)
 
     def test_pullCalledOnlyWhenFlagSet(self):
         """ Verify interface's "pull" method is called when it's "readyForPull" flag

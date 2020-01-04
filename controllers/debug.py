@@ -1,7 +1,10 @@
+from typing import Dict
 import time
 
-from controllers._controllerBase import ConnectionState, _ControllerBase
-from definitions import Command, Response
+import PySimpleGUI as sg
+
+from controllers._controllerBase import _ControllerBase
+from definitions import Command, Response, ConnectionState
 
 CONNECT_DELAY = 10  # seconds
 PUSH_DELAY = 1      # seconds
@@ -11,7 +14,8 @@ className = "DebugController"
 
 class DebugController(_ControllerBase):
 
-    # Mimic GRBL compatibility here. https://github.com/gnea/grbl/wiki/Grbl-v1.1-Commands
+    # Mimic GRBL compatibility in this controller.
+    # https://github.com/gnea/grbl/wiki/Grbl-v1.1-Commands
     SUPPORTED_GCODE = set((
             "G00", "G01", "G02", "G03", "G38.2", "G38.3", "G38.4", "G38.5", "G80",
             "G54", "G55", "G56", "G57", "G58", "G59",
@@ -35,18 +39,50 @@ class DebugController(_ControllerBase):
         self._lastPullAt: int = 0;
         self._sequences: [] = []
 
+    def guiLayout(self):
+        layout = [
+                [sg.Text("Title:"), sg.Text("unknown", key="%s:label" % self.label)],
+                [sg.Text("Sequence:"), sg.Text(size=(6,1), key="confirmedSequence")],
+                [sg.Text("Connection state:"),
+                    sg.Text(size=(18,1), key="%s:connectionStatus" % self.label)],
+                [sg.Text("Desired:"),
+                    sg.Text(size=(18,1), key="%s:desiredConnectionStatus" % self.label)],
+                [sg.Multiline(default_text="gcode", size=(200, 10), key="%s:gcode" % self.label,
+                              autoscroll=True, disabled=True)],
+                [
+                    sg.Button('Connect', key="%s:connect" % self.label),
+                    sg.Button('Disconnect', key="%s:disconnect" % self.label),
+                    sg.Exit()
+                    ],
+                ]
+        return layout
+    
+    def exportToGui(self) -> Dict:
+        """ Export values in this class to be consumed by GUI.
+        Returns:
+            A Dict where the key is the key of the GUI widget to be populated
+            and the value is a member od this class. """
+        returnVal = super().exportToGui()
+
+        gcode = ""
+        for block in self.gcode:
+            gcode += str(block["gcode"].gcodes) + "\n"
+        returnVal["%s:gcode" % self.label] = gcode
+
+        return returnVal
+
     def push(self, data: Command) -> bool:
         assert self.readyForPush, "readyForPush flag not set"
         assert self.connectionStatus == ConnectionState.CONNECTED, \
                 "Controller not connected"
-        
-        if time.time() - self._lastPushAt < PUSH_DELAY:
-            return False
+
         self._lastPushAt = time.time()
 
-        self._sequences.append(data)
-        self.state.latestSequence = data.sequence
-        self.gcode.append(data.gcode)
+        self.state.confirmedSequence = data.sequence
+        if data.gcode:
+            self._sequences.append(data)
+            self.gcode.append(data.gcode)
+            print(len(self.gcode))
         self.readyForPush = False
         return True
 
@@ -59,11 +95,13 @@ class DebugController(_ControllerBase):
             return None
         self._lastPullAt = time.time()
 
-        return Response(self.state.latestSequence)
+        return Response(self.state.confirmedSequence)
 
     def connect(self) :
-        if(not self.connectionStatus == ConnectionState.NOT_CONNECTED and
-                not self.connectionStatus == ConnectionState.UNKNOWN):
+        if self.connectionStatus in [
+                ConnectionState.CONNECTING,
+                ConnectionState.CONNECTED,
+                ConnectionState.MISSING_RESOURCE]:
             return self.connectionStatus
 
         self.connectionStatus = ConnectionState.CONNECTING
@@ -71,8 +109,9 @@ class DebugController(_ControllerBase):
         return self.connectionStatus
 
     def disconnect(self) :
-        if(not self.connectionStatus == ConnectionState.CONNECTED and
-                not self.connectionStatus == ConnectionState.UNKNOWN):
+        if self.connectionStatus in [
+                ConnectionState.DISCONNECTING,
+                ConnectionState.NOT_CONNECTED]:
             return self.connectionStatus
 
         self.connectionStatus = ConnectionState.DISCONNECTING
@@ -84,15 +123,25 @@ class DebugController(_ControllerBase):
         return self.connectionStatus
     
     def service(self):
-        if time.time() - self._connectTime >= CONNECT_DELAY:
-            if self.connectionStatus == ConnectionState.CONNECTING:
-                self.connectionStatus = ConnectionState.CONNECTED
-            elif self.connectionStatus == ConnectionState.DISCONNECTING:
-                self.connectionStatus = ConnectionState.NOT_CONNECTED
+        if self.connectionStatus != self.desiredConnectionStatus:
+            if time.time() - self._connectTime >= CONNECT_DELAY:
+                if self.connectionStatus == ConnectionState.CONNECTING:
+                    self.connectionStatus = ConnectionState.CONNECTED
+                elif self.connectionStatus == ConnectionState.DISCONNECTING:
+                    self.connectionStatus = ConnectionState.NOT_CONNECTED
 
-        if time.time() - self._lastPushAt >= PUSH_DELAY:
-            self.readyForPush = True
-        if time.time() - self._lastPullAt >= PULL_DELAY and self._sequences:
-            self.readyForPull = True
+            if self.desiredConnectionStatus == ConnectionState.CONNECTED:
+                self.connect()
+            elif self.desiredConnectionStatus == ConnectionState.NOT_CONNECTED:
+                self.disconnect()
+
+        if self.connectionStatus == ConnectionState.CONNECTED:
+            if time.time() - self._lastPushAt >= PUSH_DELAY:
+                self.readyForPush = True
+            if time.time() - self._lastPullAt >= PULL_DELAY and self._sequences:
+                self.readyForPull = True
+        else:
+                self.readyForPush = False
+                self.readyForPull = False
 
 

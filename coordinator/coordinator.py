@@ -1,13 +1,50 @@
-from typing import List
+from typing import List, Dict
 from collections import deque
 
 from pygcode import block, Machine
 
-from definitions import FlagState, State, Command
-from controllers._controllerBase import ConnectionState
+from definitions import FlagState, State, Command, ConnectionState
 
+class _CoreComponent:
+    """ General methods required by all components. """
 
-class Coordinator:
+    # Mapping of event names to callback methods or property names.
+    eventActions: Dict = {
+            # "$COMPONENTNAME:$DESCRIPTION": ("$METHODNAME", None),
+            # "$COMPONENTNAME:$DESCRIPTION": ("$METHODNAME", $DEFAULTVALUE),
+            # "$COMPONENTNAME:$DESCRIPTION": ("$PROPERTYNAME", $DEFAULTVALUE)
+            }
+
+    def performEvent(self, events):
+        """ Perform actions in response to specific events.
+        Typically sets some variable in this class or executes a method there.
+        Exact behaviour is configured in the self.eventActions Dict. """
+        for key, value in events.items():
+            if key in self.eventActions:
+                if value is None:
+                    assert self.eventActions[key][1] is not None, \
+                            "No valid data being passed and no default configured."
+                    # Use the value specified in self.eventActions.
+                    value = self.eventActions[key][1]
+
+                attr = getattr(self, self.eventActions[key][0])
+                #print(self.label, key, value, self.eventActions[key])
+                if callable(attr):
+                    # Refers to a class method.
+                    attr(value)
+                else:
+                    # Refers to a class variable.
+                    setattr(self, self.eventActions[key][0], value)
+    
+    def exportToGui(self) -> Dict:
+        """ Export values in this class to be consumed by GUI.
+        Returns:
+            A Dict where the key is the key of the GUI widget to be populated
+            and the value is a member od this class. """
+        raise NotImplementedError
+        return {}
+
+class Coordinator(_CoreComponent):
     """ Contains all system data.
     Handles polling all other components for new data and updating them as they
     request data. """
@@ -18,6 +55,7 @@ class Coordinator:
             interfaces: A list of objects deriving from the _InterfaceBase class.
             controllers: A list of objects deriving from the _ControllerBase class.
         """
+        self.label = "__coordinator__"
         self.interfaces: Dict() = {}
         self.controllers: Dict() = {}
         for interface in interfaces:
@@ -29,6 +67,27 @@ class Coordinator:
         self.gcode: deque = deque()
 
         self.activateController()
+
+    def exportToGui(self) -> Dict:
+        """ Export values in this class to be consumed by GUI.
+        Returns:
+            A Dict where the key is the key of the GUI widget to be populated
+            and the value is a member od this class. """
+        return {
+                "controllers": self.controllers.keys(),
+                "confirmedSequence": self.state.confirmedSequence,
+                "physical:feedRate": self.state.physical["feedRate"],
+                "physical:toolNumber": self.state.physical["toolNumber"],
+                "physical:spindleSpeed": self.state.physical["spindleSpeed"],
+                "physical:coordinates:x": self.state.physical["coordinates"]["x"],
+                "physical:coordinates:y": self.state.physical["coordinates"]["y"],
+                "physical:coordinates:z": self.state.physical["coordinates"]["z"],
+                "physical:coordinates:a": self.state.physical["coordinates"]["a"],
+                "physical:coordinates:b": self.state.physical["coordinates"]["b"],
+                "physical:halt": self.state.physical["halt"],
+                "physical:pause": self.state.physical["pause"],
+                "physical:alarm": self.state.physical["alarm"],
+                }
 
     def activateController(self, label=None, controller=None):
         def _activate(candidate):
@@ -90,10 +149,10 @@ class Coordinator:
     def _updateControler(self):
         assert self.activeController, "No active controller."
 
+        self.activeController.service()
+
         if not self.activeController.connectionStatus == ConnectionState.CONNECTED:
             return
-
-        self.activeController.service()
         
         if self.activeController.readyForPush:
             command = Command()

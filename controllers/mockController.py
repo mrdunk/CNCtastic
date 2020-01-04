@@ -1,6 +1,5 @@
 from controllers.debug import DebugController
-from definitions import Command, Response
-from controllers._controllerBase import ConnectionState
+from definitions import Command, Response, ConnectionState
 
 class MockController(DebugController):
     def __init__(self, label="debug"):
@@ -31,7 +30,7 @@ class MockController(DebugController):
 
     def pull(self) -> Response:
         self.logCall("pull", [], {})
-        returnVal = Response(self.state.latestSequence)
+        returnVal = Response(self.state.confirmedSequence)
         return self.overideReturn("pull", returnVal)
     
     def service(self):

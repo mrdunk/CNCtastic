@@ -3,6 +3,7 @@ from typing import Dict
 
 from pygcode import block, GCodeLinearMove, GCodeRapidMove, GCodeArcMoveCW, GCodeArcMoveCCW, GCodeStraightProbe, GCodeCancelCannedCycle, GCodeIncrementalDistanceMode, GCodeAbsoluteDistanceMode, GCodeUseMillimeters, GCodeUseInches, GCodeFeedRate
 
+from coordinator.coordinator import _CoreComponent
 from definitions import FlagState, State
 
 
@@ -37,7 +38,7 @@ class UpdateState:
         target.halt = self.halt
         target.pause = self.pause
 
-class _InterfaceBase:
+class _InterfaceBase(_CoreComponent):
     """ A base class for user input objects used for controlling the machine. """
 
     modalGroups = {
@@ -84,16 +85,14 @@ class _InterfaceBase:
         """ Args:
                 label: A string identifying this object.
                 readyForPush: A boolean flag indicating this object is ready to receive data.
-                readyForPull: A boolean flag indicating this object has data reay to be pulled.
+                readyForPull: A boolean flag indicating this object has data ready to be pulled.
                 status: The current state of this object. eg: Is it ready for use?
-                ui: A windowing object for displaying the data contained here on screen.
                 state: A reference to the Coordinator's state object. Do not modify it here.
                 _updatedData: Store desired changes to state here to be pulled later. """
         self.label: str = label
         self.readyForPush: bool
         self.readyForPull: bool
         self.status: InterfaceState = InterfaceState.UNKNOWN
-        self.ui: [] = []
         self.state: State = None
         self._updatedData: UpdateState = UpdateState()
     
@@ -122,18 +121,18 @@ class _InterfaceBase:
 
     def connect(self):
         """ Any initialisation tasks go here. """
-        assert False, "Undefined method"
+        raise NotImplementedError
         return InterfaceState.UNKNOWN
 
     def disconnect(self):
         """ Any cleanup tasks go here. """
-        assert False, "Undefined method"
+        raise NotImplementedError
         return InterfaceState.UNKNOWN
 
     def service(self):
         """ To be called periodically.
         Any housekeeping tasks should happen here. """
-        assert False, "Undefined method"
+        raise NotImplementedError
 
     def moveTo(self, **argkv):
         """ Move the machine head.
@@ -160,9 +159,27 @@ class _InterfaceBase:
         if feed is not None:
             self._updatedData.gcode.gcodes.append(GCodeFeedRate(feed))
 
-    def absoluteDistanceMode(self, **argkv):
+    def absoluteDistanceMode(self, *argv, **argkv):
         if "command" not in argkv:
-            argkv["command"] = "G90"
+            if len(argv) > 1:
+                if isinstance(argv[1], bool):
+                    if argv[1]:
+                        argkv["command"] = "G90"
+                    else:
+                        argkv["command"] = "G91"
+                else:
+                    raise ValueError("Expected bool or \"command='G90'\" "
+                                     "or \"command='G91'\" as paramiter."
+                                     " Got: %s %s" % (argv[1], type(argv[1])))
+            else:
+                # No usable input at all. Let's default to Absolute distance.
+                argkv["command"] = "G90"
+        else:
+            if argkv["command"] not in self.modalGroups["distance"]:
+                # Add gcode definition to self.modalGroups.
+                raise ValueError("Expected bool or \"command='G90'\" "
+                                 "or \"command='G91'\" as paramiter.")
+
         self._gcodeCommand("distance", **argkv)
 
     def _gcodeCommand(self, modalGroup, **argkv):
@@ -170,8 +187,10 @@ class _InterfaceBase:
         del argkv["command"]
 
         if command not in self.modalGroups[modalGroup]:
-            print("WARNING: Unknown move type: %s" % command)
-            return
+            # Add gcode definition to self.modalGroups.
+            raise ValueError(
+                    "WARNING: gcode from modal group %s not supported: %s" %
+                    (modalGroup, command))
 
         movetype = self.modalGroups[modalGroup][command]
 

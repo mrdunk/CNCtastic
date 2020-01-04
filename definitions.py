@@ -24,7 +24,7 @@ class State:
             alarm: A boolean flag.
             TODO: Should alarm be an Enum of possible states?
         """    
-        self.latestSequence: int = 0
+        self.confirmedSequence: int = 0
         self.vm: Machine = vm
         self.halt: bool = halt
         self.pause: bool = pause
@@ -46,11 +46,14 @@ class State:
                 "spindleState": {},
                 "spindleSpeed": 0,
                 "coolant": {},
-                "coordinates": {"x": 0, "y": 0, "z": 0, "a": 0, "b": 0}
+                "coordinates": {"x": 0, "y": 0, "z": 0, "a": 0, "b": 0},
+                "halt": False,
+                "pause": False,
+                "alarm": False
                 }
 
 class Command:
-    _latestSequence: int = 0
+    _confirmedSequence: int = 0
     sequence: int = None
     gcode: Dict = None
     halt: bool = None
@@ -58,11 +61,21 @@ class Command:
     cancel: bool = None
 
     def __init__(self):
-        self.sequence = Command._latestSequence
-        Command._latestSequence += 1
+        self.sequence = Command._confirmedSequence
+        Command._confirmedSequence += 1
 
 class Response:
     sequence: int = 0
     def __init__(self, sequence):
         self.sequence = sequence
+
+class ConnectionState(Enum):
+    UNKNOWN = 0
+    NOT_CONNECTED = 1
+    MISSING_RESOURCE = 2
+    CONNECTING = 3
+    CONNECTED = 4
+    DISCONNECTING = 5
+    FAIL = 6
+    
 
