@@ -4,14 +4,8 @@ from typing import Dict
 from pygcode import block, GCodeLinearMove, GCodeRapidMove, GCodeArcMoveCW, GCodeArcMoveCCW, GCodeStraightProbe, GCodeCancelCannedCycle, GCodeIncrementalDistanceMode, GCodeAbsoluteDistanceMode, GCodeUseMillimeters, GCodeUseInches, GCodeFeedRate
 
 from coordinator.coordinator import _CoreComponent
-from definitions import FlagState, State
+from definitions import FlagState, State, InterfaceState
 
-
-class InterfaceState(Enum):
-    UNKNOWN = 0
-    STALE_DATA = 1
-    UP_TO_DATE = 2
-    FAIL = 3
 
 class UpdateState:
     """ Data container representing changes to be made to the state of the system. """
@@ -89,7 +83,7 @@ class _InterfaceBase(_CoreComponent):
                 status: The current state of this object. eg: Is it ready for use?
                 state: A reference to the Coordinator's state object. Do not modify it here.
                 _updatedData: Store desired changes to state here to be pulled later. """
-        self.label: str = label
+        super().__init__(label)
         self.readyForPush: bool
         self.readyForPull: bool
         self.status: InterfaceState = InterfaceState.UNKNOWN

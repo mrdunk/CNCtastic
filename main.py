@@ -3,29 +3,23 @@ import PySimpleGUI as sg
 import common
 from definitions import ConnectionState
 from coordinator.coordinator import Coordinator
-from gui import Gui
 
 #sg.theme('DarkAmber') 
 
 def main():
 
+    terminals = common.loadPlugins("terminals")
+    controllers = common.loadPlugins("controllers")
+    interfaces = common.loadPlugins("interfaces")
+    coordinator = Coordinator(terminals, interfaces, controllers)
 
-    controllers = common.loadPlugins("controllers").values()
-    interfaces = common.loadPlugins("interfaces").values()
-    coordinator = Coordinator(interfaces, controllers)
-
-    gui = Gui(coordinator)
 
     while True:
-        coordinator.controllers["debug"].readyForPull = True
-        coordinator.controllers["debug"].readyForPush = True
-        coordinator.update()
-
-        if not gui.service():
+        if not coordinator.update():
             break
 
-    del gui
-    del coordinator
+    coordinator.close()
+    print("done")
 
 if __name__ == "__main__":
     main()

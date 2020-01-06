@@ -3,6 +3,7 @@ testdir = os.path.dirname(__file__)
 srcdir = '../'
 sys.path.insert(0, os.path.abspath(os.path.join(testdir, srcdir)))
 
+from collections import deque
 import unittest
 from pygcode import block, GCodeCublcSpline
 from definitions import FlagState, Command, ConnectionState
@@ -16,8 +17,11 @@ class TestCoordinatorInterfacesPull(unittest.TestCase):
     def setUp(self):
         self.mockWidget = MockWidget()
         self.mockController = MockController()
-        self.coordinator = Coordinator([self.mockWidget], [self.mockController])
+        self.coordinator = Coordinator({}, {"mw": self.mockWidget}, {"mc": self.mockController})
         self.coordinator.activeController = self.mockController
+
+    def tearDown(self):
+        self.coordinator.close()
 
     def test_pullCalledOnlyWhenFlagSet(self):
         """ Verify interface's "pull" method is called when it's "readyForPull" flag
@@ -172,7 +176,7 @@ class TestCoordinatorInterfacesPush(unittest.TestCase):
     def setUp(self):
         self.mockWidget = MockWidget()
         self.mockController = MockController()
-        self.coordinator = Coordinator([self.mockWidget], [self.mockController])
+        self.coordinator = Coordinator({}, {"mw": self.mockWidget}, {"mc": self.mockController})
         self.coordinator.activeController = self.mockController
 
         self.assertDictEqual(self.coordinator.state.vm.pos.values,
@@ -180,18 +184,21 @@ class TestCoordinatorInterfacesPush(unittest.TestCase):
         self.assertFalse(self.coordinator.state.halt)
         self.assertFalse(self.coordinator.state.pause)
 
+    def tearDown(self):
+        self.coordinator.close()
+
     def test_pushIntitialisesInterface(self):
         self.assertIsNone(self.mockWidget.state)
         self.assertEqual(self.mockWidget.status, InterfaceState.UNKNOWN)
 
         self.mockWidget.connect()
-        self.assertEqual(self.mockWidget.status, InterfaceState.STALE_DATA)
+        self.assertEqual(self.mockWidget.status, InterfaceState.UP_TO_DATE)
         self.assertNotIn("push", self.mockWidget.logCallData)
 
         # Poll mockWidget.
         self.coordinator._updateInterface()
         # No change because readyForPush flag was not set.
-        self.assertEqual(self.mockWidget.status, InterfaceState.STALE_DATA)
+        self.assertEqual(self.mockWidget.status, InterfaceState.UP_TO_DATE)
         self.assertNotIn("push", self.mockWidget.logCallData)
 
         self.mockWidget.readyForPush = True
@@ -203,7 +210,7 @@ class TestCoordinatorInterfacesPush(unittest.TestCase):
         self.assertIsNotNone(self.mockWidget.state)
 
     def test_pushUpdatesInterfaceState(self):
-        self.mockWidget.connect()
+        #self.mockWidget.connect()
         self.mockWidget.readyForPush = True
         # Poll mockWidget.
         self.coordinator._updateInterface()
@@ -301,6 +308,15 @@ class TestController(unittest.TestCase):
         response = self.mockController.pull()
         self.assertEqual(data.sequence, response.sequence)
 
+    def test_collectionNameIsLabel(self):
+        """ The keys in the collections should match the component's label. """
+        # TODO FIXME!
+        self.mockController1 = MockController("owl")
+        self.coordinator = Coordinator({}, {}, {"mc1": self.mockController1})
+
+        self.assertIn(self.mockController1.label, self.coordinator.controllers)
+
+
     def test_activateControllerTiebreaker(self):
         """ The "debug" controller gets enabled if no others are eligible. """
         self.mockController1 = MockController("owl")
@@ -309,8 +325,11 @@ class TestController(unittest.TestCase):
         self.mockController1.active = False
         self.mockController2.active = False
         self.mockController3.active = False
-        self.coordinator = Coordinator([],
-                [self.mockController1, self.mockController2, self.mockController3])
+        self.coordinator = Coordinator({}, {}, {
+            "mc1": self.mockController1,
+            "mc2": self.mockController2,
+            "mc3": self.mockController3,
+            })
 
         self.assertTrue(self.mockController3.active)
         self.assertIs(self.coordinator.activeController, self.mockController3)
@@ -323,8 +342,11 @@ class TestController(unittest.TestCase):
         self.mockController1.active = False
         self.mockController2.active = True
         self.mockController3.active = False
-        self.coordinator = Coordinator([],
-                [self.mockController1, self.mockController2, self.mockController3])
+        self.coordinator = Coordinator({}, {}, {
+            "mc1": self.mockController1,
+            "mc2": self.mockController2,
+            "mc3": self.mockController3,
+            })
 
         self.assertTrue(self.mockController2.active)
         self.assertIs(self.coordinator.activeController, self.mockController2)
@@ -337,8 +359,11 @@ class TestController(unittest.TestCase):
         self.mockController1.active = True
         self.mockController2.active = True
         self.mockController3.active = False
-        self.coordinator = Coordinator([],
-                [self.mockController1, self.mockController2, self.mockController3])
+        self.coordinator = Coordinator({}, {}, {
+            "mc1": self.mockController1,
+            "mc2": self.mockController2,
+            "mc3": self.mockController3,
+            })
 
         self.assertTrue(self.mockController1.active)
         self.assertIs(self.coordinator.activeController, self.mockController1)
@@ -352,8 +377,11 @@ class TestController(unittest.TestCase):
         self.mockController1.active = True
         self.mockController2.active = False
         self.mockController3.active = True
-        self.coordinator = Coordinator([],
-                [self.mockController1, self.mockController2, self.mockController3])
+        self.coordinator = Coordinator({}, {}, {
+            "mc1": self.mockController1,
+            "mc2": self.mockController2,
+            "mc3": self.mockController3,
+            })
 
         # Not the first active in the list..
         self.assertTrue(self.mockController3.active)
@@ -367,8 +395,11 @@ class TestController(unittest.TestCase):
         self.mockController1.active = True
         self.mockController2.active = False
         self.mockController3.active = False
-        self.coordinator = Coordinator([],
-                [self.mockController1, self.mockController2, self.mockController3])
+        self.coordinator = Coordinator({}, {}, {
+            "mc1": self.mockController1,
+            "mc2": self.mockController2,
+            "mc3": self.mockController3,
+            })
 
         # Auto chose the active one.
         self.assertTrue(self.mockController1.active)
@@ -391,8 +422,11 @@ class TestController(unittest.TestCase):
         self.mockController1.active = True
         self.mockController2.active = False
         self.mockController3.active = False
-        self.coordinator = Coordinator([],
-                [self.mockController1, self.mockController2, self.mockController3])
+        self.coordinator = Coordinator({}, {}, {
+            "mc1": self.mockController1,
+            "mc2": self.mockController2,
+            "mc3": self.mockController3,
+            })
 
         # Auto chose the active one.
         self.assertTrue(self.mockController1.active)
@@ -413,8 +447,11 @@ class TestController(unittest.TestCase):
         self.mockController1.active = True
         self.mockController2.active = False
         self.mockController3.active = False
-        self.coordinator = Coordinator([],
-                [self.mockController1, self.mockController2, self.mockController3])
+        self.coordinator = Coordinator({}, {}, {
+            "owl": self.mockController1,
+            "tiger": self.mockController2,
+            "debug": self.mockController3,
+            })
 
         # Auto chose the active one.
         self.assertTrue(self.mockController1.active)
@@ -432,10 +469,13 @@ class TestCoordinatorControllerPush(unittest.TestCase):
     def setUp(self):
         self.mockWidget = MockWidget()
         self.mockController = MockController()
-        self.coordinator = Coordinator([self.mockWidget], [self.mockController])
+        self.coordinator = Coordinator({}, {"mw": self.mockWidget}, {"mc": self.mockController})
         self.coordinator.activeController = self.mockController
         self.coordinator.activeController.connect()
         self.coordinator.activeController.service()
+
+    def tearDown(self):
+        self.coordinator.close()
 
     def test_controllerPush(self):
         """ A push to the controller sends the Coordinator's flags and a gcode
@@ -510,6 +550,112 @@ class TestCoordinatorControllerPush(unittest.TestCase):
         self.assertFalse(self.mockController._sequences[0].halt)
         self.assertTrue(self.mockController._sequences[0].pause)
         self.assertIs(self.mockController._sequences[0].gcode, gcode)
+
+
+class TestEvents(unittest.TestCase):
+    """ Test event handling.
+    Note that this works without the input of the Controller but in the real
+    world it would be used to clear the _eventQueue between iterations. """
+
+    def setUp(self):
+        self.mockController = MockController()
+        self.mockWidget = MockWidget()
+
+        self.assertEqual(len(self.mockController._eventQueue), 0)
+
+    def tearDown(self):
+        self.mockWidget._eventQueue.clear()
+
+    def test_publishEventBasic(self):
+        """ Export some variables on one component, subscribe on another, then
+        publish. """
+
+        # Set up some dummy data to export on one component.
+        self.mockController.testToExport = {}
+        self.mockController.testToExport["bunny"] = "give me carrot"
+        self.mockController.testToExport["onion"] = ["layer1", "layer2"]
+        self.mockController.exported = {
+                "testToExport1": "testToExport",
+                "testToExport2": "testToExport.bunny",
+                "testToExport3": "testToExport.onion",
+                "testToExport4": "testToExport.onion.0",
+                # Exporting an invalid member would assert.
+                #"testToExport5": "testToExport.onion.invalidInt2",
+                }
+        
+        # Set up some subscriptions.
+        self.mockWidget._subscriptions = {
+                "testToExport1": None,
+                "testToExport2": None,
+                "testToExport3": None,
+                "testToExport4": None,
+                # Its fine to subscribe to things that don't arrive.
+                "missing": None,
+                }
+
+        # Now publish, populating the _eventQueue.
+        self.mockController.publish()
+        self.assertEqual(len(self.mockController.exported),
+                         len(self.mockController._eventQueue))
+
+        # Now call the receive on the other component making it read the _eventQueue.
+        self.mockWidget.receive()
+        # Nothing delivered to the sender.
+        self.assertEqual(0, len(self.mockController._delivered))
+        # Full set delivered to the receiver.
+        self.assertEqual(len(self.mockController.exported),
+                         len(self.mockWidget._delivered))
+
+    def test_publishEventInvalidExportDictArgs(self):
+        """ Export some variables which are incorrectly named. """
+
+        # Set up some dummy data to export on one component.
+        self.mockController.testToExport = {}
+        self.mockController.testToExport["bunny"] = "give me carrot"
+        self.mockController.exported = {
+                "testToExport1": "testToExport.doggie",
+                }
+        
+        # Now publish, populating the _eventQueue.
+        with self.assertRaises(AttributeError):
+            self.mockController.publish()
+        # Nothing delivered anywhere.
+        self.assertEqual(0, len(self.mockController._delivered))
+        self.assertEqual(0, len(self.mockWidget._delivered))
+
+    def test_publishEventInvalidExportListArgs(self):
+        """ Export some variables which are incorrectly named. """
+
+        # Set up some dummy data to export on one component.
+        self.mockController.testToExport = {}
+        self.mockController.testToExport["onion"] = ["layer1", "layer2"]
+        self.mockController.exported = {
+                "testToExport1": "testToExport.onion.1invalidInt",
+                }
+        
+        # Now publish, populating the _eventQueue.
+        with self.assertRaises(AttributeError):
+            self.mockController.publish()
+        # Nothing delivered anywhere.
+        self.assertEqual(0, len(self.mockController._delivered))
+        self.assertEqual(0, len(self.mockWidget._delivered))
+
+    def test_publishEventMissingMemberVar(self):
+        """ Export some variables which are incorrectly named. """
+
+        # Set up some dummy data to export on one component.
+        self.mockController.testToExport = {}
+        self.mockController.exported = {
+                "testToExport1": "missingMember",
+                }
+        
+        # Now publish, populating the _eventQueue.
+        with self.assertRaises(AttributeError):
+            self.mockController.publish()
+        # Nothing delivered anywhere.
+        self.assertEqual(0, len(self.mockController._delivered))
+        self.assertEqual(0, len(self.mockWidget._delivered))
+
 
 
 

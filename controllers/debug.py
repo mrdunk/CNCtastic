@@ -57,20 +57,6 @@ class DebugController(_ControllerBase):
                 ]
         return layout
     
-    def exportToGui(self) -> Dict:
-        """ Export values to be consumed by GUI.
-        Returns:
-            A Dict where the key is the key of the GUI widget to be populated
-            and the value is a member od this class. """
-        returnVal = super().exportToGui()
-
-        gcode = ""
-        for block in self.gcode:
-            gcode += str(block["gcode"].gcodes) + "\n"
-        returnVal[self.keyGen("gcode")] = gcode
-
-        return returnVal
-
     def push(self, data: Command) -> bool:
         assert self.readyForPush, "readyForPush flag not set"
         assert self.connectionStatus == ConnectionState.CONNECTED, \
@@ -84,6 +70,10 @@ class DebugController(_ControllerBase):
             self.gcode.append(data.gcode)
             print("CONTROLLER: %s  RECEIVED: %s  BUFFER: %s" %
                     (self.label, data.gcode["gcode"].gcodes, len(self.gcode)))
+            gcode = ""
+            for line in self.gcode:
+                gcode += str(line["gcode"].gcodes) + "\n"
+            self.publishOneByValue("debug:gcode", gcode)
         self.readyForPush = False
         return True
 
@@ -105,7 +95,7 @@ class DebugController(_ControllerBase):
                 ConnectionState.MISSING_RESOURCE]:
             return self.connectionStatus
 
-        self.connectionStatus = ConnectionState.CONNECTING
+        self.setConnectionStatus(ConnectionState.CONNECTING)
         self._connectTime = time.time()
         return self.connectionStatus
 
@@ -115,7 +105,7 @@ class DebugController(_ControllerBase):
                 ConnectionState.NOT_CONNECTED]:
             return self.connectionStatus
 
-        self.connectionStatus = ConnectionState.DISCONNECTING
+        self.setConnectionStatus(ConnectionState.DISCONNECTING)
         self._connectTime = time.time()
 
         self.readyForPush = False
@@ -127,9 +117,9 @@ class DebugController(_ControllerBase):
         if self.connectionStatus != self.desiredConnectionStatus:
             if time.time() - self._connectTime >= CONNECT_DELAY:
                 if self.connectionStatus == ConnectionState.CONNECTING:
-                    self.connectionStatus = ConnectionState.CONNECTED
+                    self.setConnectionStatus(ConnectionState.CONNECTED)
                 elif self.connectionStatus == ConnectionState.DISCONNECTING:
-                    self.connectionStatus = ConnectionState.NOT_CONNECTED
+                    self.setConnectionStatus(ConnectionState.NOT_CONNECTED)
 
             if self.desiredConnectionStatus == ConnectionState.CONNECTED:
                 self.connect()
@@ -145,4 +135,5 @@ class DebugController(_ControllerBase):
                 self.readyForPush = False
                 self.readyForPull = False
 
+        self.processDeliveredEvents()
 

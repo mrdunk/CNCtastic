@@ -12,6 +12,8 @@ class MockWidget(JogWidget):
         self.logCallData: {} = {}
         self.overideCallReturn: {} = {}
 
+        self._getInputRun = False
+
     def logCall(self, method, args, kvargs):
         if method not in self.logCallData:
             self.logCallData[method] = []

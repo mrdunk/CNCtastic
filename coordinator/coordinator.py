@@ -1,9 +1,9 @@
-from typing import List, Dict
+from typing import List, Dict, Any, Tuple, Deque
 from collections import deque
 
 from pygcode import block, Machine
 
-from definitions import FlagState, State, Command, ConnectionState
+from definitions import FlagState, State, Command, ConnectionState, InterfaceState
 
 class _CoreComponent:
     """ General methods required by all components. """
@@ -15,82 +15,155 @@ class _CoreComponent:
             # "$COMPONENTNAME:$DESCRIPTION": ("$PROPERTYNAME", $DEFAULTVALUE)
             }
 
-    def performEvent(self, events):
-        """ Perform actions in response to specific events.
-        Typically sets some variable in this class or executes a method there.
-        Exact behaviour is configured in the self.eventActions Dict. """
-        for key, value in events.items():
-            if key in self.eventActions:
-                if value is None:
-                    assert self.eventActions[key][1] is not None, \
-                            "No valid data being passed and no default configured."
-                    # Use the value specified in self.eventActions.
-                    value = self.eventActions[key][1]
+    Event = Tuple[str, Any]
+    # Single instance for all instances.
+    _eventQueue: Deque[Event] = deque()
+    # Unique copy per instance.
+    exported: Dict[str, str]  # {EVENT_NAME : CLASS_PROPERTY_TO_EXPORT}
+    _subscriptions: Dict[str, Any]
+    _delivered: Deque[Any]
+   
+    def __init__(self, label: str):
+        self.label: str = label
+        self.exported = {}
+        self._subscriptions = {}
+        self._delivered = deque()
 
-                attr = getattr(self, self.eventActions[key][0])
-                #print(self.label, key, value, self.eventActions[key])
-                if callable(attr):
-                    # Refers to a class method.
-                    attr(value)
-                else:
-                    # Refers to a class variable.
-                    setattr(self, self.eventActions[key][0], value)
-    
-    def exportToGui(self) -> Dict:
-        """ Export values in this class to be consumed by GUI.
-        Returns:
-            A Dict where the key is the key of the GUI widget to be populated
-            and the value is a member od this class. """
-        raise NotImplementedError
-        return {}
+        # Make sure we are subscribed to all the events we have handlers for.
+        for event in self.eventActions:
+            if event not in self._subscriptions:
+                self._subscriptions[event] = None
 
     def keyGen(self, tag):
         return "%s:%s" % (self.label, tag)
+
+    def publish(self, eventName: str = "", prop=None):
+        """ Publish all events listed in the self.exported collection. """
+        if not hasattr(self, "exported"):
+            return
+
+        if not eventName:
+            # Use self.exported and publish all events listed.
+            self._publishAllRegistered()
+            return
+
+        if eventName and prop is None:
+            if eventName not in self.exported:
+                raise AttributeError("Property for event \"%s\" not listed in %s"
+                        (eventName, self.exported))
+            prop = self.exported[eventName]
+
+        self.publishOneByValue(eventName, prop)
+
+    def _publishAllRegistered(self):
+        """ Publish events for all listed in self.exported. """
+        for eventName, prop in self.exported.items():
+            self._publishOneByKey(eventName, prop)
+
+    def _publishOneByKey(self, eventName: str, prop: str):
+
+        # Convert a string reperesentation of an object property into that property.
+        totalProperty = self
+        for p in prop.split("."):  # TODO: Don't split every time?
+            if isinstance(totalProperty, dict) and p in totalProperty:
+                totalProperty = totalProperty[p]
+            elif (isinstance(totalProperty, List) and
+                    p.isnumeric() and int(p) < len(totalProperty)):
+                totalProperty = totalProperty[int(p)]
+            elif hasattr(totalProperty, p):
+                totalProperty = getattr(totalProperty, p)
+            else:
+                raise AttributeError("Invalid property \"%s\" in %s." %
+                        (prop, self.exported))
+        self.publishOneByValue(eventName, totalProperty)
+        
+
+    def publishOneByValue(self, eventName: str, eventValue):
+        """ Distribute an event to all subscribed components. """
+        self._eventQueue.append((eventName, eventValue))
+
+    def receive(self):
+        """ Deliver events this object is subscribed to. """
+        #print(self.label, "receive", self._eventQueue)
+        if not hasattr(self, "_subscriptions"):
+            return
+
+        for event, value in self._eventQueue:
+            if event in self._subscriptions:
+                self._delivered.append((event, value))
+
+    def processDeliveredEvents(self):
+        while self._delivered:
+            event = self._delivered.popleft()
+            eventName, eventValue = event
+            action, defaultValue = self.eventActions[eventName]
+
+            if eventValue is None:
+                # Use the one configured in this class.
+                eventValue = defaultValue
+
+            if not hasattr(self, action):
+                raise AttributeError("Property for event \"%s\" does not exist.")
+            callback = getattr(self, action)
+            if callable(callback):
+                # Refers to a class method.
+                callback(eventValue)
+            else:
+                # Refers to a class variable.
+                setattr(self, action, eventValue)
 
 class Coordinator(_CoreComponent):
     """ Contains all system data.
     Handles polling all other components for new data and updating them as they
     request data. """
 
-    def __init__(self, interfaces: List, controllers: List):
+    def __init__(self, terminals: Dict, interfaces: Dict, controllers: Dict):
         """
         Args:
             interfaces: A list of objects deriving from the _InterfaceBase class.
             controllers: A list of objects deriving from the _ControllerBase class.
         """
-        self.label = "__coordinator__"
-        self.interfaces: Dict() = {}
-        self.controllers: Dict() = {}
-        for interface in interfaces:
-            self.interfaces[interface.label] = interface
-        for controller in controllers:
-            self.controllers[controller.label] = controller
+        super().__init__("__coordinator__")
+
+        self.terminals: Dict() = terminals
+        self.interfaces: Dict() = interfaces
+        self.controllers: Dict() = controllers
+
         self.activeController = None
         self.state: State
         self.gcode: deque = deque()
 
         self.activateController()
+        
+        self.allComponents = ( 
+                [self] + 
+                list(terminals.values()) + 
+                list(interfaces.values()) + 
+                list(controllers.values()))
+        self.guiSpecificSetup()
 
-    def exportToGui(self) -> Dict:
-        """ Export values in this class to be consumed by GUI.
-        Returns:
-            A Dict where the key is the key of the GUI widget to be populated
-            and the value is a member od this class. """
-        return {
-                "controllers": self.controllers.keys(),
-                "confirmedSequence": self.state.confirmedSequence,
-                "physical:feedRate": self.state.physical["feedRate"],
-                "physical:toolNumber": self.state.physical["toolNumber"],
-                "physical:spindleSpeed": self.state.physical["spindleSpeed"],
-                "physical:coordinates:x": self.state.physical["coordinates"]["x"],
-                "physical:coordinates:y": self.state.physical["coordinates"]["y"],
-                "physical:coordinates:z": self.state.physical["coordinates"]["z"],
-                "physical:coordinates:a": self.state.physical["coordinates"]["a"],
-                "physical:coordinates:b": self.state.physical["coordinates"]["b"],
-                "physical:halt": self.state.physical["halt"],
-                "physical:pause": self.state.physical["pause"],
-                "physical:alarm": self.state.physical["alarm"],
-                }
+        self.running = True
+
+    def guiSpecificSetup(self):
+        needsLayout = []
+        for terminal in self.terminals.values():
+            if hasattr(terminal, "layout"):
+                print("Configuring GUI: %s" % terminal.label)
+                needsLayout.append(terminal)
+        if not needsLayout:
+            # No plugins care about GUI layout information.
+            return
+
+        layouts = {}
+        for component in self.allComponents:
+            if hasattr(component, "guiLayout"):
+                layouts[component.label] = component.guiLayout()
+        for component in needsLayout:
+            component.setup(layouts)
+
+
+    def _clearEvents(self):
+        self._eventQueue.clear()
 
     def activateController(self, label=None, controller=None):
         def _activate(candidate):
@@ -128,14 +201,35 @@ class Coordinator(_CoreComponent):
         self.activeController.active = True
         self.state = self.activeController.state
 
-    def update(self):
+    def update(self) -> bool:
         """ Iterate through all other components and service all data transfer
         requests. """
+        self._updateTerminal()
         self._updateInterface()
         self._updateControler()
 
+
+        for component in self.allComponents:
+            component.publish()
+
+        for component in self.allComponents:
+            component.receive()
+
+        self._clearEvents()
+
+        return self.running
+
+    def _updateTerminal(self):
+        for terminalName, terminal in self.terminals.items():
+            self.running = self.running and terminal.service()
+
     def _updateInterface(self):
         for interfaceName, inpt in self.interfaces.items():
+            inpt.service()
+
+            if inpt.status is not InterfaceState.UP_TO_DATE:
+                next
+
             if inpt.readyForPush:
                 # TODO: This will make state mutable from the interface object.
                 # Do we want this? Should we send a copy instead?
@@ -187,11 +281,11 @@ class Coordinator(_CoreComponent):
         else:
             self.gcode.append({"gcode": gcodes})
 
-    def __del__(self):
-        print("Disconnect controllers.")
-        for controller in self.controllers:
+    def close(self):
+        for controller in self.controllers.values():
             controller.disconnect()
-        print("Disconnect interfaces.")
-        for interface in self.interfaces:
+        for interface in self.interfaces.values():
             interface.disconnect()
+        for terminal in self.terminals.values():
+            terminal.close()
 

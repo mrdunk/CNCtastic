@@ -1,27 +1,27 @@
 from typing import Dict
 from math import log10, floor
+from collections import deque
 
 import PySimpleGUI as sg
 
-from interfaces._guiInterfaceBase import _GuiInterfaceBase
-from interfaces._interfaceBase import UpdateState, InterfaceState
-from definitions import FlagState, State
+from interfaces._interfaceBase import UpdateState, _InterfaceBase
+from definitions import FlagState, State, InterfaceState
 
 className = "JogWidget"
 
 def round1SF(number) -> float:
     return round(number, -int(floor(log10(abs(number)))))
 
-class JogWidget(_GuiInterfaceBase):
+class JogWidget(_InterfaceBase):
     """ Allows user to directly control various machine settings. eg: Jog the
     head to given coordinates. """
 
     def __init__(self, label: str = "jogWidget"):
-        super().__init__(label)
         self.readyForPush = True
         self.readyForPull = False
 
-        # Map events to local member variables and callback methods.
+        # Map incoming events to local member variables and callback methods.
+        self.label = label
         self.eventActions = {
                 self.keyGen("multiply"): ("_xyJogStepMultiply", 10),
                 self.keyGen("divide"): ("_xyJogStepMultiply", 0.1),
@@ -35,24 +35,20 @@ class JogWidget(_GuiInterfaceBase):
                 self.keyGen("dc"): ("_moveHandler", (0, 1)),
                 self.keyGen("dr"): ("_moveHandler", (1, 1)),
                 }
+        super().__init__(label)
 
         self._xyJogStep = 10
 
+    def __del__(self):
+        self.disconnect()
+
     def _xyJogStepMultiply(self, multiplier):
         self._xyJogStep = round1SF(self._xyJogStep * multiplier)
+        self.publishOneByValue(self.keyGen("xyJogStep"), self._xyJogStep)
 
     def _moveHandler(self, values):
         self.absoluteDistanceMode(self, False)
         self.moveTo(x=self._xyJogStep * values[0], y=self._xyJogStep * values[1])
-
-    def exportToGui(self) -> Dict:
-        """ Export values to be consumed by GUI.
-        Returns:
-            A Dict where the key is the key of the GUI widget to be populated
-            and the value is a member od this class. """
-        return {
-                self.keyGen("xyJogStep"): self._xyJogStep,
-                }
 
     def guiLayout(self):
         layout = [
@@ -81,8 +77,18 @@ class JogWidget(_GuiInterfaceBase):
                 ]
         return layout
 
+    def service(self):
+        """ To be called periodically.
+        Any housekeeping tasks should happen here. """
+        super().service
+        if self.status == InterfaceState.UNKNOWN:
+            self.connect()
+
+        self.processDeliveredEvents()
+       
+
     def connect(self):
-        self.status = InterfaceState.STALE_DATA
+        self.status = InterfaceState.UP_TO_DATE
         return self.status
 
     def disconnect(self):
