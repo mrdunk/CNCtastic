@@ -8,7 +8,7 @@ import curses
 
 from terminals._terminalBase import _TerminalBase, diffDicts
 
-className = "Cli"
+#className = "Cli"
 
 class Cli(_TerminalBase):
     def __init__(self, layouts: List=[], label="cli"):

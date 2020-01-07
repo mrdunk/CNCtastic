@@ -35,6 +35,7 @@ class Gui(_TerminalBase):
                                 return_keyboard_events=True)
         self.setupDone: bool = True
 
+        # Subscribe to events matching GUI widget keys.
         for event in self.window.AllKeysDict:
             self._subscriptions[event] = None
 
@@ -43,26 +44,37 @@ class Gui(_TerminalBase):
         Returns:
             bool: True: Continue execution.
                   False: An "Exit" or empty event occurred. Stop execution. """
-        event, values = self.window.read(timeout=10)
+        event, values = self.window.read(timeout=500)
         if event is None or values is None:
             print("Quitting via %s" % self.label)
             return False
         
-        diffValues = diffDicts(self._lastvalues, values)
+        self.diffValues = diffDicts(self._lastvalues, values)
         self._lastvalues = values
         
         # Combine events with the values. Put the event key in there with empty value.
         if not event == "__TIMEOUT__":
-            diffValues[event] = None
+            self.diffValues[event] = None
         
-        if not event == "__TIMEOUT__" or diffValues:
-            print(event, diffValues)
+        if not event == "__TIMEOUT__" or self.diffValues:
+            print(event, self.diffValues)
 
-        for eventKey, value in diffValues.items():
+
+        return event not in (None, 'Exit')
+   
+    def publish(self):
+        for eventKey, value in self.diffValues.items():
             if isinstance(value, str):
                 value = value.rstrip()
             self.publishOneByValue(eventKey, value)
 
+    def receive(self):
+        super().receive()
+        
+        # Since latency is important in the GUI, lets update the scree as soon
+        # as possible after receiving the event.
+        # This also helps with event loops when multiple things update a widget
+        # that in turn sends an event.
         while self._delivered:
             event, value = self._delivered.popleft()
             if isinstance(value, Enum):
@@ -70,8 +82,6 @@ class Gui(_TerminalBase):
             else:
                 self.window[event].update(value)
 
-        return event not in (None, 'Exit')
-    
     def close(self):
         self.window.close()
 

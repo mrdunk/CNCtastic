@@ -4,7 +4,7 @@ from collections import deque
 
 import PySimpleGUI as sg
 
-from interfaces._interfaceBase import UpdateState, _InterfaceBase
+from interfaces._interfaceBase import _InterfaceBase
 from definitions import FlagState, State, InterfaceState
 
 className = "JogWidget"
@@ -20,8 +20,8 @@ class JogWidget(_InterfaceBase):
         self.readyForPush = True
         self.readyForPull = False
 
-        # Map incoming events to local member variables and callback methods.
         self.label = label
+        # Map incoming events to local member variables and callback methods.
         self.eventActions = {
                 self.keyGen("multiply"): ("_xyJogStepMultiply", 10),
                 self.keyGen("divide"): ("_xyJogStepMultiply", 0.1),
@@ -35,6 +35,11 @@ class JogWidget(_InterfaceBase):
                 self.keyGen("dc"): ("_moveHandler", (0, 1)),
                 self.keyGen("dr"): ("_moveHandler", (1, 1)),
                 }
+
+        self.exported = {
+                #self.keyGen("xyJogStep"): "_xyJogStep"
+                }
+
         super().__init__(label)
 
         self._xyJogStep = 10
@@ -44,6 +49,8 @@ class JogWidget(_InterfaceBase):
 
     def _xyJogStepMultiply(self, multiplier):
         self._xyJogStep = round1SF(self._xyJogStep * multiplier)
+        # Need to explicitly push this here as the GUI also sends an update with
+        # the old value. This publish will take effect later.
         self.publishOneByValue(self.keyGen("xyJogStep"), self._xyJogStep)
 
     def _moveHandler(self, values):
@@ -64,6 +71,7 @@ class JogWidget(_InterfaceBase):
                  sg.Button(">", key=self.keyGen("cr"), size=(4, 2), pad=(0, 0)),
                  sg.Text(" "),
                  sg.Drop(key=self.keyGen("xyJogStep"),
+                     #enable_events=False,
                      values=[0.001, 0.01, 0.1, 1, 10, 100, 1000],
                      default_value=self._xyJogStep, size=(6, 1)),
                  ],
@@ -80,12 +88,8 @@ class JogWidget(_InterfaceBase):
     def service(self):
         """ To be called periodically.
         Any housekeeping tasks should happen here. """
-        super().service
         if self.status == InterfaceState.UNKNOWN:
             self.connect()
-
-        self.processDeliveredEvents()
-       
 
     def connect(self):
         self.status = InterfaceState.UP_TO_DATE

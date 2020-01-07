@@ -134,6 +134,8 @@ class DebugController(_ControllerBase):
         else:
                 self.readyForPush = False
                 self.readyForPull = False
-
-        self.processDeliveredEvents()
+    
+    def processDeliveredEvents(self):
+        if self._delivered:
+            print(self.label, self._delivered)
 

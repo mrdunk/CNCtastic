@@ -21,6 +21,8 @@ class TestCoordinatorInterfacesPull(unittest.TestCase):
         self.coordinator.activeController = self.mockController
 
     def tearDown(self):
+        self.mockWidget._eventQueue.clear()
+        self.assertEqual(len(self.mockController._eventQueue), 0)
         self.coordinator.close()
 
     def test_pullCalledOnlyWhenFlagSet(self):
@@ -185,6 +187,8 @@ class TestCoordinatorInterfacesPush(unittest.TestCase):
         self.assertFalse(self.coordinator.state.pause)
 
     def tearDown(self):
+        self.mockWidget._eventQueue.clear()
+        self.assertEqual(len(self.mockController._eventQueue), 0)
         self.coordinator.close()
 
     def test_pushIntitialisesInterface(self):
@@ -311,10 +315,13 @@ class TestController(unittest.TestCase):
     def test_collectionNameIsLabel(self):
         """ The keys in the collections should match the component's label. """
         # TODO FIXME!
-        self.mockController1 = MockController("owl")
-        self.coordinator = Coordinator({}, {}, {"mc1": self.mockController1})
+        self.mockController1 = MockController("debug")
+        self.mockController2 = MockController("owl")
+        self.coordinator = Coordinator({}, {},
+                {"debug": self.mockController1, "owl": self.mockController2})
 
         self.assertIn(self.mockController1.label, self.coordinator.controllers)
+        self.assertIn(self.mockController2.label, self.coordinator.controllers)
 
 
     def test_activateControllerTiebreaker(self):
@@ -475,6 +482,8 @@ class TestCoordinatorControllerPush(unittest.TestCase):
         self.coordinator.activeController.service()
 
     def tearDown(self):
+        self.mockWidget._eventQueue.clear()
+        self.assertEqual(len(self.mockController._eventQueue), 0)
         self.coordinator.close()
 
     def test_controllerPush(self):
@@ -561,10 +570,12 @@ class TestEvents(unittest.TestCase):
         self.mockController = MockController()
         self.mockWidget = MockWidget()
 
+        self.mockWidget._eventQueue.clear()
         self.assertEqual(len(self.mockController._eventQueue), 0)
 
     def tearDown(self):
         self.mockWidget._eventQueue.clear()
+        self.assertEqual(len(self.mockController._eventQueue), 0)
 
     def test_publishEventBasic(self):
         """ Export some variables on one component, subscribe on another, then

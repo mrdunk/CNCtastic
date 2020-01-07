@@ -25,6 +25,7 @@ class UpdateState:
         self.halt: FlagState = halt
         self.pause: FlagState = pause
         self.jog: FlagState = jog
+        self.flags = ["halt", "pause", "jog"]
 
     def copy(self, target):
         """ Copy the data contains in this object to another UpdateState instance. """
@@ -123,11 +124,14 @@ class _InterfaceBase(_CoreComponent):
         raise NotImplementedError
         return InterfaceState.UNKNOWN
 
-    def service(self):
-        """ To be called periodically.
-        Any housekeeping tasks should happen here. """
-        raise NotImplementedError
-
+    def processDeliveredEvents(self):
+        for flag in self._updatedData.flags:
+            attr = getattr(self._updatedData, flag)
+            if attr != FlagState.UNSET:
+                self.publishOneByValue("desiredState:%s" % flag, attr)
+        if self._updatedData.gcode is not None:
+            self.publishOneByValue("desiredState:newGcode", ("jog", self._updatedData.gcode))
+       
     def moveTo(self, **argkv):
         """ Move the machine head.
         Args:

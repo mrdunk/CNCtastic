@@ -20,6 +20,7 @@ class _ControllerBase(_CoreComponent):
         self.connectionStatus: ConnectionState = ConnectionState.UNKNOWN
         self.desiredConnectionStatus: ConnectionState = ConnectionState.NOT_CONNECTED
         self.state: State = State(vm=Machine())
+        self._newGcodeLine = None
         self.gcode: deque = deque()
 
         # Map incoming events to local member variables and callback methods.
@@ -29,6 +30,7 @@ class _ControllerBase(_CoreComponent):
                 ("setDesiredConnectionStatus", ConnectionState.CONNECTED),
                 self.keyGen("disconnect"):
                 ("setDesiredConnectionStatus", ConnectionState.NOT_CONNECTED),
+                "desiredState:newGcode": ("_newGcodeLine", None),
                 }
         # Need to call super() here as is does config based on self.eventActions.
         super().__init__(label)

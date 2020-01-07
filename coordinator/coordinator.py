@@ -19,13 +19,15 @@ class _CoreComponent:
     # Single instance for all instances.
     _eventQueue: Deque[Event] = deque()
     # Unique copy per instance.
-    exported: Dict[str, str]  # {EVENT_NAME : CLASS_PROPERTY_TO_EXPORT}
+    exported: Dict[str, str] = {
+            # EVENT_NAME : CLASS_PROPERTY_TO_EXPORT
+            }
     _subscriptions: Dict[str, Any]
     _delivered: Deque[Any]
    
     def __init__(self, label: str):
         self.label: str = label
-        self.exported = {}
+        #self.exported = {}
         self._subscriptions = {}
         self._delivered = deque()
 
@@ -93,8 +95,21 @@ class _CoreComponent:
                 self._delivered.append((event, value))
 
     def processDeliveredEvents(self):
-        while self._delivered:
-            event = self._delivered.popleft()
+        """ Do something useful with the received events. """
+        # for event in self._delivered:
+        #     print(self.label, event)
+        pass
+
+
+    def _processDeliveredEvents(self):
+        """ This should be done after /all/ events have been delivered for all
+        components and the existing event queue cleared.
+        Some of the actions performed by this method will cause new events to be
+        scheduled, mixing events from this round with the next.
+        """
+        #while self._delivered:
+        #    event = self._delivered.popleft()
+        for event in self._delivered:
             eventName, eventValue = event
             action, defaultValue = self.eventActions[eventName]
 
@@ -102,6 +117,9 @@ class _CoreComponent:
                 # Use the one configured in this class.
                 eventValue = defaultValue
 
+            if not isinstance(action, str):
+                raise AttributeError("Action (in self.eventActions) should be a "
+                                     "string of the property name")
             if not hasattr(self, action):
                 raise AttributeError("Property for event \"%s\" does not exist.")
             callback = getattr(self, action)
@@ -163,6 +181,8 @@ class Coordinator(_CoreComponent):
 
 
     def _clearEvents(self):
+        #if(self._eventQueue):
+        #    print("Clearing event queue: ", self._eventQueue)
         self._eventQueue.clear()
 
     def activateController(self, label=None, controller=None):
@@ -214,8 +234,16 @@ class Coordinator(_CoreComponent):
 
         for component in self.allComponents:
             component.receive()
-
+        
         self._clearEvents()
+
+        for component in self.allComponents:
+            #if component._delivered:
+            #    print(component.label, component._delivered)
+
+            component._processDeliveredEvents()
+            component.processDeliveredEvents()
+            component._delivered.clear()
 
         return self.running
 
