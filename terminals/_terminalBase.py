@@ -1,6 +1,6 @@
 from typing import List, Dict
 
-from coordinator.coordinator import _CoreComponent
+from component import _ComponentBase
 
 
 def diffDicts(original: Dict, new: Dict) -> Dict:
@@ -37,7 +37,7 @@ def diffDicts(original: Dict, new: Dict) -> Dict:
     return diff
 
 
-class _TerminalBase(_CoreComponent):
+class _TerminalBase(_ComponentBase):
     def __init__(self, layouts: List=[], label="gui"):
         super().__init__(label)
 

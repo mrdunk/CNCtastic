@@ -6,9 +6,6 @@ class MockWidget(JogWidget):
     def __init__(self):
         super().__init__("MockWidget")
         
-        # Not the default in the base class but check it here to verify tests.
-        self.readyForPush = False
-
         self.logCallData: {} = {}
         self.overideCallReturn: {} = {}
 
@@ -27,16 +24,7 @@ class MockWidget(JogWidget):
                 return self.overideCallReturn[method]
         return expectedReturnVal
 
-    def push(self, data: State) -> bool:
-        assert(True == self.readyForPush)
-
-        self.logCall("push", [data], {})
-        returnVal = super().push(data)
-        return self.overideReturn("push", returnVal)
-
-    def pull(self) -> UpdateState:
-        assert(True == self.readyForPull)
-
-        self.logCall("pull", [], {})
-        returnVal = super().pull()
-        return self.overideReturn("pull", returnVal)
+    #def pull(self) -> UpdateState:
+    #    self.logCall("pull", [], {})
+    #    returnVal = super().pull()
+    #    return self.overideReturn("pull", returnVal)

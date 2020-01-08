@@ -1,13 +1,13 @@
-from typing import Dict
+from typing import Dict, Any
 from enum import Enum
 from collections import deque
 
 from pygcode import Machine
 
-from coordinator.coordinator import _CoreComponent
+from component import _ComponentBase
 from definitions import FlagState, Command, Response, State, ConnectionState
 
-class _ControllerBase(_CoreComponent):
+class _ControllerBase(_ComponentBase):
     """ Base class for CNC machine control hardware. """
 
     # Strings of the gcode commands this controller supports.
@@ -16,7 +16,6 @@ class _ControllerBase(_CoreComponent):
     def __init__(self, label):
         self.active: bool = False
         self.readyForPush: bool = False
-        self.readyForPull: bool = False
         self.connectionStatus: ConnectionState = ConnectionState.UNKNOWN
         self.desiredConnectionStatus: ConnectionState = ConnectionState.NOT_CONNECTED
         self.state: State = State(vm=Machine())
@@ -46,14 +45,6 @@ class _ControllerBase(_CoreComponent):
         self.connectionStatus = connectionStatus
         self.publishOneByValue(self.keyGen("connectionStatus"), connectionStatus)
 
-    def push(self, data: Command) -> bool:
-        raise NotImplementedError
-        return False
-
-    def pull(self) -> Response:
-        raise NotImplementedError
-        return ""
-
     def connect(self):
         raise NotImplementedError
         return ConnectionState.UNKNOWN
@@ -62,12 +53,16 @@ class _ControllerBase(_CoreComponent):
         raise NotImplementedError
         return ConnectionState.UNKNOWN
 
-    def isGcodeSupported(self, command: str) -> bool:
-        return str(command) in self.SUPPORTED_GCODE
-    
-    def service(self):
-        """ To be called periodically.
-        Any housekeeping tasks should happen here. """
-        raise NotImplementedError
-
+    def isGcodeSupported(self, command: Any) -> bool:
+        if isinstance(command, list):
+            returnVal = True
+            for gcode in command:
+                returnVal = returnVal and str(gcode.word_key) in self.SUPPORTED_GCODE
+            return returnVal
+        elif isinstance(command, GCode):
+            return str(command.word_key) in self.SUPPORTED_GCODE
+        elif isinstance(command, str):
+            return str(command) in self.SUPPORTED_GCODE
+        
+        raise AttributeError("Cannot tell if %s is valid gcode." % command)
 

@@ -78,10 +78,4 @@ class ConnectionState(Enum):
     DISCONNECTING = 5
     FAIL = 6
     
-class InterfaceState(Enum):
-    UNKNOWN = 0
-    STALE_DATA = 1
-    UP_TO_DATE = 2
-    FAIL = 3
-
 

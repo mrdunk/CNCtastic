@@ -20,19 +20,6 @@ class MockController(DebugController):
                 return self.overideCallReturn[method]
         return expectedReturnVal
 
-    def push(self, data: Command) -> bool:
-        self.logCall("push", [data], {})
-        
-        self._sequences.append(data)
-        self.readyForPush = False
-
-        return self.overideReturn("push", True)
-
-    def pull(self) -> Response:
-        self.logCall("pull", [], {})
-        returnVal = Response(self.state.confirmedSequence)
-        return self.overideReturn("pull", returnVal)
-    
     def service(self):
         if self.connectionStatus == ConnectionState.CONNECTING:
             self.connectionStatus = ConnectionState.CONNECTED
@@ -41,5 +28,4 @@ class MockController(DebugController):
 
         if not self.connectionStatus == ConnectionState.CONNECTED:
             self.readyForPush = False
-            self.readyForPull = False
 

@@ -3,8 +3,8 @@ from typing import Dict
 
 from pygcode import block, GCodeLinearMove, GCodeRapidMove, GCodeArcMoveCW, GCodeArcMoveCCW, GCodeStraightProbe, GCodeCancelCannedCycle, GCodeIncrementalDistanceMode, GCodeAbsoluteDistanceMode, GCodeUseMillimeters, GCodeUseInches, GCodeFeedRate
 
-from coordinator.coordinator import _CoreComponent
-from definitions import FlagState, State, InterfaceState
+from component import _ComponentBase
+from definitions import FlagState, State
 
 
 class UpdateState:
@@ -33,7 +33,7 @@ class UpdateState:
         target.halt = self.halt
         target.pause = self.pause
 
-class _InterfaceBase(_CoreComponent):
+class _InterfaceBase(_ComponentBase):
     """ A base class for user input objects used for controlling the machine. """
 
     modalGroups = {
@@ -79,51 +79,13 @@ class _InterfaceBase(_CoreComponent):
     def __init__(self, label: str = ""):
         """ Args:
                 label: A string identifying this object.
-                readyForPush: A boolean flag indicating this object is ready to receive data.
-                readyForPull: A boolean flag indicating this object has data ready to be pulled.
                 status: The current state of this object. eg: Is it ready for use?
                 state: A reference to the Coordinator's state object. Do not modify it here.
                 _updatedData: Store desired changes to state here to be pulled later. """
         super().__init__(label)
-        self.readyForPush: bool
-        self.readyForPull: bool
-        self.status: InterfaceState = InterfaceState.UNKNOWN
         self.state: State = None
         self._updatedData: UpdateState = UpdateState()
     
-    def push(self, data: State) -> bool:
-        """ Send data to this object. """
-        self.state = data
-        self.status = InterfaceState.UP_TO_DATE
-
-        # Since we copy the data object by reference, we don't have to come back
-        # here to copy it in here again. self.state will remain up to datewithout
-        # the copy.
-        # The following switches off push updates from the Coordinator.
-        self.readyForPush = False
-
-        return True
-
-    def pull(self) -> UpdateState:
-        """ Get data from this object. """
-        self.readyForPull = False
-        
-        # Return reference to the old self._updatedData and create a new (blank)
-        # object for the next set of updates.
-        command = self._updatedData
-        self._updatedData = UpdateState()
-        return command
-
-    def connect(self):
-        """ Any initialisation tasks go here. """
-        raise NotImplementedError
-        return InterfaceState.UNKNOWN
-
-    def disconnect(self):
-        """ Any cleanup tasks go here. """
-        raise NotImplementedError
-        return InterfaceState.UNKNOWN
-
     def processDeliveredEvents(self):
         for flag in self._updatedData.flags:
             attr = getattr(self._updatedData, flag)
@@ -131,6 +93,9 @@ class _InterfaceBase(_CoreComponent):
                 self.publishOneByValue("desiredState:%s" % flag, attr)
         if self._updatedData.gcode is not None:
             self.publishOneByValue("desiredState:newGcode", ("jog", self._updatedData.gcode))
+        
+        # Clear self._updatedData 
+        self._updatedData = UpdateState()
        
     def moveTo(self, **argkv):
         """ Move the machine head.
@@ -195,7 +160,5 @@ class _InterfaceBase(_CoreComponent):
         if self._updatedData.gcode is None:
             self._updatedData.gcode = block.Block()
         self._updatedData.gcode.gcodes.append(movetype(**argkv))
-        self.readyForPull = True
-
         
 

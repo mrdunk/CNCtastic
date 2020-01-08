@@ -5,7 +5,7 @@ from collections import deque
 import PySimpleGUI as sg
 
 from interfaces._interfaceBase import _InterfaceBase
-from definitions import FlagState, State, InterfaceState
+from definitions import FlagState, State
 
 className = "JogWidget"
 
@@ -17,9 +17,6 @@ class JogWidget(_InterfaceBase):
     head to given coordinates. """
 
     def __init__(self, label: str = "jogWidget"):
-        self.readyForPush = True
-        self.readyForPull = False
-
         self.label = label
         # Map incoming events to local member variables and callback methods.
         self.eventActions = {
@@ -43,9 +40,6 @@ class JogWidget(_InterfaceBase):
         super().__init__(label)
 
         self._xyJogStep = 10
-
-    def __del__(self):
-        self.disconnect()
 
     def _xyJogStepMultiply(self, multiplier):
         self._xyJogStep = round1SF(self._xyJogStep * multiplier)
@@ -84,20 +78,6 @@ class JogWidget(_InterfaceBase):
                 ],
                 ]
         return layout
-
-    def service(self):
-        """ To be called periodically.
-        Any housekeeping tasks should happen here. """
-        if self.status == InterfaceState.UNKNOWN:
-            self.connect()
-
-    def connect(self):
-        self.status = InterfaceState.UP_TO_DATE
-        return self.status
-
-    def disconnect(self):
-        self.status = InterfaceState.UNKNOWN
-        return self.status
 
     def moveTo(self, **argkv):
         """ Move the machine head.

@@ -1,5 +1,6 @@
-from typing import Dict
+from typing import Dict, Deque
 import time
+from collections import deque
 
 import PySimpleGUI as sg
 
@@ -8,7 +9,6 @@ from definitions import Command, Response, ConnectionState
 
 CONNECT_DELAY =  4  # seconds
 PUSH_DELAY = 1      # seconds
-PULL_DELAY = 1      # seconds
 
 className = "DebugController"
 
@@ -38,6 +38,7 @@ class DebugController(_ControllerBase):
         self._lastPushAt: int = 0;
         self._lastPullAt: int = 0;
         self._sequences: [] = []
+        self._queuedGcode: Deque = deque()
 
     def guiLayout(self):
         layout = [
@@ -57,37 +58,6 @@ class DebugController(_ControllerBase):
                 ]
         return layout
     
-    def push(self, data: Command) -> bool:
-        assert self.readyForPush, "readyForPush flag not set"
-        assert self.connectionStatus == ConnectionState.CONNECTED, \
-                "Controller not connected"
-
-        self._lastPushAt = time.time()
-
-        self.state.confirmedSequence = data.sequence
-        if data.gcode:
-            self._sequences.append(data)
-            self.gcode.append(data.gcode)
-            print("CONTROLLER: %s  RECEIVED: %s  BUFFER: %s" %
-                    (self.label, data.gcode["gcode"].gcodes, len(self.gcode)))
-            gcode = ""
-            for line in self.gcode:
-                gcode += str(line["gcode"].gcodes) + "\n"
-            self.publishOneByValue("debug:gcode", gcode)
-        self.readyForPush = False
-        return True
-
-    def pull(self) -> Response:
-        assert self.readyForPull, "readyForPull flag not set"
-        assert self.connectionStatus == ConnectionState.CONNECTED, \
-                "Controller not connected"
-
-        if time.time() - self._lastPullAt < PULL_DELAY:
-            return None
-        self._lastPullAt = time.time()
-
-        return Response(self.state.confirmedSequence)
-
     def connect(self) :
         if self.connectionStatus in [
                 ConnectionState.CONNECTING,
@@ -109,7 +79,6 @@ class DebugController(_ControllerBase):
         self._connectTime = time.time()
 
         self.readyForPush = False
-        self.readyForPull = False
         
         return self.connectionStatus
     
@@ -129,13 +98,31 @@ class DebugController(_ControllerBase):
         if self.connectionStatus == ConnectionState.CONNECTED:
             if time.time() - self._lastPushAt >= PUSH_DELAY:
                 self.readyForPush = True
-            if time.time() - self._lastPullAt >= PULL_DELAY and self._sequences:
-                self.readyForPull = True
         else:
                 self.readyForPush = False
-                self.readyForPull = False
     
     def processDeliveredEvents(self):
-        if self._delivered:
-            print(self.label, self._delivered)
+        if self._delivered and self.connectionStatus is ConnectionState.CONNECTED:
+            # Save incoming data to local buffer until it can be processed.
+            # (self._queuedGcode will be cleared later this iteration.)
+            for event, value in self._delivered:
+                if event == "desiredState:newGcode":
+                    self._queuedGcode.append(value)
+                # TODO: Flags.
+
+        if self.readyForPush and self._queuedGcode:
+            # Process local buffer.
+            self._lastPushAt = time.time()
+            jog, gcode = self._queuedGcode.popleft()
+
+            self.gcode.append((jog, gcode))
+            print("CONTROLLER: %s  RECEIVED: %s  BUFFER: %s" %
+                    (self.label, gcode.gcodes, len(self.gcode)))
+        
+            gcodeDebugOutput = ""
+            for jog, gc in self.gcode:
+                
+                gcodeDebugOutput += "%s ; jog=%s ; supported=%s\n" % (
+                        str(gc.gcodes), jog, self.isGcodeSupported(gc.gcodes))
+            self.publishOneByValue("debug:gcode", gcodeDebugOutput)
 
