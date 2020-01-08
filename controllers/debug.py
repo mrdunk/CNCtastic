@@ -102,7 +102,9 @@ class DebugController(_ControllerBase):
                 self.readyForPush = False
     
     def processDeliveredEvents(self):
-        if self._delivered and self.connectionStatus is ConnectionState.CONNECTED:
+        if(self._delivered and
+                self.connectionStatus is ConnectionState.CONNECTED and
+                self.active):
             # Save incoming data to local buffer until it can be processed.
             # (self._queuedGcode will be cleared later this iteration.)
             for event, value in self._delivered:

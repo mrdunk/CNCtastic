@@ -57,6 +57,38 @@ class TestController(unittest.TestCase):
         self.mockController.service()
         self.assertEqual(self.mockController.connectionStatus, ConnectionState.CONNECTED)
 
+    def test_validGcodeByString(self):
+        """ """
+        # TODO
+
+    def test_validGcodeByLine(self):
+        """ """
+        # TODO
+
+    def test_disabledNotReactsToEvent(self):
+        """ 
+        """
+        # TODO
+
+    def test_enabledReactsToEvent(self):
+        """ 
+        """
+        # TODO
+
+class TestCoordinator(unittest.TestCase):
+    def setUp(self):
+        self.mockWidget = MockWidget()
+        self.mockController = MockController()
+        self.coordinator = Coordinator({}, {"mw": self.mockWidget}, {"mc": self.mockController})
+        self.coordinator.activeController = self.mockController
+        self.coordinator.activeController.connect()
+        self.coordinator.update()  # Push events to subscribed targets.
+
+    def tearDown(self):
+        self.mockWidget._eventQueue.clear()
+        self.assertEqual(len(self.mockController._eventQueue), 0)
+        self.coordinator.close()
+
     def test_collectionNameIsLabel(self):
         """ The keys in the collections should match the component's label. """
         self.mockController1 = MockController("debug")
@@ -66,7 +98,6 @@ class TestController(unittest.TestCase):
 
         self.assertIn(self.mockController1.label, self.coordinator.controllers)
         self.assertIn(self.mockController2.label, self.coordinator.controllers)
-
 
     def test_activateControllerTiebreaker(self):
         """ The "debug" controller gets enabled if no others are eligible. """
@@ -82,6 +113,8 @@ class TestController(unittest.TestCase):
             "mc3": self.mockController3,
             })
 
+        self.assertFalse(self.mockController1.active)
+        self.assertFalse(self.mockController2.active)
         self.assertTrue(self.mockController3.active)
         self.assertIs(self.coordinator.activeController, self.mockController3)
 
@@ -99,7 +132,9 @@ class TestController(unittest.TestCase):
             "mc3": self.mockController3,
             })
 
+        self.assertFalse(self.mockController1.active)
         self.assertTrue(self.mockController2.active)
+        self.assertFalse(self.mockController3.active)
         self.assertIs(self.coordinator.activeController, self.mockController2)
 
     def test_activateControllerMultiActiveFlag(self):
@@ -117,6 +152,8 @@ class TestController(unittest.TestCase):
             })
 
         self.assertTrue(self.mockController1.active)
+        self.assertFalse(self.mockController2.active)
+        self.assertFalse(self.mockController3.active)
         self.assertIs(self.coordinator.activeController, self.mockController1)
 
     def test_activateControllerPreferNotDebug(self):
@@ -135,11 +172,13 @@ class TestController(unittest.TestCase):
             })
 
         # Not the first active in the list..
+        self.assertFalse(self.mockController1.active)
+        self.assertFalse(self.mockController2.active)
         self.assertTrue(self.mockController3.active)
         self.assertIs(self.coordinator.activeController, self.mockController3)
 
     def test_activateControllerAddLater(self):
-        """ The first controller with it's "active" flag set gets enabled. """
+        """ Add a new controller later. """
         self.mockController1 = MockController("owl")
         self.mockController2 = MockController("tiger")
         self.mockController3 = MockController("debug")
@@ -154,19 +193,27 @@ class TestController(unittest.TestCase):
 
         # Auto chose the active one.
         self.assertTrue(self.mockController1.active)
+        self.assertFalse(self.mockController2.active)
+        self.assertFalse(self.mockController3.active)
         self.assertIs(self.coordinator.activeController, self.mockController1)
 
         self.mockController4 = MockController("KingKong")
         self.mockController4.active = False
+        print(self.mockController4)
         self.coordinator.activateController(controller=self.mockController4)
         
         # The new one is now added and active.
+        self.assertFalse(self.mockController1.active)
+        self.assertFalse(self.mockController2.active)
+        self.assertFalse(self.mockController3.active)
         self.assertTrue(self.mockController4.active)
         self.assertIn(self.mockController4.label, self.coordinator.controllers)
+        self.assertIn(self.mockController4, self.coordinator.allComponents)
+        self.assertEqual(self.coordinator.allComponents.count(self.mockController4), 1)
         self.assertIs(self.coordinator.activeController, self.mockController4)
 
     def test_activateControllerByInstance(self):
-        """ The first controller with it's "active" flag set gets enabled. """
+        """ Enable a controller specified by instance. """
         self.mockController1 = MockController("owl")
         self.mockController2 = MockController("tiger")
         self.mockController3 = MockController("debug")
@@ -174,24 +221,29 @@ class TestController(unittest.TestCase):
         self.mockController2.active = False
         self.mockController3.active = False
         self.coordinator = Coordinator({}, {}, {
-            "mc1": self.mockController1,
-            "mc2": self.mockController2,
-            "mc3": self.mockController3,
+            "owl": self.mockController1,
+            "tiger": self.mockController2,
+            "debug": self.mockController3,
             })
 
         # Auto chose the active one.
         self.assertTrue(self.mockController1.active)
+        self.assertFalse(self.mockController2.active)
+        self.assertFalse(self.mockController3.active)
         self.assertIs(self.coordinator.activeController, self.mockController1)
 
         self.coordinator.activateController(controller=self.mockController2)
         
         # The specified one is now active.
+        self.assertFalse(self.mockController1.active)
         self.assertTrue(self.mockController2.active)
+        self.assertFalse(self.mockController3.active)
         self.assertIn(self.mockController2.label, self.coordinator.controllers)
         self.assertIs(self.coordinator.activeController, self.mockController2)
+        self.assertEqual(self.coordinator.allComponents.count(self.mockController2), 1)
 
     def test_activateControllerByLabel(self):
-        """ The first controller with it's "active" flag set gets enabled. """
+        """ The controller with the specified label gets enabled. """
         self.mockController1 = MockController("owl")
         self.mockController2 = MockController("tiger")
         self.mockController3 = MockController("debug")
@@ -211,51 +263,81 @@ class TestController(unittest.TestCase):
         self.coordinator.activateController(label="debug")
         
         # The specified one is now active.
+        self.assertFalse(self.mockController1.active)
+        self.assertFalse(self.mockController2.active)
         self.assertTrue(self.mockController3.active)
         self.assertIn(self.mockController3.label, self.coordinator.controllers)
         self.assertIs(self.coordinator.activeController, self.mockController3)
 
-
-class TestCoordinator(unittest.TestCase):
-    def setUp(self):
-        self.mockWidget = MockWidget()
-        self.mockController = MockController()
-        self.coordinator = Coordinator({}, {"mw": self.mockWidget}, {"mc": self.mockController})
-        self.coordinator.activeController = self.mockController
-        self.coordinator.activeController.connect()
-        self.coordinator.activeController.service()
-
-    def tearDown(self):
-        self.mockWidget._eventQueue.clear()
-        self.assertEqual(len(self.mockController._eventQueue), 0)
-        self.coordinator.close()
+    def test_pushFromInterfaceToController(self):
+        """ TODO """
 
     def test_swapControllers(self):
-        """ Push to one controller, set a diferent controller active, push there
+        """ Push to one controller, set a different controller active, push there
         then revert and confirm original has correct state. """
-        # TODO
-        pass
+        self.assertIs(self.coordinator.activeController, self.mockController)
+        self.assertEqual(self.mockController.connectionStatus, ConnectionState.CONNECTED)
+        # No data on mockController yet.
+        self.assertEqual(len(self.mockController.gcode), 0)
 
+        # Send data to controller.
+        self.mockWidget.moveTo(x=10, y=20, f=100)
+        self.coordinator.update()  # Push event from mockWidget onto queue.
+        self.coordinator.update()  # Push event from queue to mockController.
+        self.mockWidget.moveTo(x=50, y=100, f=100)
+        self.coordinator.update()  # Push event from mockWidget onto queue.
+        self.coordinator.update()  # Push event from queue to mockController.
 
-class TestControler(unittest.TestCase):
-    def setUp(self):
-        self.mockController = MockController()
+        self.assertEqual(len(self.mockController.gcode), 2)
+        
+        # Create new controller and make it active.
+        self.mockController2 = MockController("owl")
+        self.mockController2.connect()
+        self.mockController2.service()  # Move from CONNECTING to CONNECTED
+        self.coordinator.activateController(controller=self.mockController2)
 
-    def test_validGcodeByString(self):
-        """ """
-        pass
+        self.assertEqual(self.mockController2.connectionStatus, ConnectionState.CONNECTED)
 
-    def test_validGcodeByLine(self):
-        """ """
-        pass
+        self.assertFalse(self.mockController.active)
+        self.assertTrue(self.mockController2.active)
+        self.assertIs(self.coordinator.activeController, self.mockController2)
 
-    def test_disabledNotReactsToEvent(self):
-        """ 
-        """
+        # No data on mockController2 yet.
+        self.assertEqual(len(self.mockController2.gcode), 0)
 
-    def test_enabledReactsToEvent(self):
-        """ 
-        """
+        # Push data to new controller.
+        self.mockWidget.moveTo(x=100, y=200, f=1000)
+        self.coordinator.update()  # Push event from mockWidget onto queue.
+        self.coordinator.update()  # Push event from queue to mockController.
+
+        # Has not changed data on old (inactive) controller.
+        self.assertEqual(len(self.mockController.gcode), 2)
+        # Has changed data on new (active) controller.
+        self.assertEqual(len(self.mockController2.gcode), 1)
+
+        # Back to original controller.
+        self.coordinator.activateController(controller=self.mockController)
+
+        # Push data to original controller.
+        self.mockWidget.moveTo(x=-1, y=-2, f=1)
+        self.coordinator.update()  # Push event from mockWidget onto queue.
+        self.coordinator.update()  # Push event from queue to mockController.
+
+        # New data on old (active) controller.
+        self.assertEqual(len(self.mockController.gcode), 3)
+        # No change on new (inactive) controller.
+        self.assertEqual(len(self.mockController2.gcode), 1)
+
+    def test_componentNamesMatch(self):
+        """ TODO """
+        self.mockController1 = MockController("owl")
+        self.mockController2 = MockController("tiger")
+        self.coordinator = Coordinator({}, {}, {
+            "one": self.mockController1,
+            "two": self.mockController2,
+            })
+
+        self.assertIn(self.mockController1.lebel, self.coordinator.controllers)
 
 
 class TestEvents(unittest.TestCase):

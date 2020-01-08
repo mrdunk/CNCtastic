@@ -61,10 +61,26 @@ class Coordinator(_ComponentBase):
         self._eventQueue.clear()
 
     def activateController(self, label=None, controller=None):
+        """ Set a controller as the active one.
+        Args:
+            label: If set, the active controller will be the one matching "label"
+                   parameter.
+            controller: If set, the active controller will be the one matching
+                   this instance. If no matching instance is found, it will be
+                   added as a candidate and activated.
+        """
         def _activate(candidate):
             if self.activeController:
                 self.activeController.active = False
             self.activeController = candidate
+
+        def _onlyOneActive():
+            assert self.activeController, "No active controller set."
+            for controllerName, candidateController in self.controllers.items():
+                if candidateController is self.activeController:
+                    candidateController.active = True
+                else:
+                    candidateController.active = False
 
         for controllerName, candidateController in self.controllers.items():
             if candidateController.label == "debug":
@@ -83,16 +99,19 @@ class Coordinator(_ComponentBase):
                 _activate(candidateController)
                 break
 
-        self.activeController.active = True
-
-        if self.activeController and not controller:
+        if((self.activeController and not controller) or
+                (self.activeController.label == controller.label) or
+                (self.activeController is controller)):
+            _onlyOneActive()
             return
 
         assert not label, "Could not find controller matching '%s'" % label
 
+        # This is a new controller.
         self.controllers[controller.label] = controller
+        self.allComponents.append(controller)
         self.activeController = controller
-        self.activeController.active = True
+        _onlyOneActive()
 
     def update(self) -> bool:
         """ Iterate through all other components and service all data transfer
@@ -116,6 +135,8 @@ class Coordinator(_ComponentBase):
         for component in self.allComponents:
             #if component._delivered:
             #    print(component.label, component._delivered)
+            #else:
+            #    print(component.label)
 
             component._processDeliveredEvents()
             component.processDeliveredEvents()

@@ -26,6 +26,8 @@ class MockController(DebugController):
         elif self.connectionStatus == ConnectionState.DISCONNECTING:
             self.connectionStatus = ConnectionState.NOT_CONNECTED
 
-        if not self.connectionStatus == ConnectionState.CONNECTED:
+        if self.connectionStatus == ConnectionState.CONNECTED:
+            self.readyForPush = True
+        else:
             self.readyForPush = False
 
