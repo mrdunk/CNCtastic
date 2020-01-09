@@ -11,7 +11,7 @@ class Coordinator(_ComponentBase):
     Handles polling all other components for new data and updating them as they
     request data. """
 
-    def __init__(self, terminals: Dict, interfaces: Dict, controllers: Dict):
+    def __init__(self, terminals: List, interfaces: List, controllers: List):
         """
         Args:
             interfaces: A list of objects deriving from the _InterfaceBase class.
@@ -19,9 +19,9 @@ class Coordinator(_ComponentBase):
         """
         super().__init__("__coordinator__")
 
-        self.terminals: Dict() = terminals
-        self.interfaces: Dict() = interfaces
-        self.controllers: Dict() = controllers
+        self.terminals: Dict() = {terminal.label:terminal for terminal in terminals}
+        self.interfaces: Dict() = {interface.label:interface for interface in interfaces}
+        self.controllers: Dict() = {controller.label:controller for controller in controllers}
 
         self.activeController = None
         self.gcode: deque = deque()
@@ -30,29 +30,30 @@ class Coordinator(_ComponentBase):
         
         self.allComponents = ( 
                 [self] + 
-                list(terminals.values()) + 
-                list(interfaces.values()) + 
-                list(controllers.values()))
+                list(terminals) + 
+                list(interfaces) + 
+                list(controllers))
         self.guiSpecificSetup()
 
         self.running = True
 
     def guiSpecificSetup(self):
-        needsLayout = []
-        for terminal in self.terminals.values():
-            if hasattr(terminal, "layout"):
-                print("Configuring GUI: %s" % terminal.label)
-                needsLayout.append(terminal)
-        if not needsLayout:
-            # No plugins care about GUI layout information.
-            return
-
         layouts = {}
         for component in self.allComponents:
             if hasattr(component, "guiLayout"):
                 layouts[component.label] = component.guiLayout()
-        for component in needsLayout:
-            component.setup(layouts)
+
+        # Activate terminals.
+        for terminal in self.terminals.values():
+            print("Terminal %s being activated: %s" % (terminal.label, terminal.activateNow))
+            if not terminal.activateNow:
+                continue
+
+            if hasattr(terminal, "layout"):
+                print("Configuring GUI: %s" % terminal.label)
+                terminal.setup(layouts)
+            else:
+                terminal.setup()
 
 
     def _clearEvents(self):
@@ -98,6 +99,10 @@ class Coordinator(_ComponentBase):
             if candidateController is controller:
                 _activate(candidateController)
                 break
+        if not self.activeController and not controller:
+            # Don't have an self.activeController yet.
+            # Let's just take the first.
+            self.activeController = list(self.controllers.values())[0]
 
         if((self.activeController and not controller) or
                 (self.activeController.label == controller.label) or

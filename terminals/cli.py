@@ -8,13 +8,17 @@ import curses
 
 from terminals._terminalBase import _TerminalBase, diffDicts
 
-#className = "Cli"
+className = "Cli"
 
 class Cli(_TerminalBase):
     def __init__(self, layouts: List=[], label="cli"):
         super().__init__(label)
         self.setupDone: bool = False
-   
+        self.activeByDefault = False
+        self.description = "CLI interface for console operation."
+
+    def setup(self):
+        self.setupDone = True
         os.environ.setdefault('ESCDELAY', '25')
 
         # Replace default stdout (terminal) with a stream so it doesn't mess with
@@ -81,7 +85,9 @@ class Cli(_TerminalBase):
         Returns:
             bool: True: Continue execution.
                   False: An "Exit" or empty event occurred. Stop execution. """
-
+        if not self.setupDone:
+            return True
+        
         c = None
         try:
             #c = self.stdscr.getkey()   # read a keypress
@@ -114,14 +120,19 @@ class Cli(_TerminalBase):
         return True
 
     def close(self):
+        if not self.setupDone:
+            return
+
         curses.nocbreak()
         self.stdscr.keypad(False)
         curses.echo()
-        input()
+        #input()
         curses.endwin()
 
         # Replace stdout
         sys.stdout = sys.__stdout__
         #sys.stdout.write(self.tempStdout.getvalue())
+
+        self.setupDone = False
 
 

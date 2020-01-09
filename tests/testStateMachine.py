@@ -79,7 +79,7 @@ class TestCoordinator(unittest.TestCase):
     def setUp(self):
         self.mockWidget = MockWidget()
         self.mockController = MockController()
-        self.coordinator = Coordinator({}, {"mw": self.mockWidget}, {"mc": self.mockController})
+        self.coordinator = Coordinator([], [self.mockWidget], [self.mockController])
         self.coordinator.activeController = self.mockController
         self.coordinator.activeController.connect()
         self.coordinator.update()  # Push events to subscribed targets.
@@ -93,8 +93,7 @@ class TestCoordinator(unittest.TestCase):
         """ The keys in the collections should match the component's label. """
         self.mockController1 = MockController("debug")
         self.mockController2 = MockController("owl")
-        self.coordinator = Coordinator({}, {},
-                {"debug": self.mockController1, "owl": self.mockController2})
+        self.coordinator = Coordinator([], [], [self.mockController1, self.mockController2])
 
         self.assertIn(self.mockController1.label, self.coordinator.controllers)
         self.assertIn(self.mockController2.label, self.coordinator.controllers)
@@ -107,11 +106,8 @@ class TestCoordinator(unittest.TestCase):
         self.mockController1.active = False
         self.mockController2.active = False
         self.mockController3.active = False
-        self.coordinator = Coordinator({}, {}, {
-            "mc1": self.mockController1,
-            "mc2": self.mockController2,
-            "mc3": self.mockController3,
-            })
+        self.coordinator = Coordinator([], [],
+                [self.mockController1, self.mockController2, self.mockController3])
 
         self.assertFalse(self.mockController1.active)
         self.assertFalse(self.mockController2.active)
@@ -126,11 +122,8 @@ class TestCoordinator(unittest.TestCase):
         self.mockController1.active = False
         self.mockController2.active = True
         self.mockController3.active = False
-        self.coordinator = Coordinator({}, {}, {
-            "mc1": self.mockController1,
-            "mc2": self.mockController2,
-            "mc3": self.mockController3,
-            })
+        self.coordinator = Coordinator([], [],
+                [self.mockController1, self.mockController2, self.mockController3])
 
         self.assertFalse(self.mockController1.active)
         self.assertTrue(self.mockController2.active)
@@ -145,11 +138,8 @@ class TestCoordinator(unittest.TestCase):
         self.mockController1.active = True
         self.mockController2.active = True
         self.mockController3.active = False
-        self.coordinator = Coordinator({}, {}, {
-            "mc1": self.mockController1,
-            "mc2": self.mockController2,
-            "mc3": self.mockController3,
-            })
+        self.coordinator = Coordinator([], [],
+                [self.mockController1, self.mockController2, self.mockController3])
 
         self.assertTrue(self.mockController1.active)
         self.assertFalse(self.mockController2.active)
@@ -165,11 +155,8 @@ class TestCoordinator(unittest.TestCase):
         self.mockController1.active = True
         self.mockController2.active = False
         self.mockController3.active = True
-        self.coordinator = Coordinator({}, {}, {
-            "mc1": self.mockController1,
-            "mc2": self.mockController2,
-            "mc3": self.mockController3,
-            })
+        self.coordinator = Coordinator([], [],
+                [self.mockController1, self.mockController2, self.mockController3])
 
         # Not the first active in the list..
         self.assertFalse(self.mockController1.active)
@@ -185,11 +172,8 @@ class TestCoordinator(unittest.TestCase):
         self.mockController1.active = True
         self.mockController2.active = False
         self.mockController3.active = False
-        self.coordinator = Coordinator({}, {}, {
-            "mc1": self.mockController1,
-            "mc2": self.mockController2,
-            "mc3": self.mockController3,
-            })
+        self.coordinator = Coordinator([], [],
+                [self.mockController1, self.mockController2, self.mockController3])
 
         # Auto chose the active one.
         self.assertTrue(self.mockController1.active)
@@ -220,11 +204,8 @@ class TestCoordinator(unittest.TestCase):
         self.mockController1.active = True
         self.mockController2.active = False
         self.mockController3.active = False
-        self.coordinator = Coordinator({}, {}, {
-            "owl": self.mockController1,
-            "tiger": self.mockController2,
-            "debug": self.mockController3,
-            })
+        self.coordinator = Coordinator([], [],
+                [self.mockController1, self.mockController2, self.mockController3])
 
         # Auto chose the active one.
         self.assertTrue(self.mockController1.active)
@@ -250,11 +231,8 @@ class TestCoordinator(unittest.TestCase):
         self.mockController1.active = True
         self.mockController2.active = False
         self.mockController3.active = False
-        self.coordinator = Coordinator({}, {}, {
-            "owl": self.mockController1,
-            "tiger": self.mockController2,
-            "debug": self.mockController3,
-            })
+        self.coordinator = Coordinator([], [],
+                [self.mockController1, self.mockController2, self.mockController3])
 
         # Auto chose the active one.
         self.assertTrue(self.mockController1.active)
@@ -270,7 +248,40 @@ class TestCoordinator(unittest.TestCase):
         self.assertIs(self.coordinator.activeController, self.mockController3)
 
     def test_pushFromInterfaceToController(self):
-        """ TODO """
+        """ Data pushed as an event is processed by the controller. """
+        def dataMatch(gcode, data):
+            for section in gcode.gcodes:
+                paramDict = section.get_param_dict()
+                if section.word_letter == "G":
+                    self.assertEqual(paramDict["X"], data["X"])
+                    self.assertEqual(paramDict["Y"], data["Y"])
+                elif section.word_letter == "F":
+                    self.assertEqual(str(section), "F%s" % data["F"])
+
+        self.assertIs(self.coordinator.activeController, self.mockController)
+        self.assertEqual(self.mockController.connectionStatus, ConnectionState.CONNECTED)
+        # No data on mockController yet.
+        self.assertEqual(len(self.mockController.gcode), 0)
+
+        # Send data to controller.
+        data = {"X": 10, "Y": 20, "F": 100}
+        self.mockWidget.moveTo(**data)
+        self.coordinator.update()  # Push event from mockWidget onto queue.
+        self.coordinator.update()  # Push event from queue to mockController.
+
+        self.assertEqual(len(self.mockController.gcode), 1)
+        self.assertEqual(self.mockController.gcode[-1][0], "jog")
+        dataMatch(self.mockController.gcode[-1][1], data)
+
+        # Send more data to controller.
+        data = {"X": 1.2345, "Y": -6.7889, "F": 1000}
+        self.mockWidget.moveTo(**data)
+        self.coordinator.update()  # Push event from mockWidget onto queue.
+        self.coordinator.update()  # Push event from queue to mockController.
+
+        self.assertEqual(len(self.mockController.gcode), 2)
+        self.assertEqual(self.mockController.gcode[-1][0], "jog")
+        dataMatch(self.mockController.gcode[-1][1], data)
 
     def test_swapControllers(self):
         """ Push to one controller, set a different controller active, push there
@@ -329,15 +340,13 @@ class TestCoordinator(unittest.TestCase):
         self.assertEqual(len(self.mockController2.gcode), 1)
 
     def test_componentNamesMatch(self):
-        """ TODO """
+        """ Coordinator stores components keyed by their label. """
         self.mockController1 = MockController("owl")
         self.mockController2 = MockController("tiger")
-        self.coordinator = Coordinator({}, {}, {
-            "one": self.mockController1,
-            "two": self.mockController2,
-            })
+        self.coordinator = Coordinator([], [],
+                [self.mockController1, self.mockController2])
 
-        self.assertIn(self.mockController1.lebel, self.coordinator.controllers)
+        self.assertIn(self.mockController1.label, self.coordinator.controllers)
 
 
 class TestEvents(unittest.TestCase):

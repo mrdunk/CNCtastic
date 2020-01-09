@@ -38,8 +38,10 @@ def diffDicts(original: Dict, new: Dict) -> Dict:
 
 
 class _TerminalBase(_ComponentBase):
-    def __init__(self, layouts: List=[], label="gui"):
+    def __init__(self, label="_guiBase"):
         super().__init__(label)
+        self.activeByDefault = True
+        self.activateNow = False
 
     def service(self) -> bool:
         """ To be called once per frame.

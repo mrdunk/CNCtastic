@@ -1,11 +1,11 @@
-from typing import Dict, Any
+from typing import List, Any
 import pkgutil, os, sys
 
 #from controllers import debug
 
 baseDir = os.path.dirname(sys.argv[0])
 
-def loadPlugins(directory: str) -> Dict[str, Any]:
+def loadPlugins(directory: str) -> List[Any]:
     """ Load plugins.
     Plugins whose filename starts with "_" will be ignored.
     Each file to be exported should contain a "className" variable with the name
@@ -14,7 +14,7 @@ def loadPlugins(directory: str) -> Dict[str, Any]:
         directory: Directory relative to main.py.
     Returns:
         A dictionary of name: module pairs. """
-    plugins: Dict[str, Any] = {}
+    plugins: List[Any] = []
     fullDir = os.path.join(baseDir, directory)
     for finder, name, ispkg in pkgutil.iter_modules([fullDir]):
         if name[0] == "_":
@@ -24,7 +24,7 @@ def loadPlugins(directory: str) -> Dict[str, Any]:
             className = getattr(plugin, "className")
 
             plugin = getattr(plugin, className)()
-            plugins[plugin.label] = plugin
+            plugins.append(plugin)
             
             print("Plugin: %s.py %s as %s" % (name, className, plugin.label))
 

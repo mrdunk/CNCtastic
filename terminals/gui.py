@@ -14,6 +14,8 @@ class Gui(_TerminalBase):
         if layouts:
             self.setup(layouts)
         self._lastvalues: Dict = {}
+        self._diffValues: Dict = {}
+        self.description = "GUI interface."
 
     def setup(self, layouts: Dict):
         """ Since this component relies on data from many other components,
@@ -24,6 +26,8 @@ class Gui(_TerminalBase):
                     self.label)
             return
 
+        sg.SetOptions(element_padding=(1, 1))
+
         tabs = []
         for label, layout in layouts.items():
             tabs.append(sg.Tab(label, layout))
@@ -32,7 +36,11 @@ class Gui(_TerminalBase):
 
         self.window = sg.Window("CNCtastic", self.layout,
                                 resizable=True, size=(600,600),
-                                return_keyboard_events=True)
+                                return_keyboard_events=True,
+                                auto_size_text=False, auto_size_buttons=False,
+                                default_element_size=(4, 2),
+                                default_button_element_size=(4, 2)
+                                )
         self.setupDone: bool = True
 
         # Subscribe to events matching GUI widget keys.
@@ -44,26 +52,29 @@ class Gui(_TerminalBase):
         Returns:
             bool: True: Continue execution.
                   False: An "Exit" or empty event occurred. Stop execution. """
+        if not self.setupDone:
+            return
+
         event, values = self.window.read(timeout=500)
         if event is None or values is None:
             print("Quitting via %s" % self.label)
             return False
         
-        self.diffValues = diffDicts(self._lastvalues, values)
+        self._diffValues = diffDicts(self._lastvalues, values)
         self._lastvalues = values
         
         # Combine events with the values. Put the event key in there with empty value.
         if not event == "__TIMEOUT__":
-            self.diffValues[event] = None
+            self._diffValues[event] = None
         
-        if not event == "__TIMEOUT__" or self.diffValues:
-            print(event, self.diffValues)
+        if not event == "__TIMEOUT__" or self._diffValues:
+            print(event, self._diffValues)
 
 
         return event not in (None, 'Exit')
    
     def publish(self):
-        for eventKey, value in self.diffValues.items():
+        for eventKey, value in self._diffValues.items():
             if isinstance(value, str):
                 value = value.rstrip()
             self.publishOneByValue(eventKey, value)
@@ -83,6 +94,9 @@ class Gui(_TerminalBase):
                 self.window[event].update(value)
 
     def close(self):
+        if not self.setupDone:
+            return
+
         self.window.close()
 
     def __del__(self):

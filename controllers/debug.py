@@ -42,18 +42,20 @@ class DebugController(_ControllerBase):
 
     def guiLayout(self):
         layout = [
-                [sg.Text("Title:"), sg.Text("unknown", key=self.keyGen("label"))],
-                [sg.Text("Sequence:"), sg.Text(size=(6,1), key="confirmedSequence")],
-                [sg.Text("Connection state:"),
+                [sg.Text("Title:", size=(20,1)),
+                    sg.Text("unknown", key=self.keyGen("label"), size=(20,1))],
+                [sg.Text("Sequence:", size=(20,1)),
+                    sg.Text(size=(6,1), key="confirmedSequence")],
+                [sg.Text("Connection state:", size=(20,1)),
                     sg.Text(size=(18,1), key=self.keyGen("connectionStatus"))],
-                [sg.Text("Desired:"),
+                [sg.Text("Desired:", size=(20,1)),
                     sg.Text(size=(18,1), key=self.keyGen("desiredConnectionStatus"))],
                 [sg.Multiline(default_text="gcode", size=(200, 10), key=self.keyGen("gcode"),
                               autoscroll=True, disabled=True)],
                 [
-                    sg.Button('Connect', key=self.keyGen("connect")),
-                    sg.Button('Disconnect', key=self.keyGen("disconnect")),
-                    sg.Exit()
+                    sg.Button('Connect', key=self.keyGen("connect"), size=(10, 1), pad=(2, 2)),
+                    sg.Button('Disconnect', key=self.keyGen("disconnect"), size=(10, 1), pad=(2, 2)),
+                    sg.Exit(size=(10, 1), pad=(2, 2))
                     ],
                 ]
         return layout
