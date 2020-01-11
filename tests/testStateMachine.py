@@ -19,32 +19,32 @@ class TestController(unittest.TestCase):
     def test_initilise(self):
         """ Connect and disconnect the controller. """
         self.assertEqual(self.mockController.connectionStatus, ConnectionState.UNKNOWN)
-        self.assertFalse(self.mockController.readyForPush)
+        self.assertFalse(self.mockController.readyForData)
 
         self.mockController.service()
         self.assertEqual(self.mockController.connectionStatus, ConnectionState.UNKNOWN)
 
         self.mockController.connect()
         self.assertEqual(self.mockController.connectionStatus, ConnectionState.CONNECTING)
-        self.assertFalse(self.mockController.readyForPush)
+        self.assertFalse(self.mockController.readyForData)
 
         self.mockController.service()
-        self.mockController.readyForPush = True  # Will stay set while still connected.
+        self.mockController.readyForData = True  # Will stay set while still connected.
         self.assertEqual(self.mockController.connectionStatus, ConnectionState.CONNECTED)
-        self.assertTrue(self.mockController.readyForPush)
+        self.assertTrue(self.mockController.readyForData)
 
         self.mockController.connect()
         self.mockController.service()
         self.assertEqual(self.mockController.connectionStatus, ConnectionState.CONNECTED)
-        self.assertTrue(self.mockController.readyForPush)
+        self.assertTrue(self.mockController.readyForData)
 
         self.mockController.disconnect()
         self.assertEqual(self.mockController.connectionStatus, ConnectionState.DISCONNECTING)
-        self.assertFalse(self.mockController.readyForPush)
+        self.assertFalse(self.mockController.readyForData)
 
         self.mockController.service()
         self.assertEqual(self.mockController.connectionStatus, ConnectionState.NOT_CONNECTED)
-        self.assertFalse(self.mockController.readyForPush)
+        self.assertFalse(self.mockController.readyForData)
 
         self.mockController.disconnect()
         self.mockController.service()
@@ -52,7 +52,7 @@ class TestController(unittest.TestCase):
 
         self.mockController.connect()
         self.assertEqual(self.mockController.connectionStatus, ConnectionState.CONNECTING)
-        self.assertFalse(self.mockController.readyForPush)
+        self.assertFalse(self.mockController.readyForData)
 
         self.mockController.service()
         self.assertEqual(self.mockController.connectionStatus, ConnectionState.CONNECTED)

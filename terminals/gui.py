@@ -55,7 +55,7 @@ class Gui(_TerminalBase):
         if not self.setupDone:
             return
 
-        event, values = self.window.read(timeout=500)
+        event, values = self.window.read(timeout=10)
         if event is None or values is None:
             print("Quitting via %s" % self.label)
             return False
@@ -71,7 +71,7 @@ class Gui(_TerminalBase):
             print(event, self._diffValues)
 
 
-        return event not in (None, 'Exit')
+        return event not in (None, ) and not event.startswith("Exit")
    
     def publish(self):
         for eventKey, value in self._diffValues.items():

@@ -33,11 +33,12 @@ class Coordinator(_ComponentBase):
                 list(terminals) + 
                 list(interfaces) + 
                 list(controllers))
-        self.guiSpecificSetup()
+        self.terminalSpecificSetup()
 
         self.running = True
 
-    def guiSpecificSetup(self):
+    def terminalSpecificSetup(self):
+        # Gather GUI layouts from all components.
         layouts = {}
         for component in self.allComponents:
             if hasattr(component, "guiLayout"):
@@ -127,7 +128,9 @@ class Coordinator(_ComponentBase):
         for component in self.interfaces.values():
             component.service()
 
-        self.activeController.service()
+        for controller in self.controllers.values():
+            controller.service()
+        #self.activeController.service()
 
         for component in self.allComponents:
             component.publish()

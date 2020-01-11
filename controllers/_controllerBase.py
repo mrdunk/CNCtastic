@@ -5,7 +5,7 @@ from collections import deque
 from pygcode import Machine
 
 from component import _ComponentBase
-from definitions import FlagState, Command, Response, State, ConnectionState
+from definitions import FlagState, Command, State, ConnectionState
 
 class _ControllerBase(_ComponentBase):
     """ Base class for CNC machine control hardware. """
@@ -15,12 +15,12 @@ class _ControllerBase(_ComponentBase):
 
     def __init__(self, label):
         self.active: bool = False
-        self.readyForPush: bool = False
+        self.readyForData: bool = False
         self.connectionStatus: ConnectionState = ConnectionState.UNKNOWN
         self.desiredConnectionStatus: ConnectionState = ConnectionState.NOT_CONNECTED
         self.state: State = State(vm=Machine())
         self._newGcodeLine = None
-        self.gcode: deque = deque()
+        self._queuedGcode: Deque = deque()
 
         # Map incoming events to local member variables and callback methods.
         self.label = label
@@ -65,4 +65,17 @@ class _ControllerBase(_ComponentBase):
             return str(command) in self.SUPPORTED_GCODE
         
         raise AttributeError("Cannot tell if %s is valid gcode." % command)
+
+    def processDeliveredEvents(self):
+        if(self._delivered and
+                self.connectionStatus is ConnectionState.CONNECTED and
+                self.active):
+            # Save incoming data to local buffer until it can be processed.
+            # (self._delivered will be cleared later this iteration.)
+            for event, value in self._delivered:
+                if event == "desiredState:newGcode":
+                    self._queuedGcode.append(value)
+                # TODO: Flags.
+
+
 

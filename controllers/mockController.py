@@ -1,5 +1,5 @@
 from controllers.debug import DebugController
-from definitions import Command, Response, ConnectionState
+from definitions import Command, ConnectionState
 
 class MockController(DebugController):
     def __init__(self, label="debug"):
@@ -27,7 +27,7 @@ class MockController(DebugController):
             self.connectionStatus = ConnectionState.NOT_CONNECTED
 
         if self.connectionStatus == ConnectionState.CONNECTED:
-            self.readyForPush = True
+            self.readyForData = True
         else:
-            self.readyForPush = False
+            self.readyForData = False
 
