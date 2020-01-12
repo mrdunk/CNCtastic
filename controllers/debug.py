@@ -118,5 +118,5 @@ class DebugController(_ControllerBase):
                 
                 gcodeDebugOutput += "%s ; jog=%s ; supported=%s\n" % (
                         str(gc.gcodes), jog, self.isGcodeSupported(gc.gcodes))
-            self.publishOneByValue("debug:gcode", gcodeDebugOutput)
+            self.publishOneByValue(self.keyGen("gcode"), gcodeDebugOutput)
 

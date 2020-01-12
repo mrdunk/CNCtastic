@@ -1,6 +1,5 @@
 from interfaces.jog import JogWidget
 from interfaces._interfaceBase import UpdateState
-from definitions import State
 
 class MockWidget(JogWidget):
     def __init__(self):

@@ -2,10 +2,8 @@ from typing import Dict, Any
 from enum import Enum
 from collections import deque
 
-from pygcode import Machine
-
 from component import _ComponentBase
-from definitions import FlagState, Command, State, ConnectionState
+from definitions import FlagState, Command, ConnectionState
 
 class _ControllerBase(_ComponentBase):
     """ Base class for CNC machine control hardware. """
@@ -18,7 +16,6 @@ class _ControllerBase(_ComponentBase):
         self.readyForData: bool = False
         self.connectionStatus: ConnectionState = ConnectionState.UNKNOWN
         self.desiredConnectionStatus: ConnectionState = ConnectionState.NOT_CONNECTED
-        self.state: State = State(vm=Machine())
         self._newGcodeLine = None
         self._queuedGcode: Deque = deque()
 

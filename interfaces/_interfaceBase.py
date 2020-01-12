@@ -1,10 +1,10 @@
 from enum import Enum
 from typing import Dict
 
-from pygcode import block, GCodeLinearMove, GCodeRapidMove, GCodeArcMoveCW, GCodeArcMoveCCW, GCodeStraightProbe, GCodeCancelCannedCycle, GCodeIncrementalDistanceMode, GCodeAbsoluteDistanceMode, GCodeUseMillimeters, GCodeUseInches, GCodeFeedRate
+from pygcode import block
 
 from component import _ComponentBase
-from definitions import FlagState, State
+from definitions import FlagState, MODAL_GROUPS
 
 
 class UpdateState:
@@ -36,45 +36,7 @@ class UpdateState:
 class _InterfaceBase(_ComponentBase):
     """ A base class for user input objects used for controlling the machine. """
 
-    modalGroups = {
-            "motion": {
-                "G00": GCodeRapidMove,
-                "G01": GCodeLinearMove,
-                "G02": GCodeArcMoveCW,
-                "G03": GCodeArcMoveCCW,
-                "G38.2": GCodeStraightProbe,
-                "G38.3": GCodeStraightProbe,
-                "G38.4": GCodeStraightProbe,
-                "G38.5": GCodeStraightProbe,
-                "G80": GCodeCancelCannedCycle
-                },
-            "coordSystem": {
-                },
-            "plane": {
-                },
-            "distance": {
-                "G90": GCodeAbsoluteDistanceMode,
-                "G91": GCodeIncrementalDistanceMode
-                },
-            "arkDistance": {
-                },
-            "feedRate": {
-                },
-            "units": {
-                "G20": GCodeUseInches,
-                "G21": GCodeUseMillimeters,
-                },
-            "cutterRadComp": {
-                },
-            "toolLength": {
-                },
-            "program": {
-                },
-            "spindle:": {
-            },
-            "coolant": {
-                }
-            }
+    modalGroups = MODAL_GROUPS  # Make a class reference to avoid expensive global lookup.
 
     def __init__(self, label: str = ""):
         """ Args:
@@ -83,7 +45,6 @@ class _InterfaceBase(_ComponentBase):
                 state: A reference to the Coordinator's state object. Do not modify it here.
                 _updatedData: Store desired changes to state here to be pulled later. """
         super().__init__(label)
-        self.state: State = None
         self._updatedData: UpdateState = UpdateState()
     
     def processDeliveredEvents(self):

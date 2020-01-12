@@ -4,7 +4,7 @@ from collections import deque
 from pygcode import block, Machine
 
 from component import _ComponentBase
-from definitions import FlagState, State, Command, ConnectionState
+from definitions import FlagState, Command, ConnectionState
 
 class Coordinator(_ComponentBase):
     """ Contains all system data.

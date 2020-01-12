@@ -5,7 +5,7 @@ from collections import deque
 import PySimpleGUI as sg
 
 from interfaces._interfaceBase import _InterfaceBase
-from definitions import FlagState, State
+from definitions import FlagState
 
 className = "JogWidget"
 

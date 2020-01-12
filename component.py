@@ -3,7 +3,7 @@ from collections import deque
 
 from pygcode import block, Machine
 
-from definitions import FlagState, State, Command, ConnectionState
+from definitions import FlagState, Command, ConnectionState
 
 class _ComponentBase:
     """ General methods required by all components. """
