@@ -1,7 +1,7 @@
 from enum import Enum
 from typing import Dict
 
-from pygcode import block
+from pygcode import block, GCodeFeedRate
 
 from component import _ComponentBase
 from definitions import FlagState, MODAL_GROUPS
@@ -47,7 +47,7 @@ class _InterfaceBase(_ComponentBase):
         super().__init__(label)
         self._updatedData: UpdateState = UpdateState()
     
-    def processDeliveredEvents(self):
+    def update(self):
         for flag in self._updatedData.flags:
             attr = getattr(self._updatedData, flag)
             if attr != FlagState.UNSET:

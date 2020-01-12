@@ -47,7 +47,7 @@ class Gui(_TerminalBase):
         for event in self.window.AllKeysDict:
             self._subscriptions[event] = None
 
-    def service(self) -> bool:
+    def earlyUpdate(self) -> bool:
         """ To be called once per frame.
         Returns:
             bool: True: Continue execution.

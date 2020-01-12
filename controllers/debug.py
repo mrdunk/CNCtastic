@@ -82,7 +82,7 @@ class DebugController(_ControllerBase):
         
         return self.connectionStatus
     
-    def service(self):
+    def earlyUpdate(self):
         if self.connectionStatus != self.desiredConnectionStatus:
             if time.time() - self._connectTime >= CONNECT_DELAY:
                 if self.connectionStatus == ConnectionState.CONNECTING:
@@ -101,8 +101,8 @@ class DebugController(_ControllerBase):
         else:
                 self.readyForData = False
     
-    def processDeliveredEvents(self):
-        super().processDeliveredEvents()
+    def update(self):
+        super().update()
 
         if self.readyForData and self._queuedGcode:
             # Process local buffer.
@@ -115,7 +115,6 @@ class DebugController(_ControllerBase):
         
             gcodeDebugOutput = ""
             for jog, gc in self.gcode:
-                
                 gcodeDebugOutput += "%s ; jog=%s ; supported=%s\n" % (
                         str(gc.gcodes), jog, self.isGcodeSupported(gc.gcodes))
             self.publishOneByValue(self.keyGen("gcode"), gcodeDebugOutput)

@@ -21,20 +21,20 @@ class TestController(unittest.TestCase):
         self.assertEqual(self.mockController.connectionStatus, ConnectionState.UNKNOWN)
         self.assertFalse(self.mockController.readyForData)
 
-        self.mockController.service()
+        self.mockController.earlyUpdate()
         self.assertEqual(self.mockController.connectionStatus, ConnectionState.UNKNOWN)
 
         self.mockController.connect()
         self.assertEqual(self.mockController.connectionStatus, ConnectionState.CONNECTING)
         self.assertFalse(self.mockController.readyForData)
 
-        self.mockController.service()
+        self.mockController.earlyUpdate()
         self.mockController.readyForData = True  # Will stay set while still connected.
         self.assertEqual(self.mockController.connectionStatus, ConnectionState.CONNECTED)
         self.assertTrue(self.mockController.readyForData)
 
         self.mockController.connect()
-        self.mockController.service()
+        self.mockController.earlyUpdate()
         self.assertEqual(self.mockController.connectionStatus, ConnectionState.CONNECTED)
         self.assertTrue(self.mockController.readyForData)
 
@@ -42,19 +42,19 @@ class TestController(unittest.TestCase):
         self.assertEqual(self.mockController.connectionStatus, ConnectionState.DISCONNECTING)
         self.assertFalse(self.mockController.readyForData)
 
-        self.mockController.service()
+        self.mockController.earlyUpdate()
         self.assertEqual(self.mockController.connectionStatus, ConnectionState.NOT_CONNECTED)
         self.assertFalse(self.mockController.readyForData)
 
         self.mockController.disconnect()
-        self.mockController.service()
+        self.mockController.earlyUpdate()
         self.assertEqual(self.mockController.connectionStatus, ConnectionState.NOT_CONNECTED)
 
         self.mockController.connect()
         self.assertEqual(self.mockController.connectionStatus, ConnectionState.CONNECTING)
         self.assertFalse(self.mockController.readyForData)
 
-        self.mockController.service()
+        self.mockController.earlyUpdate()
         self.assertEqual(self.mockController.connectionStatus, ConnectionState.CONNECTED)
 
     def test_validGcodeByString(self):
@@ -82,7 +82,7 @@ class TestCoordinator(unittest.TestCase):
         self.coordinator = Coordinator([], [self.mockWidget], [self.mockController])
         self.coordinator.activeController = self.mockController
         self.coordinator.activeController.connect()
-        self.coordinator.update()  # Push events to subscribed targets.
+        self.coordinator.updateComponents()  # Push events to subscribed targets.
 
     def tearDown(self):
         self.mockWidget._eventQueue.clear()
@@ -266,8 +266,8 @@ class TestCoordinator(unittest.TestCase):
         # Send data to controller.
         data = {"X": 10, "Y": 20, "F": 100}
         self.mockWidget.moveTo(**data)
-        self.coordinator.update()  # Push event from mockWidget onto queue.
-        self.coordinator.update()  # Push event from queue to mockController.
+        self.coordinator.updateComponents()  # Push event from mockWidget onto queue.
+        self.coordinator.updateComponents()  # Push event from queue to mockController.
 
         self.assertEqual(len(self.mockController.gcode), 1)
         self.assertEqual(self.mockController.gcode[-1][0], "jog")
@@ -276,8 +276,8 @@ class TestCoordinator(unittest.TestCase):
         # Send more data to controller.
         data = {"X": 1.2345, "Y": -6.7889, "F": 1000}
         self.mockWidget.moveTo(**data)
-        self.coordinator.update()  # Push event from mockWidget onto queue.
-        self.coordinator.update()  # Push event from queue to mockController.
+        self.coordinator.updateComponents()  # Push event from mockWidget onto queue.
+        self.coordinator.updateComponents()  # Push event from queue to mockController.
 
         self.assertEqual(len(self.mockController.gcode), 2)
         self.assertEqual(self.mockController.gcode[-1][0], "jog")
@@ -293,18 +293,18 @@ class TestCoordinator(unittest.TestCase):
 
         # Send data to controller.
         self.mockWidget.moveTo(x=10, y=20, f=100)
-        self.coordinator.update()  # Push event from mockWidget onto queue.
-        self.coordinator.update()  # Push event from queue to mockController.
+        self.coordinator.updateComponents()  # Push event from mockWidget onto queue.
+        self.coordinator.updateComponents()  # Push event from queue to mockController.
         self.mockWidget.moveTo(x=50, y=100, f=100)
-        self.coordinator.update()  # Push event from mockWidget onto queue.
-        self.coordinator.update()  # Push event from queue to mockController.
+        self.coordinator.updateComponents()  # Push event from mockWidget onto queue.
+        self.coordinator.updateComponents()  # Push event from queue to mockController.
 
         self.assertEqual(len(self.mockController.gcode), 2)
         
         # Create new controller and make it active.
         self.mockController2 = MockController("owl")
         self.mockController2.connect()
-        self.mockController2.service()  # Move from CONNECTING to CONNECTED
+        self.mockController2.earlyUpdate()  # Move from CONNECTING to CONNECTED
         self.coordinator.activateController(controller=self.mockController2)
 
         self.assertEqual(self.mockController2.connectionStatus, ConnectionState.CONNECTED)
@@ -318,8 +318,8 @@ class TestCoordinator(unittest.TestCase):
 
         # Push data to new controller.
         self.mockWidget.moveTo(x=100, y=200, f=1000)
-        self.coordinator.update()  # Push event from mockWidget onto queue.
-        self.coordinator.update()  # Push event from queue to mockController.
+        self.coordinator.updateComponents()  # Push event from mockWidget onto queue.
+        self.coordinator.updateComponents()  # Push event from queue to mockController.
 
         # Has not changed data on old (inactive) controller.
         self.assertEqual(len(self.mockController.gcode), 2)
@@ -331,8 +331,8 @@ class TestCoordinator(unittest.TestCase):
 
         # Push data to original controller.
         self.mockWidget.moveTo(x=-1, y=-2, f=1)
-        self.coordinator.update()  # Push event from mockWidget onto queue.
-        self.coordinator.update()  # Push event from queue to mockController.
+        self.coordinator.updateComponents()  # Push event from mockWidget onto queue.
+        self.coordinator.updateComponents()  # Push event from queue to mockController.
 
         # New data on old (active) controller.
         self.assertEqual(len(self.mockController.gcode), 3)

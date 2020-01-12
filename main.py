@@ -38,7 +38,7 @@ def main():
 
 
     while True:
-        if not coordinator.update():
+        if not coordinator.updateComponents():
             break
 
     coordinator.close()

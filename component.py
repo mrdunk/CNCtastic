@@ -39,7 +39,7 @@ class _ComponentBase:
     def keyGen(self, tag):
         return "%s:%s" % (self.label, tag)
 
-    def service(self):
+    def earlyUpdate(self):
         """ To be called periodically.
         Any housekeeping tasks should happen here. """
         pass
@@ -99,14 +99,18 @@ class _ComponentBase:
             if event in self._subscriptions:
                 self._delivered.append((event, value))
 
-    def processDeliveredEvents(self):
-        """ Do something useful with the received events. """
+    def updateEarly(self):
+        """ Called before events get delivered. """
+        pass
+
+    def update(self):
+        """ Called after events get delivered. """
         # for event in self._delivered:
         #     print(self.label, event)
         pass
 
 
-    def _processDeliveredEvents(self):
+    def _update(self):
         """ Populate class variables and callbacks in response to configured events. """
 
         # This will be done after /all/ events have been delivered for all

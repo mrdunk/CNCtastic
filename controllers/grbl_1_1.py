@@ -271,7 +271,6 @@ class Grbl1p1Controller(_ControllerBase):
                 modalGroup = self.MODALS[chr(modal[0]).encode('utf-8')]
                 self.state.gcodeModal[modalGroup] = modal
             else:
-                print(modal, chr(modal[0]).encode('utf-8'))
                 assert False, "Gcode word does not match any mmodal group: %s" % modal
 
     def _parseIncomingFeedback(self, incoming):
@@ -282,9 +281,30 @@ class Grbl1p1Controller(_ControllerBase):
         msgType, msg = incoming.split(b":")
 
         if msgType == b"MSG":
-            print(incoming)
+            print(msgType, incoming, "TODO")
         elif msgType == b"GC":
             self._parseIncomingFeedbackModal(msg)
+        elif msgType == b"HLP":
+            # Response to a "$" (print help) command. Only ever used by humans.
+            pass
+        elif msgType in [b"G54", b"G55", b"G56", b"G57", b"G58", b"G59", b"G28",
+                         b"G30", b"G92", b"TLO", b"PRB"]:
+            # Response to a "$#" command.
+            print(msgType, incoming, "TODO")
+        elif msgType == b"VER":
+            if len(self.status.version) < 1:
+                self.status.version.append(b"")
+            self.status.version[0] = incoming
+        elif msgType == b"OPT":
+            while len(self.status.version) < 2:
+                self.status.version.append(b"")
+            self.status.version[1] = (msgType, incoming)
+        elif msgType == b"echo":
+            # May be enabled when building GRBL as a debugging option.
+            pass
+        else:
+            assert False, "Unexpected feedback packet type: %s" % msgType
+
 
     def _parseIncomingOk(self, incoming):
         print("OK:", incoming)
@@ -301,10 +321,12 @@ class Grbl1p1Controller(_ControllerBase):
     def _parseStartupLine(self, incoming):
         print("Startup:", incoming)
         assert incoming.startswith(b">") and incomming.endswith(b":ok")
-        print("Startup successful.")
+        # This implies no alarms are active.
+        print("Startup successful. TODO: Clear Alarm states.")
 
     def _parseStartup(self, incoming):
         print("GRBL Startup:", incoming)
+
 
     def _parseIncoming(self, incoming):
         if self._partialRead:
@@ -369,7 +391,7 @@ class Grbl1p1Controller(_ControllerBase):
             time.sleep(SERIAL_INTERVAL)
 
 
-    def service(self):
+    def earlyUpdate(self):
         if self.connectionStatus != self.desiredConnectionStatus:
             if self.connectionStatus is ConnectionState.CONNECTING:
                 self.onConnected()
@@ -394,8 +416,8 @@ class Grbl1p1Controller(_ControllerBase):
                 self.publishOneByValue(self.keyGen("state"), self.state)
                 self.state.eventFired = True
 
-    def processDeliveredEvents(self):
-        super().processDeliveredEvents()
+    def update(self):
+        super().update()
 
         if self._queuedGcode:
             # Process local buffer.

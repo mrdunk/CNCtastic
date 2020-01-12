@@ -161,7 +161,7 @@ class State:
 
         self.gcodeModal: Dict = {}
 
-        self.versionInfo: List = []  # Up to the controller how this is populated.
+        self.version: List = []  # Up to the controller how this is populated.
 
         self.eventFired: bool = False
 

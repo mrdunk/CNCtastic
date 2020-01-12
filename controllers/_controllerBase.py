@@ -63,7 +63,7 @@ class _ControllerBase(_ComponentBase):
         
         raise AttributeError("Cannot tell if %s is valid gcode." % command)
 
-    def processDeliveredEvents(self):
+    def update(self):
         if(self._delivered and
                 self.connectionStatus is ConnectionState.CONNECTED and
                 self.active):

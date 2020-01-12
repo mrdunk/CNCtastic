@@ -119,18 +119,18 @@ class Coordinator(_ComponentBase):
         self.activeController = controller
         _onlyOneActive()
 
-    def update(self) -> bool:
+    def updateComponents(self) -> bool:
         """ Iterate through all other components and service all data transfer
         requests. """
         for terminalName, terminal in self.terminals.items():
-            self.running = self.running and terminal.service()
+            self.running = self.running and terminal.earlyUpdate()
 
         for component in self.interfaces.values():
-            component.service()
+            component.earlyUpdate()
 
         for controller in self.controllers.values():
-            controller.service()
-        #self.activeController.service()
+            controller.earlyUpdate()
+        #self.activeController.earlyUpdate()
 
         for component in self.allComponents:
             component.publish()
@@ -146,8 +146,8 @@ class Coordinator(_ComponentBase):
             #else:
             #    print(component.label)
 
-            component._processDeliveredEvents()
-            component.processDeliveredEvents()
+            component._update()
+            component.update()
             component._delivered.clear()
 
         return self.running
