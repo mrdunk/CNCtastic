@@ -7,8 +7,8 @@ from queue import Queue, Empty
 import PySimpleGUI as sg
 
 from controllers._controllerBase import _ControllerBase
-from definitions import ConnectionState, State, MODAL_COMMANDS
-
+from definitions import ConnectionState
+from controllers.stateMachine import StateMachineGrbl as State
 
 REPORT_INTERVAL = 1.0 # seconds
 SERIAL_INTERVAL = 0.02 # seconds
@@ -36,34 +36,22 @@ class Grbl1p1Controller(_ControllerBase):
             "G04", "G10 L2", "G10 L20", "G28", "G30", "G28.1", "G30.1", "G53", "G92", "G92.1",
             ))
 
-    GRBL_STATUS_HEADERS = {b"MPos": "machinePos",
-                           b"WPos": "workPos",
-                           b"FS": "feedRate",    # Variable spindle.
-                           b"F": "feedRate",     # Non variable spindle.
-                           b"Pn": "inputPins",
-                           b"WCO": "workCoordOffset",
-                           b"Ov": "overrideValues",
-                           b"Bf": "bufferState",
-                           b"Ln": "lineNumber",
-                           b"A": "accessoryState"
-                           } 
-    MACHINE_STATES = [
-            b"Idle", b"Run", b"Hold", b"Jog", b"Alarm", b"Door", b"Check", b"Home", b"Sleep"]
-
-    MODALS = MODAL_COMMANDS
-
     def __init__(self, label: str="grbl1.1"):
         super().__init__(label)
-        self.state = State()
+        self.state = State(self.publishFromHere)
         #self.serialDevName = "spy:///tmp/ttyFAKE?file=/tmp/serialspy.txt"
         self.serialDevName = "/tmp/ttyFAKE"
         self.serialBaud = 115200
         self._serial = None
         self._lastWrite = 0
-        self._partialRead: str = b""
         self._commandImmediate = Queue()
         self._commandStreaming = Queue()
+        self._receivedData = Queue()
+        self._partialRead: str = b""
     
+    def publishFromHere(self, variableName, variableValue):
+        self.publishOneByValue(self.keyGen(variableName), variableValue)
+        
     def guiLayout(self):
         layout = [
                 [sg.Text("Title:", size=(20,1)),
@@ -158,180 +146,15 @@ class Grbl1p1Controller(_ControllerBase):
         except serial.serialutil.SerialException:
             self.setConnectionStatus(ConnectionState.FAIL)
 
-    def _parseCoordinates(self, string) -> Dict:
-        parts = string.split(b",")
-        assert len(parts) >= 3
-        coordinates = {}
-        coordinates["x"] = float(parts[0])
-        coordinates["y"] = float(parts[1])
-        coordinates["z"] = float(parts[2])
-        if len(coordinates) > 3:
-            coordinates["a"] = float(parts[3])
-        return coordinates
-
-    def _setCoordinates(self, identifier, value):
-        if identifier == b"MPos":
-            self.state.setMachinePos(self._parseCoordinates(value))
-        elif identifier == b"WPos":
-            self.state.setWorkPos(self._parseCoordinates(value))
-        elif identifier == b"WCO":
-            self.state.setWorkOffset(self._parseCoordinates(value))
-        else:
-            print("Invalid format: %s  Expected one of [MPos, WPos]" % posId)
-
-    def _setOverrides(self, value):
-        feedOverrride, rapidOverrride, spindleOverride = value.split(b",")
-        feedOverrride = int(float(feedOverrride))
-        rapidOverrride = int(float(rapidOverrride))
-        spindleOverride = int(float(spindleOverride))
-        
-        if 10 <= feedOverrride <= 200:
-            self.state.feedOverrride = feedOverrride
-        if rapidOverrride in [100, 50, 20]:
-            self.state.rapidOverrride = rapidOverrride
-        if 10 <= spindleOverride <= 200:
-            self.state.spindleOverride = spindleOverride
-
-    def _setFeedSpindle(self, value):
-        feed, spindle = value.split(b",")
-        self.state.feedRate = int(float(feed))
-        self.state.spindleRate = int(float(spindle))
-
-    def _setFeed(self, value):
-        self.state.spindleRate = int(float(value))
-
-    def _setState(self, state):
-        states = state.split(b":")
-        assert len(states) <=2, "Invalid state: %s" % state
-
-        if len(states) == 1:
-            substate = None
-        else:
-            state, substate = states
-            
-        assert state in self.MACHINE_STATES
-        if state in [b"Idle", b"Run", b"Jog", b"Home"]:
-            self.state.pause = False
-            self.state.pausePark = False
-            self.state.halt = False
-            self.state.door = False
-            self.state.resetComplete = False
-            self.state.pauseReason.clear()
-            self.state.haltReason.clear()
-            self.state.resetReason.clear()
-        elif state == b"Hold":
-            pass
-        elif state == b"Alarm":
-            pass
-        elif state == b"Door":
-            pass
-        elif state == b"Check":
-            pass
-        elif state == b"Sleep":
-            pass
-
-    def _parseIncomingStatus(self, incoming):
-        assert incoming.startswith(b"<") and incoming.endswith(b">")
-
-        incoming = incoming.strip(b"<>")
-
-        fields = incoming.split(b"|")
-        
-        machineState = fields[0]
-        self._setState(machineState)
-
-        for field in fields[1:]:
-            identifier, value = field.split(b":")
-            assert identifier in self.GRBL_STATUS_HEADERS
-            if identifier in [b"MPos", b"WPos", b"WCO"]:
-                self._setCoordinates(identifier, value)
-            elif identifier == b"Ov":
-                self._setOverrides(value)
-            elif identifier == b"FS":
-                self._setFeedSpindle(value)
-            elif identifier == b"F":
-                self._setFeed(value)
-            else:
-                print(identifier, value)
-
-        self.state.eventFired = False
-    
-    def _parseIncomingFeedbackModal(self, msg):
-        """ In response to a "$G" command, GRBL sends a G-code Parser State Message
-        in the format:
-        [GC:G0 G54 G17 G21 G90 G94 M5 M9 T0 F0.0 S0]
-        Each word is in a different modal group.
-        self.MODALS maps these words to a group. eg: G0 is in the "motion" group.  """
-        modals = msg.split(b" ")
-        for modal in modals:
-            if modal in self.MODALS:
-                modalGroup = self.MODALS[modal]
-                self.state.gcodeModal[modalGroup] = modal
-            elif chr(modal[0]).encode('utf-8') in self.MODALS:
-                modalGroup = self.MODALS[chr(modal[0]).encode('utf-8')]
-                self.state.gcodeModal[modalGroup] = modal
-            else:
-                assert False, "Gcode word does not match any mmodal group: %s" % modal
-
-    def _parseIncomingFeedback(self, incoming):
-        assert incoming.startswith(b"[") and incoming.endswith(b"]")
-
-        incoming = incoming.strip(b"[]")
-
-        msgType, msg = incoming.split(b":")
-
-        if msgType == b"MSG":
-            print(msgType, incoming, "TODO")
-        elif msgType == b"GC":
-            self._parseIncomingFeedbackModal(msg)
-        elif msgType == b"HLP":
-            # Response to a "$" (print help) command. Only ever used by humans.
-            pass
-        elif msgType in [b"G54", b"G55", b"G56", b"G57", b"G58", b"G59", b"G28",
-                         b"G30", b"G92", b"TLO", b"PRB"]:
-            # Response to a "$#" command.
-            print(msgType, incoming, "TODO")
-        elif msgType == b"VER":
-            if len(self.status.version) < 1:
-                self.status.version.append(b"")
-            self.status.version[0] = incoming
-        elif msgType == b"OPT":
-            while len(self.status.version) < 2:
-                self.status.version.append(b"")
-            self.status.version[1] = (msgType, incoming)
-        elif msgType == b"echo":
-            # May be enabled when building GRBL as a debugging option.
-            pass
-        else:
-            assert False, "Unexpected feedback packet type: %s" % msgType
-
-
-    def _parseIncomingOk(self, incoming):
-        print("OK:", incoming)
-
-    def _parseIncomingAlarm(self, incoming):
-        print("ALARM:", incoming)
-
-    def _parseError(self, incoming):
-        print("ERROR:", incoming)
-
-    def _parseSetting(self, incoming):
-        print("Setting:", incoming)
-
-    def _parseStartupLine(self, incoming):
-        print("Startup:", incoming)
-        assert incoming.startswith(b">") and incomming.endswith(b":ok")
-        # This implies no alarms are active.
-        print("Startup successful. TODO: Clear Alarm states.")
-
-    def _parseStartup(self, incoming):
-        print("GRBL Startup:", incoming)
-
-
-    def _parseIncoming(self, incoming):
+    def parseIncoming(self, incoming):
+        if incoming is None:
+            incoming = b""
         if self._partialRead:
             incoming = self._partialRead + incoming
-        
+       
+        if not incoming:
+            return
+
         if not incoming.endswith(b"\r\n"):
             pos = incoming.find(b"\r\n")
             if pos > 0:
@@ -343,35 +166,35 @@ class Grbl1p1Controller(_ControllerBase):
                 return
 
         incoming = incoming.strip()
-
+        
+        # Handle time critical responses here. Otherwise defer to main thread.
         if incoming.startswith(b"error:"):
-            self._parseError(incoming)
-        elif incoming.startswith(b"ALARM:"):
-            self._parseIncomingAlarm(incoming)
+            self._incomingError(incoming)
+            self._receivedData.put(incoming)
         elif incoming.startswith(b"ok"):
-            self._parseIncomingOk(incoming)
-        elif incoming.startswith(b"<"):
-            self._parseIncomingStatus(incoming)
-        elif incoming.startswith(b"["):
-            self._parseIncomingFeedback(incoming)
-        elif incoming.startswith(b"$"):
-            self._parseSetting(incoming)
-        elif incoming.startswith(b">"):
-            self._parseStartup(incoming)
-        elif incoming.startswith(b"Grbl "):
-            self._parseStartup(incoming)
+            self._incomingOk(incoming)
         else:
-            print(incoming)
+            self._receivedData.put(incoming)
+
+    def _incomingError(self, incoming):
+        print("_incomingError", incoming)
+        # Feed Hold:
+        self._commandImmediate.put(b"!")
+
+    def _incomingOk(self, incoming):
+        print("_incomingOk", incoming)
 
     def _periodicIO(self):
+        """ Read from and write to serial port.
+            Called from a separate thread.
+            Blocks while serial port remains connected. """
         while self.connectionStatus is ConnectionState.CONNECTED:
             # Read
             try:
                 line = self._serial.readline()
             except serial.serialutil.SerialException:
                 self.setConnectionStatus(ConnectionState.FAIL)
-            if line:
-                self._parseIncoming(line)
+            self.parseIncoming(line)
 
             #Write
             task = None
@@ -390,31 +213,48 @@ class Grbl1p1Controller(_ControllerBase):
                 self._lastWrite = time.time()
             time.sleep(SERIAL_INTERVAL)
 
-
     def earlyUpdate(self):
+        """ Called early in the event loop, before events have been received. """
         if self.connectionStatus != self.desiredConnectionStatus:
+            # Transition between connection states.
             if self.connectionStatus is ConnectionState.CONNECTING:
+                # Connection process already started.
                 self.onConnected()
 
             elif self.connectionStatus is ConnectionState.DISCONNECTING:
+                # Trying to diconnect.
                 self.onDisconnected()
 
             elif self.connectionStatus in [
                     ConnectionState.FAIL, ConnectionState.MISSING_RESOURCE]:
-                print("self.connectionStatus is ConnectionState.FAIL")
+                # A serial port error occurred either # while opening a serial port or
+                # on an already open port.
                 self.setDesiredConnectionStatus(ConnectionState.NOT_CONNECTED)
                 self.setConnectionStatus(ConnectionState.CLEANUP)
 
             elif self.desiredConnectionStatus is ConnectionState.CONNECTED:
+                # Start connection process.
                 self.connect()
 
             elif self.desiredConnectionStatus is ConnectionState.NOT_CONNECTED:
+                # Start disconnection.
                 self.disconnect()
         
         if self.connectionStatus is ConnectionState.CONNECTED:
             if not self.state.eventFired:
+                # Display debug info: Summary of machine state.
                 self.publishOneByValue(self.keyGen("state"), self.state)
                 self.state.eventFired = True
+
+        # Process data received over serial port.
+        receivedLine = None
+        try:
+            receivedLine = self._receivedData.get(block=False)
+        except Empty:
+            pass
+        if receivedLine is not None:
+            self.state.parseIncoming(receivedLine)
+
 
     def update(self):
         super().update()
