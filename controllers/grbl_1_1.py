@@ -38,6 +38,7 @@ class Grbl1p1Controller(_ControllerBase):
 
     def __init__(self, label: str="grbl1.1"):
         super().__init__(label)
+        self._time = time  # Allow replacing with a ock version when testing.
         self.state = State(self.publishFromHere)
         #self.serialDevName = "spy:///tmp/ttyFAKE?file=/tmp/serialspy.txt"
         self.serialDevName = "/tmp/ttyFAKE"
@@ -48,6 +49,10 @@ class Grbl1p1Controller(_ControllerBase):
         self._commandStreaming = Queue()
         self._receivedData = Queue()
         self._partialRead: str = b""
+        self._errorCount: int = 0
+        self._okCount: int = 0
+
+        self.testing: bool = False
     
     def publishFromHere(self, variableName, variableValue):
         self.publishOneByValue(self.keyGen(variableName), variableValue)
@@ -151,22 +156,23 @@ class Grbl1p1Controller(_ControllerBase):
             incoming = b""
         if self._partialRead:
             incoming = self._partialRead + incoming
-       
+
         if not incoming:
             return
 
-        if not incoming.endswith(b"\r\n"):
-            pos = incoming.find(b"\r\n")
-            if pos > 0:
-                tmpIncoming = self._partialRead + incoming[:pos + 2]
-                self._partialRead = incoming[pos + 2:]
-                incoming = tmpIncoming
-            else:
-                self._partialRead += incoming
-                return
+        pos = incoming.find(b"\r\n")
+        if pos < 0:
+            self._partialRead = incoming
+            return
+
+        tmpIncoming = incoming[:pos + 2]
+        self._partialRead = incoming[pos + 2:]
+        incoming = tmpIncoming
 
         incoming = incoming.strip()
-        
+        if not incoming:
+            return
+
         # Handle time critical responses here. Otherwise defer to main thread.
         if incoming.startswith(b"error:"):
             self._incomingError(incoming)
@@ -178,11 +184,13 @@ class Grbl1p1Controller(_ControllerBase):
 
     def _incomingError(self, incoming):
         print("_incomingError", incoming)
+        self._errorCount += 1
         # Feed Hold:
         self._commandImmediate.put(b"!")
 
     def _incomingOk(self, incoming):
         print("_incomingOk", incoming)
+        self._okCount += 1
 
     def _periodicIO(self):
         """ Read from and write to serial port.
@@ -208,10 +216,13 @@ class Grbl1p1Controller(_ControllerBase):
             if task is not None:
                 self._write(task)
 
-            if self._lastWrite < time.time() - REPORT_INTERVAL:
+            if self._lastWrite < self._time.time() - REPORT_INTERVAL:
                 self._write(b"?")
-                self._lastWrite = time.time()
-            time.sleep(SERIAL_INTERVAL)
+                self._lastWrite = self._time.time()
+            self._time.sleep(SERIAL_INTERVAL)
+
+            if self.testing:
+                break
 
     def earlyUpdate(self):
         """ Called early in the event loop, before events have been received. """

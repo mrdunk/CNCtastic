@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 import sys, os
 testdir = os.path.dirname(__file__)
 srcdir = '../'
