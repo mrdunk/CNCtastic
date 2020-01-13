@@ -272,7 +272,7 @@ class TestCoordinator(unittest.TestCase):
         self.coordinator.updateComponents()  # Push event from queue to mockController.
 
         self.assertEqual(len(self.mockController.gcode), 1)
-        self.assertEqual(self.mockController.gcode[-1][0], "jog")
+        self.assertEqual(self.mockController.gcode[-1][0], "TRUE")
         dataMatch(self.mockController.gcode[-1][1], data)
 
         # Send more data to controller.
@@ -282,7 +282,7 @@ class TestCoordinator(unittest.TestCase):
         self.coordinator.updateComponents()  # Push event from queue to mockController.
 
         self.assertEqual(len(self.mockController.gcode), 2)
-        self.assertEqual(self.mockController.gcode[-1][0], "jog")
+        self.assertEqual(self.mockController.gcode[-1][0], "TRUE")
         dataMatch(self.mockController.gcode[-1][1], data)
 
     def test_swapControllers(self):

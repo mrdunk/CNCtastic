@@ -104,10 +104,12 @@ class DebugController(_ControllerBase):
     def update(self):
         super().update()
 
-        if self.readyForData and self._queuedGcode:
+        if self.readyForData and self._queuedUpdates:
             # Process local buffer.
             self._lastReceiveDataAt = time.time()
-            jog, gcode = self._queuedGcode.popleft()
+            update = self._queuedUpdates.popleft()
+            jog = update.jog.name
+            gcode = update.gcode
 
             self.gcode.append((jog, gcode))
             print("CONTROLLER: %s  RECEIVED: %s  BUFFER: %s" %

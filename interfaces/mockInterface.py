@@ -1,5 +1,4 @@
 from interfaces.jog import JogWidget
-from interfaces._interfaceBase import UpdateState
 
 class MockWidget(JogWidget):
     def __init__(self):
@@ -23,7 +22,3 @@ class MockWidget(JogWidget):
                 return self.overideCallReturn[method]
         return expectedReturnVal
 
-    #def pull(self) -> UpdateState:
-    #    self.logCall("pull", [], {})
-    #    returnVal = super().pull()
-    #    return self.overideReturn("pull", returnVal)

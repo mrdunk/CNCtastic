@@ -53,6 +53,8 @@ class Grbl1p1Controller(_ControllerBase):
         self._okCount: int = 0
 
         self.testing: bool = False
+
+        self.active: bool = True
     
     def publishFromHere(self, variableName, variableValue):
         self.publishOneByValue(self.keyGen(variableName), variableValue)
@@ -270,7 +272,9 @@ class Grbl1p1Controller(_ControllerBase):
     def update(self):
         super().update()
 
-        if self._queuedGcode:
+        if self._queuedUpdates:
             # Process local buffer.
-            pass
+            for update in self._queuedUpdates:
+                print(update)
+            self._queuedUpdates.clear()
 

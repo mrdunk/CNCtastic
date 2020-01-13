@@ -13,7 +13,8 @@ class UpdateState:
                  gcode: block.Block = None,
                  halt: FlagState = FlagState.UNSET,
                  pause: FlagState = FlagState.UNSET,
-                 jog: FlagState = FlagState.UNSET):
+                 jog: FlagState = FlagState.UNSET,
+                 home: FlagState = FlagState.UNSET):
         """
         Args:
             gcode: A pygcode Block object containing a single gcode line.
@@ -25,13 +26,21 @@ class UpdateState:
         self.halt: FlagState = halt
         self.pause: FlagState = pause
         self.jog: FlagState = jog
-        self.flags = ["halt", "pause", "jog"]
+        self.home: FlagState = home
+        self.flags = ["halt", "pause", "jog", "home"]
 
-    def copy(self, target):
-        """ Copy the data contains in this object to another UpdateState instance. """
-        target.gcode = self.gcode
-        target.halt = self.halt
-        target.pause = self.pause
+    def __str__(self):
+        output = ""
+        if self.gcode is None:
+            output += "gcode: None\t"
+        else:
+            output += "gcode: {self.gcode.gcodes}\t"
+        output += "halt: {self.halt.name}\t"
+        output += "pause: {self.pause.name}\t"
+        output += "jog: {self.jog.name}\t"
+        output += "home: {self.home.name}"
+            
+        return output.format(self=self)
 
 class _InterfaceBase(_ComponentBase):
     """ A base class for user input objects used for controlling the machine. """
@@ -53,7 +62,7 @@ class _InterfaceBase(_ComponentBase):
             if attr != FlagState.UNSET:
                 self.publishOneByValue("desiredState:%s" % flag, attr)
         if self._updatedData.gcode is not None:
-            self.publishOneByValue("desiredState:newGcode", ("jog", self._updatedData.gcode))
+            self.publishOneByValue("desiredState:newGcode", self._updatedData)
         
         # Clear self._updatedData 
         self._updatedData = UpdateState()

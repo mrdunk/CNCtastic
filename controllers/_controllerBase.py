@@ -17,7 +17,7 @@ class _ControllerBase(_ComponentBase):
         self.connectionStatus: ConnectionState = ConnectionState.UNKNOWN
         self.desiredConnectionStatus: ConnectionState = ConnectionState.NOT_CONNECTED
         self._newGcodeLine = None
-        self._queuedGcode: Deque = deque()
+        self._queuedUpdates: Deque = deque()
 
         # Map incoming events to local member variables and callback methods.
         self.label = label
@@ -71,7 +71,7 @@ class _ControllerBase(_ComponentBase):
             # (self._delivered will be cleared later this iteration.)
             for event, value in self._delivered:
                 if event == "desiredState:newGcode":
-                    self._queuedGcode.append(value)
+                    self._queuedUpdates.append(value)
                 # TODO: Flags.
 
 
