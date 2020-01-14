@@ -8,27 +8,36 @@ from definitions import FlagState, Command, ConnectionState
 class _ComponentBase:
     """ General methods required by all components. """
 
-    # Mapping of event names to callback methods or property names.
-    eventActions: Dict = {
-            # "$COMPONENTNAME:$DESCRIPTION": ("$METHODNAME", None),
-            # "$COMPONENTNAME:$DESCRIPTION": ("$METHODNAME", $DEFAULTVALUE),
-            # "$COMPONENTNAME:$DESCRIPTION": ("$PROPERTYNAME", $DEFAULTVALUE)
-            }
-
     Event = Tuple[str, Any]
     # Single instance for all instances.
     _eventQueue: Deque[Event] = deque()
     # Unique copy per instance.
-    exported: Dict[str, str] = {
-            # EVENT_NAME : CLASS_PROPERTY_TO_EXPORT
-            }
+    eventActions: Dict[str, Any]
+    exported: Dict[str, str] 
     _subscriptions: Dict[str, Any]
     _delivered: Deque[Any]
    
     def __init__(self, label: str):
         self.label: str = label
-        #self.exported = {}
-        self._subscriptions = {}
+
+        # Mapping of event names to callback methods or property names.
+        if not hasattr(self, "eventActions"):
+            self.eventActions: Dict[str, Any] = {
+                    # "$COMPONENTNAME:$DESCRIPTION": ("$METHODNAME", None),
+                    # "$COMPONENTNAME:$DESCRIPTION": ("$METHODNAME", $DEFAULTVALUE),
+                    # "$COMPONENTNAME:$DESCRIPTION": ("$PROPERTYNAME", $DEFAULTVALUE)
+                    }
+
+        # Variables to automatically export when publish() method is called.
+        if not hasattr(self, "exported"):
+            self.exported = {
+                # EVENT_NAME : CLASS_PROPERTY_TO_EXPORT
+                }
+
+        # Events to be delivered to this class.
+        if not hasattr(self, "_subscriptions"):
+            self._subscriptions = {}
+
         self._delivered = deque()
 
         # Make sure we are subscribed to all the events we have handlers for.
@@ -134,7 +143,10 @@ class _ComponentBase:
             callback = getattr(self, action)
             if callable(callback):
                 # Refers to a class method.
-                callback(eventValue)
+                try:
+                    callback(eventValue)
+                except TypeError:
+                    callback(eventName, eventValue)
             else:
                 # Refers to a class variable.
                 setattr(self, action, eventValue)

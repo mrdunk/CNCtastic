@@ -2,7 +2,8 @@ from typing import Dict
 from math import log10, floor
 from collections import deque
 
-import PySimpleGUI as sg
+#import PySimpleGUIQt as sg
+from terminals.gui import sg
 
 from interfaces._interfaceBase import _InterfaceBase
 from definitions import FlagState
@@ -62,41 +63,46 @@ class JogWidget(_InterfaceBase):
         self.moveTo(x=self._xyJogStep * values[0], y=self._xyJogStep * values[1])
 
     def guiLayout(self):
+        butW = 5
+        butH = 1.5
         def txt(label: str) -> sg.Frame:
-            t = sg.Text(label, justification="center", size=(4, 2),
-                    #background_color="grey"
+            t = sg.Text(label, justification="center", size=(butW, butH),
+                    background_color="grey"
                     )
-            #return t
-            return sg.Frame(title="", size=(4, 2), layout=[[t]], border_width=0)
+            return t
 
         def but(label: str, key: str) -> sg.Button:
-            return sg.Button(label, key=self.keyGen(key), size=(4, 2))
+            return sg.Button(label, key=self.keyGen(key), size=(butW, butH))
 
         def drp(key: str) -> sg.Drop:
             drop = sg.Drop(key=self.keyGen(key),
                        #enable_events=False,
                        values=[0.001, 0.01, 0.1, 1, 10, 100, 1000],
-                       default_value=self._xyJogStep, size=(5, 1))
-            return sg.Frame(title="", size=(4, 2), layout=[[drop]], border_width=0, element_justification="left")
+                       default_value=self._xyJogStep, size=(butW, 1))
+            return drop
         
         layoutXY = [
                 [txt(""),  txt(""),        txt("Y"),       txt("")],
                 [txt(""),  but("", "ul"),  but("^", "uc"), but("", "ur")],
                 [txt("X"), but("<", "cl"), but("0", "cc"), but(">", "cr")],
                 [txt(""),  but("", "dl"),  but("v", "dc"), but("", "dr")],
+                [txt("")],
                 [txt(""),  but("/10","xyDivide"), drp("xyJogStep"), but("x10", "xyMultiply")],
                 ]
         layoutZ = [
-                [txt("Z")],
-                [but("^", "uz")],
-                [but("0", "cz")],
-                [but("v", "dz")],
+                [txt(""), txt("Z")],
+                [txt(""), but("^", "uz")],
+                [txt(""), but("0", "cz")],
+                [txt(""), but("v", "dz")],
+                [txt("")],
                 [but("/10","zDivide"), drp("zJogStep"), but("x10", "zMultiply")],
                 ]
 
         layout = [
-                [sg.Column(layoutXY, element_justification="center", justification="left", pad=(0,0)),
-                 sg.Column(layoutZ, element_justification="center", justification="left", pad=(0,0))]
+                [sg.Column(layoutXY, pad=(0,0), size=(1,1)),
+                 sg.Column(layoutZ, pad=(0,0), size=(1,1)),
+                 sg.Stretch()
+                 ]
                 ]
         return layout
 

@@ -17,8 +17,6 @@ class Coordinator(_ComponentBase):
             interfaces: A list of objects deriving from the _InterfaceBase class.
             controllers: A list of objects deriving from the _ControllerBase class.
         """
-        super().__init__("__coordinator__")
-
         self.terminals: Dict() = {terminal.label:terminal for terminal in terminals}
         self.interfaces: Dict() = {interface.label:interface for interface in interfaces}
         self.controllers: Dict() = {controller.label:controller for controller in controllers}
@@ -36,6 +34,37 @@ class Coordinator(_ComponentBase):
         self.terminalSpecificSetup()
 
         self.running = True
+
+        self.eventActions = {}
+        for controller in self.controllers:
+            self.eventActions["%s:active" % controller] = ("_changeActiveController", controller)
+
+        super().__init__("__coordinator__")
+
+    def _changeActiveController(self, eventName, eventValue):
+        eventValue = bool(eventValue)
+
+        eventControllerName = eventName.split(":")[0]
+
+        if self.controllers[eventControllerName].active == eventValue:
+            # No change
+            return
+
+        print(self._delivered)
+        print("New active controller: %s is %s" % (eventControllerName, eventValue))
+
+        assert eventControllerName in self.controllers, "Event received from invalid controller."
+        if eventValue:
+            for controller in self.controllers.values():
+                controller.active = False
+        self.controllers[eventControllerName].active = eventValue
+
+        # This will check only one controller has the active flag set
+        # or assign the "debug" controller active if none are set.
+        self.activateController()
+
+        for controllerName, controller in self.controllers.items():
+            self.publishOneByValue("%s:active" % controllerName, controller.active)
 
     def terminalSpecificSetup(self):
         # Gather GUI layouts from all components.
@@ -132,14 +161,18 @@ class Coordinator(_ComponentBase):
             controller.earlyUpdate()
         #self.activeController.earlyUpdate()
 
+        self.publish()
         for component in self.allComponents:
             component.publish()
 
+        self.receive()
         for component in self.allComponents:
             component.receive()
         
         self._clearEvents()
 
+        self._update()
+        self._delivered.clear()
         for component in self.allComponents:
             #if component._delivered:
             #    print(component.label, component._delivered)

@@ -2,7 +2,8 @@ from typing import Dict, Deque
 import time
 from collections import deque
 
-import PySimpleGUI as sg
+#import PySimpleGUIQt as sg
+from terminals.gui import sg
 
 from controllers._controllerBase import _ControllerBase
 from definitions import Command, ConnectionState
@@ -41,12 +42,13 @@ class DebugController(_ControllerBase):
     def guiLayout(self):
         layout = [
                 [sg.Text("Title:", size=(20,1)),
-                    sg.Text("unknown", key=self.keyGen("label"), size=(20,1))],
+                    sg.Text(self.label, key=self.keyGen("label"), size=(20,1)),
+                    sg.Checkbox("Active", default=self.active, key=self.keyGen("active"))],
                 [sg.Text("Connection state:", size=(20,1)),
                     sg.Text(size=(18,1), key=self.keyGen("connectionStatus"))],
                 [sg.Text("Desired:", size=(20,1)),
                     sg.Text(size=(18,1), key=self.keyGen("desiredConnectionStatus"))],
-                [sg.Multiline(default_text="gcode", size=(200, 10), key=self.keyGen("gcode"),
+                [sg.Multiline(default_text="gcode", size=(60, 10), key=self.keyGen("gcode"),
                               autoscroll=True, disabled=True)],
                 [
                     sg.Button('Connect', key=self.keyGen("connect"), size=(10, 1),

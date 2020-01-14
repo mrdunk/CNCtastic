@@ -1,6 +1,7 @@
 from typing import List, Dict
 from enum import Enum
-import PySimpleGUI as sg
+import PySimpleGUIQt as sg
+#import PySimpleGUIWeb as sg
 
 from terminals._terminalBase import _TerminalBase, diffDicts
 
@@ -67,9 +68,8 @@ class Gui(_TerminalBase):
         if not event == "__TIMEOUT__":
             self._diffValues[event] = None
         
-        #if not event == "__TIMEOUT__" or self._diffValues:
-        #    print(event, self._diffValues)
-
+        if not event == "__TIMEOUT__" or self._diffValues:
+            print(event, self._diffValues)
 
         return event not in (None, ) and not event.startswith("Exit")
    

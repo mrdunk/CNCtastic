@@ -1,14 +1,10 @@
 #!/usr/bin/env python3
 
-
 import argparse
-import PySimpleGUI as sg
 
 import common
 from definitions import ConnectionState
 from coordinator.coordinator import Coordinator
-
-#sg.theme('DarkAmber') 
 
 
 def main():

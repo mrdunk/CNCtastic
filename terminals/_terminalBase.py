@@ -15,14 +15,19 @@ def diffDicts(original: Dict, new: Dict) -> Dict:
     Returns:
         A Dict of key:value pairs from "new" where either the key did not exist
             in "original" or the value differs. """
+    if not isinstance(original, Dict) or not isinstance(new, Dict):
+        print("ERROR: %s or %s not Dict" % (original, new))
+        return {}
+
     diff = {}
     for key in new:
-
         # Values got from the GUI tend to be converted to strings.
         # Safest to presume they are floats.
         try:
             new[key] = float(new[key])
         except ValueError:
+            pass
+        except TypeError:
             pass
 
         value = new[key]
