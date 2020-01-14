@@ -185,7 +185,6 @@ class TestCoordinator(unittest.TestCase):
 
         self.mockController4 = MockController("KingKong")
         self.mockController4.active = False
-        print(self.mockController4)
         self.coordinator.activateController(controller=self.mockController4)
         
         # The new one is now added and active.
@@ -247,6 +246,58 @@ class TestCoordinator(unittest.TestCase):
         self.assertFalse(self.mockController2.active)
         self.assertTrue(self.mockController3.active)
         self.assertIn(self.mockController3.label, self.coordinator.controllers)
+        self.assertIs(self.coordinator.activeController, self.mockController3)
+
+    def test_activateControllerOnEventSet(self):
+        """ The "_activeControllerOnEvent" event handler changes active controller. """
+        self.mockController1 = MockController("owl")
+        self.mockController2 = MockController("tiger")
+        self.mockController3 = MockController("debug")
+        self.mockController1.active = False
+        self.mockController2.active = False
+        self.mockController3.active = False
+        self.coordinator = Coordinator([], [],
+                [self.mockController1, self.mockController2, self.mockController3])
+
+        # Default startup has "debug" controller active.
+        self.assertFalse(self.mockController1.active)
+        self.assertFalse(self.mockController2.active)
+        self.assertTrue(self.mockController3.active)
+        self.assertIs(self.coordinator.activeController, self.mockController3)
+
+        # "_activeControllerOnEvent" changes the default controller.
+        self.coordinator._activeControllerOnEvent("tiger:active", True)
+        
+        self.assertFalse(self.mockController1.active)
+        self.assertTrue(self.mockController2.active)
+        self.assertFalse(self.mockController3.active)
+        self.assertIs(self.coordinator.activeController, self.mockController2)
+
+    def test_activateControllerOnEventUnset(self):
+        """ The "_activeControllerOnEvent" event handler un-sets active controller,
+        returning it to "debug". """
+        self.mockController1 = MockController("owl")
+        self.mockController2 = MockController("tiger")
+        self.mockController3 = MockController("debug")
+        self.mockController1.active = False
+        self.mockController2.active = True
+        self.mockController3.active = False
+        self.coordinator = Coordinator([], [],
+                [self.mockController1, self.mockController2, self.mockController3])
+
+        # Default startup has "debug" controller active.
+        self.assertFalse(self.mockController1.active)
+        self.assertTrue(self.mockController2.active)
+        self.assertFalse(self.mockController3.active)
+        self.assertIs(self.coordinator.activeController, self.mockController2)
+
+        # "_activeControllerOnEvent" un-sets the currently active.
+        # The default controller ("debug") will be made the active.
+        self.coordinator._activeControllerOnEvent("tiger:active", False)
+        
+        self.assertFalse(self.mockController1.active)
+        self.assertFalse(self.mockController2.active)
+        self.assertTrue(self.mockController3.active)
         self.assertIs(self.coordinator.activeController, self.mockController3)
 
     def test_pushFromInterfaceToController(self):
@@ -375,7 +426,7 @@ class TestEvents(unittest.TestCase):
         self.mockController.testToExport = {}
         self.mockController.testToExport["bunny"] = "give me carrot"
         self.mockController.testToExport["onion"] = ["layer1", "layer2"]
-        self.mockController.exported = {
+        self.mockController.eventsToPublish = {
                 "testToExport1": "testToExport",
                 "testToExport2": "testToExport.bunny",
                 "testToExport3": "testToExport.onion",
@@ -385,7 +436,7 @@ class TestEvents(unittest.TestCase):
                 }
         
         # Set up some subscriptions.
-        self.mockWidget._subscriptions = {
+        self.mockWidget.eventSubscriptions = {
                 "testToExport1": None,
                 "testToExport2": None,
                 "testToExport3": None,
@@ -396,7 +447,7 @@ class TestEvents(unittest.TestCase):
 
         # Now publish, populating the _eventQueue.
         self.mockController.publish()
-        self.assertEqual(len(self.mockController.exported),
+        self.assertEqual(len(self.mockController.eventsToPublish),
                          len(self.mockController._eventQueue))
 
         # Now call the receive on the other component making it read the _eventQueue.
@@ -404,7 +455,7 @@ class TestEvents(unittest.TestCase):
         # Nothing delivered to the sender.
         self.assertEqual(0, len(self.mockController._delivered))
         # Full set delivered to the receiver.
-        self.assertEqual(len(self.mockController.exported),
+        self.assertEqual(len(self.mockController.eventsToPublish),
                          len(self.mockWidget._delivered))
 
     def test_publishEventInvalidExportDictArgs(self):
@@ -413,7 +464,7 @@ class TestEvents(unittest.TestCase):
         # Set up some dummy data to export on one component.
         self.mockController.testToExport = {}
         self.mockController.testToExport["bunny"] = "give me carrot"
-        self.mockController.exported = {
+        self.mockController.eventsToPublish = {
                 "testToExport1": "testToExport.doggie",
                 }
         
@@ -430,7 +481,7 @@ class TestEvents(unittest.TestCase):
         # Set up some dummy data to export on one component.
         self.mockController.testToExport = {}
         self.mockController.testToExport["onion"] = ["layer1", "layer2"]
-        self.mockController.exported = {
+        self.mockController.eventsToPublish = {
                 "testToExport1": "testToExport.onion.1invalidInt",
                 }
         
@@ -446,7 +497,7 @@ class TestEvents(unittest.TestCase):
 
         # Set up some dummy data to export on one component.
         self.mockController.testToExport = {}
-        self.mockController.exported = {
+        self.mockController.eventsToPublish = {
                 "testToExport1": "missingMember",
                 }
         

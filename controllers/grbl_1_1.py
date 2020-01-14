@@ -107,7 +107,7 @@ class Grbl1p1Controller(_ControllerBase):
         return self.connectionStatus
 
     def disconnect(self) :
-        print("disconnect")
+        print("Disconnected %s %s" % (self.label, self.serialDevName))
         if self.connectionStatus in [
                 ConnectionState.DISCONNECTING,
                 ConnectionState.NOT_CONNECTED]:
@@ -129,7 +129,7 @@ class Grbl1p1Controller(_ControllerBase):
         if not self._serial.is_open:
             return
 
-        print("Serial connected.")
+        print("Connected %s %s" % (self.label, self.serialDevName))
         self.setConnectionStatus(ConnectionState.CONNECTED)
 
         #self._serial.write(b"$G\n")

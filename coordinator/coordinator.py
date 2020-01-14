@@ -35,36 +35,13 @@ class Coordinator(_ComponentBase):
 
         self.running = True
 
-        self.eventActions = {}
+        self.eventSubscriptions = {}
+        # Change which controller is active in response to event.
         for controller in self.controllers:
-            self.eventActions["%s:active" % controller] = ("_changeActiveController", controller)
+            self.eventSubscriptions["%s:active" % controller] = (
+                    "_activeControllerOnEvent", controller)
 
         super().__init__("__coordinator__")
-
-    def _changeActiveController(self, eventName, eventValue):
-        eventValue = bool(eventValue)
-
-        eventControllerName = eventName.split(":")[0]
-
-        if self.controllers[eventControllerName].active == eventValue:
-            # No change
-            return
-
-        print(self._delivered)
-        print("New active controller: %s is %s" % (eventControllerName, eventValue))
-
-        assert eventControllerName in self.controllers, "Event received from invalid controller."
-        if eventValue:
-            for controller in self.controllers.values():
-                controller.active = False
-        self.controllers[eventControllerName].active = eventValue
-
-        # This will check only one controller has the active flag set
-        # or assign the "debug" controller active if none are set.
-        self.activateController()
-
-        for controllerName, controller in self.controllers.items():
-            self.publishOneByValue("%s:active" % controllerName, controller.active)
 
     def terminalSpecificSetup(self):
         # Gather GUI layouts from all components.
@@ -92,7 +69,7 @@ class Coordinator(_ComponentBase):
         self._eventQueue.clear()
 
     def activateController(self, label=None, controller=None):
-        """ Set a controller as the active one.
+        """ Set a specified controller as the active one.
         Args:
             label: If set, the active controller will be the one matching "label"
                    parameter.
@@ -148,9 +125,36 @@ class Coordinator(_ComponentBase):
         self.activeController = controller
         _onlyOneActive()
 
+    def _activeControllerOnEvent(self, eventName, eventValue):
+        """ Make whichever controller has it's "active" property set the active
+            one. """
+        eventValue = bool(eventValue)
+
+        eventControllerName, eventName = eventName.split(":")
+        assert eventName == "active", "Unexpected event name: %s" % eventName
+
+        if self.controllers[eventControllerName].active == eventValue:
+            # No change
+            return
+
+        print("New active controller: %s is %s" % (eventControllerName, eventValue))
+
+        assert eventControllerName in self.controllers, \
+                "Event received from invalid controller."
+        if eventValue:
+            for controller in self.controllers.values():
+                controller.active = False
+        self.controllers[eventControllerName].active = eventValue
+
+        # This will check only one controller has the active flag set
+        # or assign the "debug" controller active if none are set.
+        self.activateController()
+
+        for controllerName, controller in self.controllers.items():
+            self.publishOneByValue("%s:active" % controllerName, controller.active)
+
     def updateComponents(self) -> bool:
-        """ Iterate through all other components and service all data transfer
-        requests. """
+        """ Iterate through all components, delivering and acting upon events. """
         for terminalName, terminal in self.terminals.items():
             self.running = self.running and terminal.earlyUpdate()
 

@@ -88,6 +88,32 @@ class TestControllerReceiveData(unittest.TestCase):
 
         self.assertEqual(self.controller._receivedData.get(), b"test")
 
+    def test_SplitLineBeforeEOL(self):
+        """ A line is split over 2 reads between content and EOL. """
+        self.controller._serial.dummyData = [b"test", b"\r\ntest2\r\n"]
+        self.controller._periodicIO()
+        self.assertEqual(self.controller._receivedData.qsize(), 0)
+        self.controller._periodicIO()
+        self.assertEqual(self.controller._receivedData.qsize(), 1)
+        self.controller._periodicIO()
+        self.assertEqual(self.controller._receivedData.qsize(), 2)
+
+        self.assertEqual(self.controller._receivedData.get(), b"test")
+        self.assertEqual(self.controller._receivedData.get(), b"test2")
+
+    def test_SplitLineMidEOL(self):
+        """ A line is split over 2 reads between EOL chars. """
+        self.controller._serial.dummyData = [b"test\r", b"\ntest2\r\n"]
+        self.controller._periodicIO()
+        self.assertEqual(self.controller._receivedData.qsize(), 0)
+        self.controller._periodicIO()
+        self.assertEqual(self.controller._receivedData.qsize(), 1)
+        self.controller._periodicIO()
+        self.assertEqual(self.controller._receivedData.qsize(), 2)
+
+        self.assertEqual(self.controller._receivedData.get(), b"test")
+        self.assertEqual(self.controller._receivedData.get(), b"test2")
+
     def test_DelayedInput(self):
         """ A line is split over 2 reads with empty read in between. """
         self.controller._serial.dummyData = [b"te", None, b"st\r\n", None, b"test2\r\n"]
@@ -159,7 +185,38 @@ class TestControllerReceiveData(unittest.TestCase):
         self.assertEqual(self.controller._receivedData.get(), b"error:1")
         self.assertEqual(self.controller._receivedData.get(), b"error:42")
 
+    def test_Whitespace(self):
+        """ Whitespace should be stripped from ends of lines but not middle. """
+        self.controller._serial.dummyData = [b"  test  \r\n",
+                                             b"test 2\r\n",
+                                             b"    \r\n",
+                                             b"\t\r\n",
+                                             b"\n\r\n",
+                                             b"\r\r\n",
+                                             b"test\t3\r\n",
+                                             b"\ntest\n4\n\r\n",
+                                             ]
+        self.controller._periodicIO()
+        self.assertEqual(self.controller._receivedData.qsize(), 1)
+        self.controller._periodicIO()
+        self.assertEqual(self.controller._receivedData.qsize(), 2)
+        self.controller._periodicIO()
+        self.assertEqual(self.controller._receivedData.qsize(), 2)
+        self.controller._periodicIO()
+        self.assertEqual(self.controller._receivedData.qsize(), 2)
+        self.controller._periodicIO()
+        self.assertEqual(self.controller._receivedData.qsize(), 2)
+        self.controller._periodicIO()
+        self.assertEqual(self.controller._receivedData.qsize(), 2)
+        self.controller._periodicIO()
+        self.assertEqual(self.controller._receivedData.qsize(), 3)
+        self.controller._periodicIO()
+        self.assertEqual(self.controller._receivedData.qsize(), 4)
 
+        self.assertEqual(self.controller._receivedData.get(), b"test")
+        self.assertEqual(self.controller._receivedData.get(), b"test 2")
+        self.assertEqual(self.controller._receivedData.get(), b"test\t3")
+        self.assertEqual(self.controller._receivedData.get(), b"test\n4")
 
 
 if __name__ == '__main__':

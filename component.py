@@ -9,41 +9,35 @@ class _ComponentBase:
     """ General methods required by all components. """
 
     Event = Tuple[str, Any]
-    # Single instance for all instances.
+    # Single shared instance for all components.
     _eventQueue: Deque[Event] = deque()
     # Unique copy per instance.
-    eventActions: Dict[str, Any]
-    exported: Dict[str, str] 
-    _subscriptions: Dict[str, Any]
+    eventSubscriptions: Dict[str, Any]
+    eventsToPublish: Dict[str, str] 
     _delivered: Deque[Any]
    
     def __init__(self, label: str):
         self.label: str = label
 
-        # Mapping of event names to callback methods or property names.
-        if not hasattr(self, "eventActions"):
-            self.eventActions: Dict[str, Any] = {
-                    # "$COMPONENTNAME:$DESCRIPTION": ("$METHODNAME", None),
-                    # "$COMPONENTNAME:$DESCRIPTION": ("$METHODNAME", $DEFAULTVALUE),
+        # Events to be delivered to this class with callback as value.
+        if not hasattr(self, "eventSubscriptions"):
+            self.eventSubscriptions: Dict[str, Any] = {
+                    # "$COMPONENTNAME:$DESCRIPTION": ("$CALLBACK", None),
+                    # "$COMPONENTNAME:$DESCRIPTION": ("$CALLBACK", $DEFAULTVALUE),
                     # "$COMPONENTNAME:$DESCRIPTION": ("$PROPERTYNAME", $DEFAULTVALUE)
                     }
 
         # Variables to automatically export when publish() method is called.
-        if not hasattr(self, "exported"):
-            self.exported = {
+        # TODO: This isn't actually used. Will it be useful in the future?
+        #       Should we remove it?
+        if not hasattr(self, "eventsToPublish"):
+            self.eventsToPublish = {
                 # EVENT_NAME : CLASS_PROPERTY_TO_EXPORT
                 }
 
-        # Events to be delivered to this class.
-        if not hasattr(self, "_subscriptions"):
-            self._subscriptions = {}
-
         self._delivered = deque()
 
-        # Make sure we are subscribed to all the events we have handlers for.
-        for event in self.eventActions:
-            if event not in self._subscriptions:
-                self._subscriptions[event] = None
+        self.debugShowEvents = False
 
     def keyGen(self, tag):
         return "%s:%s" % (self.label, tag)
@@ -54,26 +48,26 @@ class _ComponentBase:
         pass
 
     def publish(self, eventName: str = "", prop=None):
-        """ Publish all events listed in the self.exported collection. """
-        if not hasattr(self, "exported"):
+        """ Publish all events listed in the self.eventsToPublish collection. """
+        if not hasattr(self, "eventsToPublish"):
             return
 
         if not eventName:
-            # Use self.exported and publish all events listed.
+            # Use self.eventsToPublish and publish all events listed.
             self._publishAllRegistered()
             return
 
         if eventName and prop is None:
-            if eventName not in self.exported:
+            if eventName not in self.eventsToPublish:
                 raise AttributeError("Property for event \"%s\" not listed in %s"
-                        (eventName, self.exported))
-            prop = self.exported[eventName]
+                        (eventName, self.eventsToPublish))
+            prop = self.eventsToPublish[eventName]
 
         self.publishOneByValue(eventName, prop)
 
     def _publishAllRegistered(self):
-        """ Publish events for all listed in self.exported. """
-        for eventName, prop in self.exported.items():
+        """ Publish events for all listed in self.eventsToPublish. """
+        for eventName, prop in self.eventsToPublish.items():
             self._publishOneByKey(eventName, prop)
 
     def _publishOneByKey(self, eventName: str, prop: str):
@@ -90,7 +84,7 @@ class _ComponentBase:
                 totalProperty = getattr(totalProperty, p)
             else:
                 raise AttributeError("Invalid property \"%s\" in %s." %
-                        (prop, self.exported))
+                        (prop, self.eventsToPublish))
         self.publishOneByValue(eventName, totalProperty)
         
 
@@ -101,11 +95,11 @@ class _ComponentBase:
     def receive(self):
         """ Deliver events this object is subscribed to. """
         #print(self.label, "receive", self._eventQueue)
-        if not hasattr(self, "_subscriptions"):
+        if not hasattr(self, "eventSubscriptions"):
             return
 
         for event, value in self._eventQueue:
-            if event in self._subscriptions:
+            if event in self.eventSubscriptions:
                 self._delivered.append((event, value))
 
     def updateEarly(self):
@@ -129,14 +123,14 @@ class _ComponentBase:
 
         for event in self._delivered:
             eventName, eventValue = event
-            action, defaultValue = self.eventActions[eventName]
+            action, defaultValue = self.eventSubscriptions[eventName]
 
             if eventValue is None:
                 # Use the one configured in this class.
                 eventValue = defaultValue
 
             if not isinstance(action, str):
-                raise AttributeError("Action (in self.eventActions) should be a "
+                raise AttributeError("Action (in self.eventSubscriptions) should be a "
                                      "string of the property name")
             if not hasattr(self, action):
                 raise AttributeError("Property for event \"%s\" does not exist.")

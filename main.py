@@ -15,6 +15,10 @@ def main():
 
     parser = argparse.ArgumentParser(description="A UI for CNC machines.")
 
+    parser.add_argument("-debugShowEvents",
+                        action="store_true",
+                        help="Display events.")
+
     for terminal in terminals:
         if terminal.activeByDefault:
             parser.add_argument("-no_%s" % terminal.label,
@@ -28,9 +32,11 @@ def main():
                                 help=terminal.description)
     
     args = parser.parse_args()
+    print(args)
 
     for terminal in terminals:
         terminal.activateNow = getattr(args, terminal.label)
+        terminal.debugShowEvents = args.debugShowEvents
 
     
     coordinator = Coordinator(terminals, interfaces, controllers)

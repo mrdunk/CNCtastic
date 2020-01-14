@@ -12,6 +12,8 @@ class _ControllerBase(_ComponentBase):
     SUPPORTED_GCODE = set()
 
     def __init__(self, label):
+        super().__init__(label)
+
         self.active: bool = False
         self.readyForData: bool = False
         self.connectionStatus: ConnectionState = ConnectionState.UNKNOWN
@@ -21,15 +23,13 @@ class _ControllerBase(_ComponentBase):
 
         # Map incoming events to local member variables and callback methods.
         self.label = label
-        self.eventActions = {
+        self.eventSubscriptions = {
                 self.keyGen("connect"):
                 ("setDesiredConnectionStatus", ConnectionState.CONNECTED),
                 self.keyGen("disconnect"):
                 ("setDesiredConnectionStatus", ConnectionState.NOT_CONNECTED),
                 "desiredState:newGcode": ("_newGcodeLine", None),
                 }
-        # Need to call super() here as is does config based on self.eventActions.
-        super().__init__(label)
 
         self.setConnectionStatus(ConnectionState.UNKNOWN)
         self.setDesiredConnectionStatus(ConnectionState.NOT_CONNECTED)

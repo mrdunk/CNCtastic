@@ -18,9 +18,11 @@ class JogWidget(_InterfaceBase):
     head to given coordinates. """
 
     def __init__(self, label: str = "jogWidget"):
+        super().__init__(label)
+
         self.label = label
         # Map incoming events to local member variables and callback methods.
-        self.eventActions = {
+        self.eventSubscriptions = {
                 self.keyGen("xyMultiply"): ("_xyJogStepMultiply", 10),
                 self.keyGen("xyDivide"): ("_xyJogStepMultiply", 0.1),
                 self.keyGen("xyJogStep"): ("_xyJogStep", None),
@@ -36,12 +38,6 @@ class JogWidget(_InterfaceBase):
                 self.keyGen("dc"): ("_moveHandler", (0, 1)),
                 self.keyGen("dr"): ("_moveHandler", (1, 1)),
                 }
-
-        self.exported = {
-                #self.keyGen("xyJogStep"): "_xyJogStep"
-                }
-
-        super().__init__(label)
 
         self._xyJogStep = 10
         self._zJogStep = 10
@@ -67,7 +63,7 @@ class JogWidget(_InterfaceBase):
         butH = 1.5
         def txt(label: str) -> sg.Frame:
             t = sg.Text(label, justification="center", size=(butW, butH),
-                    background_color="grey"
+                    #background_color="grey"
                     )
             return t
 
@@ -101,7 +97,7 @@ class JogWidget(_InterfaceBase):
         layout = [
                 [sg.Column(layoutXY, pad=(0,0), size=(1,1)),
                  sg.Column(layoutZ, pad=(0,0), size=(1,1)),
-                 sg.Stretch()
+                 #sg.Stretch()
                  ]
                 ]
         return layout

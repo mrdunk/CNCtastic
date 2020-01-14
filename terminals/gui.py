@@ -1,5 +1,6 @@
 from typing import List, Dict
 from enum import Enum
+
 import PySimpleGUIQt as sg
 #import PySimpleGUIWeb as sg
 
@@ -46,7 +47,7 @@ class Gui(_TerminalBase):
 
         # Subscribe to events matching GUI widget keys.
         for event in self.window.AllKeysDict:
-            self._subscriptions[event] = None
+            self.eventSubscriptions[event] = None
 
     def earlyUpdate(self) -> bool:
         """ To be called once per frame.
@@ -68,7 +69,7 @@ class Gui(_TerminalBase):
         if not event == "__TIMEOUT__":
             self._diffValues[event] = None
         
-        if not event == "__TIMEOUT__" or self._diffValues:
+        if(not event == "__TIMEOUT__" or self._diffValues) and self.debugShowEvents:
             print(event, self._diffValues)
 
         return event not in (None, ) and not event.startswith("Exit")

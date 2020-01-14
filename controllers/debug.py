@@ -114,8 +114,9 @@ class DebugController(_ControllerBase):
             gcode = update.gcode
 
             self.gcode.append((jog, gcode))
-            print("CONTROLLER: %s  RECEIVED: %s  BUFFER: %s" %
-                    (self.label, gcode.gcodes, len(self.gcode)))
+            if self.debugShowEvents:
+                print("CONTROLLER: %s  RECEIVED: %s  BUFFER: %s" %
+                        (self.label, gcode.gcodes, len(self.gcode)))
         
             gcodeDebugOutput = ""
             for jog, gc in self.gcode:
