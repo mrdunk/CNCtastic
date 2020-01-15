@@ -15,6 +15,7 @@ class _SerialControllerBase(_ControllerBase):
         self.serialDevName = "/tmp/ttyFAKE"
         self.serialBaud = 115200
         self._serial = None
+        self.testing: bool = False  # Prevent _periodicIO() from blocking during tests.
     
     def connect(self):
         """ Try to open serial port. Set connectionStatus to CONNECTING. """

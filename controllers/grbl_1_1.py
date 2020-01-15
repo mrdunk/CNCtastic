@@ -53,18 +53,27 @@ class Grbl1p1Controller(_SerialControllerBase):
 
     def __init__(self, label: str="grbl1.1"):
         super().__init__(label)
-        self._time = time  # Allow replacing with a mock version when testing.
+
+        # Allow replacing with a mock version when testing.
+        self._time = time
+
+        # State machine to track current GRBL state.
         self.state = State(self.publishFromHere)
-        self._lastWrite = 0
+
+        # Populate with GRBL commands that are processed immediately and don't need queued.
         self._commandImmediate = Queue()
+        # Populate with GRBL commands that are processed sequentially.
         self._commandStreaming = Queue()
+
+        # Data received from GRBL that does not need processed immediately.
         self._receivedData = Queue()
+
         self._partialRead: str = b""
+        self._lastWrite = 0
         self._errorCount: int = 0
         self._okCount: int = 0
         self._sendBufLens: deque = deque()
         self._sendBufActns: deque = deque()
-        self.testing: bool = False
 
         #self.active: bool = True
     
@@ -102,6 +111,9 @@ class Grbl1p1Controller(_SerialControllerBase):
         return False
 
     def parseIncoming(self, incoming):
+        """ Process data received from serial port.
+        Handles urgent updates here and puts the rest in _receivedData buffer for
+        later processing. """
         if incoming is None:
             incoming = b""
         if self._partialRead:
@@ -133,6 +145,7 @@ class Grbl1p1Controller(_SerialControllerBase):
             self._receivedData.put(incoming)
 
     def _incomingError(self, incoming):
+        """ Called when GRBL returns an "error:". """
         self._errorCount += 1
         self._sendBufLens.popleft()
         action = self._sendBufActns.popleft()
@@ -141,6 +154,7 @@ class Grbl1p1Controller(_SerialControllerBase):
         self._commandImmediate.put(b"!")
 
     def _incomingOk(self, incoming):
+        """ Called when GRBL returns an "ok". """
         if not self._sendBufLens:
             return
         self._okCount += 1
@@ -151,6 +165,7 @@ class Grbl1p1Controller(_SerialControllerBase):
             self._receivedData.put(b"[sentGcode:%s]" % str(action.modal_copy()).encode("utf-8"))
 
     def _writeImmediate(self) -> bool:
+        """ Write entries in the _commandImmediate buffer to serial port. """
         task = None
         try:
             task = self._commandImmediate.get(block=False)
@@ -161,6 +176,7 @@ class Grbl1p1Controller(_SerialControllerBase):
         return self._serialWrite(task)
 
     def _writeStreaming(self) -> bool:
+        """ Write entries in the _commandStreaming buffer to serial port. """
         if sum(self._sendBufLens) >= RX_BUFFER_SIZE - 1:
             return False
 
@@ -209,7 +225,8 @@ class Grbl1p1Controller(_SerialControllerBase):
                 break
 
     def doCommand(self, command: UpdateState):
-        """ Turn the update into something GRBL can parse and put in a command buffer. """
+        """ Turn update received via event into something GRBL can parse and put
+        in a command buffer. """
         assert isinstance(command, UpdateState)
         print(command)
 
@@ -289,6 +306,7 @@ class Grbl1p1Controller(_SerialControllerBase):
                 self.state.eventFired = True
 
     def update(self):
+        """ Called by the coordinator after events have been delivered. """
         super().update()
 
         if self._queuedUpdates:
