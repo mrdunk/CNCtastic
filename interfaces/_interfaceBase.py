@@ -14,7 +14,8 @@ class UpdateState:
                  halt: FlagState = FlagState.UNSET,
                  pause: FlagState = FlagState.UNSET,
                  jog: FlagState = FlagState.UNSET,
-                 home: FlagState = FlagState.UNSET):
+                 home: FlagState = FlagState.UNSET,
+                 door: FlagState = FlagState.UNSET):
         """
         Args:
             gcode: A pygcode Block object containing a single gcode line.
@@ -27,7 +28,8 @@ class UpdateState:
         self.pause: FlagState = pause
         self.jog: FlagState = jog
         self.home: FlagState = home
-        self.flags = ["halt", "pause", "jog", "home"]
+        self.door: FlagState = door
+        self.flags = ["halt", "pause", "jog", "home", "door"]
 
     def __str__(self):
         output = ""

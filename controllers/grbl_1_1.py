@@ -3,17 +3,21 @@ import time
 import serial
 import threading
 from queue import Queue, Empty
+from collections import deque
 
 #import PySimpleGUIQt as sg
 from terminals.gui import sg
+from pygcode import GCode
 
 from controllers._controllerBase import _ControllerBase
+from interfaces._interfaceBase import UpdateState
 from definitions import ConnectionState
 from controllers.stateMachine import StateMachineGrbl as State
+from definitions import FlagState
 
 REPORT_INTERVAL = 1.0 # seconds
 SERIAL_INTERVAL = 0.02 # seconds
-
+RX_BUFFER_SIZE = 128
 
 className = "Grbl1p1Controller"
 
@@ -39,7 +43,7 @@ class Grbl1p1Controller(_ControllerBase):
 
     def __init__(self, label: str="grbl1.1"):
         super().__init__(label)
-        self._time = time  # Allow replacing with a ock version when testing.
+        self._time = time  # Allow replacing with a mock version when testing.
         self.state = State(self.publishFromHere)
         #self.serialDevName = "spy:///tmp/ttyFAKE?file=/tmp/serialspy.txt"
         self.serialDevName = "/tmp/ttyFAKE"
@@ -52,7 +56,8 @@ class Grbl1p1Controller(_ControllerBase):
         self._partialRead: str = b""
         self._errorCount: int = 0
         self._okCount: int = 0
-
+        self._sendBufLens: deque = deque()
+        self._sendBufActns: deque = deque()
         self.testing: bool = False
 
         #self.active: bool = True
@@ -132,8 +137,15 @@ class Grbl1p1Controller(_ControllerBase):
         print("Connected %s %s" % (self.label, self.serialDevName))
         self.setConnectionStatus(ConnectionState.CONNECTED)
 
+        # Drain the buffer of any noise.
+        self._serial.flush()
+        #while self._serial.inWaiting():
+        #    print(self._serial.readline())
+        while self._serial.readline():
+            pass
+
         #self._serial.write(b"$G\n")
-        self._commandImmediate.put(b"$G\n")
+        self._commandStreaming.put(b"$G")
 
         self._serialThread = threading.Thread(target=self._periodicIO)
         self._serialThread.daemon = True
@@ -147,11 +159,14 @@ class Grbl1p1Controller(_ControllerBase):
         self.setConnectionStatus(ConnectionState.NOT_CONNECTED)
         self._serial = None
 
-    def _write(self, string):
-        try:
-            self._serial.write(string)
-        except serial.serialutil.SerialException:
-            self.setConnectionStatus(ConnectionState.FAIL)
+    def _completeBeforeContinue(self, command) -> bool:
+        slowCommands = [b"G10 L2 ", b"G10 L20 ", b"G28.1 ", b"G30.1 ", b"$x=", b"$I=",
+                        b"$Nx=", b"$RST=", b"G54 ", b"G55 ", b"G56 ", b"G57 ", b"G58 ",
+                        b"G59 ", b"G28 ", b"G30 ", b"$$", b"$I", b"$N", b"$#"]
+        for slowCommand in slowCommands:
+            if slowCommand in command:
+                return True
+        return False
 
     def parseIncoming(self, incoming):
         if incoming is None:
@@ -191,8 +206,53 @@ class Grbl1p1Controller(_ControllerBase):
         self._commandImmediate.put(b"!")
 
     def _incomingOk(self, incoming):
-        print("_incomingOk", incoming)
+        if not self._sendBufLens:
+            return
         self._okCount += 1
+        self._sendBufLens.popleft()
+        action = self._sendBufActns.popleft()
+        print("'ok' acknowledges: %s" % action)
+        if isinstance(action, GCode):
+            gcodeString = bytes(str(action), "utf-8") if action.word_key is None \
+                    else bytes(str(action.word_key), "utf-8")
+            self._receivedData.put(b"[sentGcode:%s]" % gcodeString)
+
+    def _write(self, task) -> bool:
+        try:
+            self._serial.write(task)
+        except serial.serialutil.SerialException:
+            self.setConnectionStatus(ConnectionState.FAIL)
+            return False
+        return True
+
+    def _writeImmediate(self) -> bool:
+        task = None
+        try:
+            task = self._commandImmediate.get(block=False)
+        except Empty:
+            return False
+
+        print("_writeImmediate", task)
+        return self._write(task)
+
+    def _writeStreaming(self) -> bool:
+        if sum(self._sendBufLens) >= RX_BUFFER_SIZE - 1:
+            return False
+
+        task = None
+        try:
+            task = self._commandStreaming.get(block=False)
+        except Empty:
+            return False
+
+        taskString = bytes(str(task), "utf-8") if isinstance(task, GCode) else task
+
+        print("_writeStreaming", task, taskString, isinstance(task, GCode))
+        if self._write(taskString + b"\n"):
+            self._sendBufLens.append(len(taskString) + 1)
+            self._sendBufActns.append(task)
+            return True
+        return False
 
     def _periodicIO(self):
         """ Read from and write to serial port.
@@ -200,24 +260,18 @@ class Grbl1p1Controller(_ControllerBase):
             Blocks while serial port remains connected. """
         while self.connectionStatus is ConnectionState.CONNECTED:
             # Read
-            try:
-                line = self._serial.readline()
-            except serial.serialutil.SerialException:
-                self.setConnectionStatus(ConnectionState.FAIL)
-            self.parseIncoming(line)
+            while self._serial.inWaiting() or ( b"\r\n" in self._partialRead):
+                try:
+                    line = self._serial.readline()
+                except serial.serialutil.SerialException:
+                    self.setConnectionStatus(ConnectionState.FAIL)
+                self.parseIncoming(line)
 
             #Write
-            task = None
-            try:
-                task = self._commandImmediate.get(block=False)
-            except Empty:
-                try:
-                    task = self._commandStreaming.get(block=False)
-                except Empty:
-                    pass
-            if task is not None:
-                self._write(task)
+            if not self._writeImmediate():
+                self._writeStreaming()
 
+            # Request status update periodically.
             if self._lastWrite < self._time.time() - REPORT_INTERVAL:
                 self._write(b"?")
                 self._lastWrite = self._time.time()
@@ -225,6 +279,37 @@ class Grbl1p1Controller(_ControllerBase):
 
             if self.testing:
                 break
+
+    def doCommand(self, command: UpdateState):
+        """ Turn the update into something GRBL can parse and put in a command buffer. """
+        assert isinstance(command, UpdateState)
+        print(command)
+
+        # Flags.
+        if command.pause is FlagState.TRUE and self.state.pause == False:
+            # GRBL feed hold.
+            self._commandImmediate.put(b"!")
+        elif command.pause is FlagState.FALSE and self.state.pause == True:
+            if self.state.parking == False:
+                # GRBL Cycle Start / Resume
+                self._commandImmediate.put(b"~")
+
+        if command.door is FlagState.TRUE and self.state.door == False:
+            # GRBL Safety Door.
+            self._commandImmediate.put(0x84)
+        elif command.door is FlagState.FALSE and self.state.door == True:
+            if self.state.parking == False:
+                # GRBL Cycle Start / Resume
+                self._commandImmediate.put(b"~")
+
+        if command.gcode is not None:
+            # The pygcode library allows us to sort gcode objects into a sane order.
+            # EG, feed rate (Fnnn) and incremental move (G91) should be sent before
+            # coordinates (G00 Xnnn ynnn).
+            for gcode in sorted(command.gcode.gcodes):
+                # self._commandStreaming.put(bytes(str(gcode), "utf-8") + b"\n")
+                self._commandStreaming.put(gcode)
+
 
     def earlyUpdate(self):
         """ Called early in the event loop, before events have been received. """
@@ -268,13 +353,12 @@ class Grbl1p1Controller(_ControllerBase):
         if receivedLine is not None:
             self.state.parseIncoming(receivedLine)
 
-
     def update(self):
         super().update()
 
         if self._queuedUpdates:
             # Process local buffer.
             for update in self._queuedUpdates:
-                print(update)
+                self.doCommand(update)
             self._queuedUpdates.clear()
 

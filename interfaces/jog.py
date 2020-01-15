@@ -56,7 +56,11 @@ class JogWidget(_InterfaceBase):
 
     def _moveHandler(self, values):
         self.absoluteDistanceMode(self, False)
-        self.moveTo(x=self._xyJogStep * values[0], y=self._xyJogStep * values[1])
+        self.moveTo(command="G00",
+                    x=self._xyJogStep * values[0],
+                    y=self._xyJogStep * values[1],
+                    #f=100  # TODO: Feed rates on jog.py
+                    )
 
     def guiLayout(self):
         butW = 5

@@ -56,7 +56,8 @@ class StateMachineBase:
         self.eventFired: bool = False
 
     def __str__(self):
-        output = ("machinePos x: {self.machinePos[x]} y: {self.machinePos[y]} "
+        output = ("Pause: {self.pause}\tHalt: {self.halt}\n")
+        output += ("machinePos x: {self.machinePos[x]} y: {self.machinePos[y]} "
                              "z: {self.machinePos[z]} a: {self.machinePos[a]} "
                              "b: {self.machinePos[b]}\r\n")
         if self.machinePos != self.workPos:
@@ -207,7 +208,7 @@ class StateMachineBase:
 
     @property
     def limitX(self):
-        return self.__spindleOverride
+        return self.__limitX
 
     @limitX.setter
     def limitX(self, limitX: Dict):
@@ -216,7 +217,7 @@ class StateMachineBase:
 
     @property
     def limitY(self):
-        return self.__spindleOverride
+        return self.__limitY
 
     @limitY.setter
     def limitY(self, limitY: Dict):
@@ -225,7 +226,7 @@ class StateMachineBase:
 
     @property
     def limitZ(self):
-        return self.__spindleOverride
+        return self.__limitZ
 
     @limitZ.setter
     def limitZ(self, limitZ: Dict):
@@ -234,7 +235,7 @@ class StateMachineBase:
 
     @property
     def limitA(self):
-        return self.__spindleOverride
+        return self.__limitA
 
     @limitA.setter
     def limitA(self, limitA: Dict):
@@ -243,7 +244,7 @@ class StateMachineBase:
 
     @property
     def limitB(self):
-        return self.__spindleOverride
+        return self.__limitB
 
     @limitB.setter
     def limitB(self, limitB: Dict):
@@ -252,7 +253,7 @@ class StateMachineBase:
 
     @property
     def limitXMax(self):
-        return self.__spindleOverride
+        return self.__limitXMax
 
     @limitXMax.setter
     def limitXMax(self, limitXMax: Dict):
@@ -261,7 +262,7 @@ class StateMachineBase:
 
     @property
     def limitYMax(self):
-        return self.__spindleOverride
+        return self.__limitYMax
 
     @limitYMax.setter
     def limitYMax(self, limitYMax: Dict):
@@ -270,7 +271,7 @@ class StateMachineBase:
 
     @property
     def limitZMax(self):
-        return self.__spindleOverride
+        return self.__limitZMax
 
     @limitZMax.setter
     def limitZMax(self, limitZMax: Dict):
@@ -279,7 +280,7 @@ class StateMachineBase:
 
     @property
     def limitAMax(self):
-        return self.__spindleOverride
+        return self.__limitAMax
 
     @limitAMax.setter
     def limitAMax(self, limitAMax: Dict):
@@ -288,7 +289,7 @@ class StateMachineBase:
 
     @property
     def limitBMax(self):
-        return self.__spindleOverride
+        return self.__limitBMax
 
     @limitBMax.setter
     def limitBMax(self, limitBMax: Dict):
@@ -297,7 +298,7 @@ class StateMachineBase:
 
     @property
     def probe(self):
-        return self.__spindleOverride
+        return self.__probe
 
     @probe.setter
     def probe(self, probe: Dict):
@@ -306,7 +307,7 @@ class StateMachineBase:
 
     @property
     def pause(self):
-        return self.__spindleOverride
+        return self.__pause
 
     @pause.setter
     def pause(self, pause: Dict):
@@ -318,7 +319,7 @@ class StateMachineBase:
 
     @property
     def parking(self):
-        return self.__spindleOverride
+        return self.__parking
 
     @parking.setter
     def parking(self, parking: Dict):
@@ -327,7 +328,7 @@ class StateMachineBase:
 
     @property
     def halt(self):
-        return self.__spindleOverride
+        return self.__halt
 
     @halt.setter
     def halt(self, halt: Dict):
@@ -339,7 +340,7 @@ class StateMachineBase:
 
     @property
     def door(self):
-        return self.__spindleOverride
+        return self.__door
 
     @door.setter
     def door(self, door: Dict):
@@ -371,11 +372,10 @@ class StateMachineGrbl(StateMachineBase):
         super().__init__(onUpdateCallback)
 
     def parseIncoming(self, incoming):
-
         if incoming.startswith(b"error:"):
             print(b"ERROR:", incoming, b"TODO")
         elif incoming.startswith(b"ok"):
-            assert False
+            assert False, "'ok' response should not have been passed to state machine."
         elif incoming.startswith(b"ALARM:"):
             self._parseIncomingAlarm(incoming)
         elif incoming.startswith(b"<"):
@@ -389,7 +389,7 @@ class StateMachineGrbl(StateMachineBase):
         elif incoming.startswith(b"Grbl "):
             self._parseStartup(incoming)
         else:
-            print(incoming)
+            print("Input not parsed: %s" % incoming)
 
     def _parseIncomingStatus(self, incoming):
         assert incoming.startswith(b"<") and incoming.endswith(b">")
@@ -420,10 +420,13 @@ class StateMachineGrbl(StateMachineBase):
         self.eventFired = False
     
     def _parseIncomingFeedbackModal(self, msg):
-        """ In response to a "$G" command, GRBL sends a G-code Parser State Message
-        in the format:
-        [GC:G0 G54 G17 G21 G90 G94 M5 M9 T0 F0.0 S0]
-        Each word is in a different modal group.
+        """ Parse report on which modal option was last used for each group.
+        Report comes fro one of 2 places:
+        1. In response to a "$G" command, GRBL sends a G-code Parser State Message
+           in the format:
+           [GC:G0 G54 G17 G21 G90 G94 M5 M9 T0 F0.0 S0]
+        2. A Gcode line in the form "G0 X123 Y345 F2000" would update the "Motion"
+           group (G0) and the Feed group (F2000).
         self.MODALS maps these words to a group. eg: G0 is in the "motion" group.  """
         modals = msg.split(b" ")
         for modal in modals:
@@ -433,6 +436,8 @@ class StateMachineGrbl(StateMachineBase):
             elif chr(modal[0]).encode('utf-8') in self.MODALS:
                 modalGroup = self.MODALS[chr(modal[0]).encode('utf-8')]
                 self.gcodeModal[modalGroup] = modal
+            elif chr(modal[0]).encode('utf-8') in [b"X", b"Y", b"Z", b"A", b"B"]:
+                pass
             else:
                 assert False, "Gcode word does not match any mmodal group: %s" % modal
         self.onUpdateCallback("gcodeModal", self.gcodeModal)
@@ -446,7 +451,7 @@ class StateMachineGrbl(StateMachineBase):
 
         if msgType == b"MSG":
             print(msgType, incoming, "TODO")
-        elif msgType == b"GC":
+        elif msgType in [b"GC", b"sentGcode"]:
             self._parseIncomingFeedbackModal(msg)
         elif msgType == b"HLP":
             # Response to a "$" (print help) command. Only ever used by humans.
@@ -535,11 +540,20 @@ class StateMachineGrbl(StateMachineBase):
             self.halt = False
             self.door = False
         elif state == b"Hold":
-            pass
+            # self.pausePark = False
+            self.halt = False
+            self.door = False
+            self.pause = True
         elif state == b"Alarm":
-            pass
+            self.pause = False
+            self.pausePark = False
+            self.door = False
+            self.halt = True
         elif state == b"Door":
-            pass
+            self.pause = False
+            self.pausePark = False
+            self.halt = False
+            self.door = True
         elif state == b"Check":
             pass
         elif state == b"Sleep":

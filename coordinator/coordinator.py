@@ -1,5 +1,4 @@
 from typing import List, Dict, Any, Tuple, Deque
-from collections import deque
 
 from pygcode import block, Machine
 
@@ -22,7 +21,6 @@ class Coordinator(_ComponentBase):
         self.controllers: Dict() = {controller.label:controller for controller in controllers}
 
         self.activeController = None
-        self.gcode: deque = deque()
 
         self.activateController()
         
