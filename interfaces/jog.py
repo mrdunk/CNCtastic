@@ -59,7 +59,7 @@ class JogWidget(_InterfaceBase):
         self.moveTo(command="G00",
                     x=self._xyJogStep * values[0],
                     y=self._xyJogStep * values[1],
-                    #f=100  # TODO: Feed rates on jog.py
+                    f=100  # TODO: Feed rates on jog.py
                     )
 
     def guiLayout(self):

@@ -131,14 +131,16 @@ class TestControllerReceiveDataFromSerial(unittest.TestCase):
         They change counters relating to current buffer state; As "ok" arrives,
         we know a buffer entry has been consumed. """
         self.controller._serial.dummyData = [b"test\r\n", b"ok\r\n", b"test2\r\n", b"ok\r\n"]
-        self.controller._bufferLengths.append(5)
-        self.controller._bufferLengths.append(10)
-        self.controller._bufferLengths.append(20)
-
+        self.controller._sendBufLens.append(5)
+        self.controller._sendBufActns.append(("dummy", None))
+        self.controller._sendBufLens.append(10)
+        self.controller._sendBufActns.append(("dummy", None))
+        self.controller._sendBufLens.append(20)
+        self.controller._sendBufActns.append(("dummy", None))
         
         self.controller._periodicIO()
         # 1 "ok" processed. Entry removed from _bufferLengths.
-        self.assertEqual(len(self.controller._bufferLengths), 1)
+        self.assertEqual(len(self.controller._sendBufLens), 1)
         self.assertEqual(self.controller._okCount, 2)
         # 2 other messages.
         self.assertEqual(self.controller._receivedData.qsize(), 2)
@@ -151,6 +153,10 @@ class TestControllerReceiveDataFromSerial(unittest.TestCase):
         Errors should halt execution imidiately. ("!" halts the machine in GRBL."""
         self.controller._serial.dummyData = [
                 b"test\r\n", b"error:12\r\n", b"test2\r\n", b"error:42\r\n"]
+        self.controller._sendBufLens.append(5)
+        self.controller._sendBufActns.append(("dummy", None))
+        self.controller._sendBufLens.append(10)
+        self.controller._sendBufActns.append(("dummy", None))
         
         self.controller._periodicIO()
         self.assertEqual(self.controller._errorCount, 2)

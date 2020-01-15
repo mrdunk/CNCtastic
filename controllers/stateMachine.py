@@ -436,8 +436,8 @@ class StateMachineGrbl(StateMachineBase):
             elif chr(modal[0]).encode('utf-8') in self.MODALS:
                 modalGroup = self.MODALS[chr(modal[0]).encode('utf-8')]
                 self.gcodeModal[modalGroup] = modal
-            elif chr(modal[0]).encode('utf-8') in [b"X", b"Y", b"Z", b"A", b"B"]:
-                pass
+            #elif chr(modal[0]).encode('utf-8') in [b"X", b"Y", b"Z", b"A", b"B"]:
+            #    pass
             else:
                 assert False, "Gcode word does not match any mmodal group: %s" % modal
         self.onUpdateCallback("gcodeModal", self.gcodeModal)

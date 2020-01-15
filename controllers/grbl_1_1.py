@@ -7,7 +7,7 @@ from collections import deque
 
 #import PySimpleGUIQt as sg
 from terminals.gui import sg
-from pygcode import GCode
+from pygcode import GCode, Block
 
 from controllers._controllerBase import _ControllerBase
 from interfaces._interfaceBase import UpdateState
@@ -26,20 +26,30 @@ class Grbl1p1Controller(_ControllerBase):
     # GRBL1.1 only supports the following subset of gcode.
     # https://github.com/gnea/grbl/wiki/Grbl-v1.1-Commands
     SUPPORTED_GCODE = set((
-            "G00", "G01", "G02", "G03", "G38.2", "G38.3", "G38.4", "G38.5", "G80",
-            "G54", "G55", "G56", "G57", "G58", "G59",
-            "G17", "G18", "G19",
-            "G90", "G91",
-            "G91.1",
-            "G93", "G94",
-            "G20", "G21",
-            "G40",
-            "G43.1", "G49",
-            "M00", "M01", "M02", "M30",
-            "M03", "M04", "M05",
-            "M07", "M08", "M09",
-            "G04", "G10 L2", "G10 L20", "G28", "G30", "G28.1", "G30.1", "G53", "G92", "G92.1",
+            b"G00", b"G01", b"G02", b"G03", b"G38.2", b"G38.3", b"G38.4", b"G38.5", b"G80",
+            b"G54", b"G55", b"G56", b"G57", b"G58", b"G59",
+            b"G17", b"G18", b"G19",
+            b"G90", b"G91",
+            b"G91.1",
+            b"G93", b"G94",
+            b"G20", b"G21",
+            b"G40",
+            b"G43.1", b"G49",
+            b"M00", b"M01", b"M02", b"M30",
+            b"M03", b"M04", b"M05",
+            b"M07", b"M08", b"M09",
+            b"G04", b"G10 L2", b"G10 L20", b"G28", b"G30", b"G28.1", b"G30.1",
+            b"G53", b"G92", b"G92.1",
+            b"F", b"T", b"S"
             ))
+
+    SUPPORTED_JOG_GCODE = set((
+        b"G20", b"G21",  # Inch and millimeter mode
+        b"G90", b"G91",  # Absolute and incremental distances
+        b"G53",          # Move in machine coordinates
+        b"F"
+        ))
+
 
     def __init__(self, label: str="grbl1.1"):
         super().__init__(label)
@@ -200,8 +210,10 @@ class Grbl1p1Controller(_ControllerBase):
             self._receivedData.put(incoming)
 
     def _incomingError(self, incoming):
-        print("_incomingError", incoming)
         self._errorCount += 1
+        self._sendBufLens.popleft()
+        action = self._sendBufActns.popleft()
+        print("error: '%s' due to '%s' " % (incoming, action[0]))
         # Feed Hold:
         self._commandImmediate.put(b"!")
 
@@ -211,11 +223,9 @@ class Grbl1p1Controller(_ControllerBase):
         self._okCount += 1
         self._sendBufLens.popleft()
         action = self._sendBufActns.popleft()
-        print("'ok' acknowledges: %s" % action)
-        if isinstance(action, GCode):
-            gcodeString = bytes(str(action), "utf-8") if action.word_key is None \
-                    else bytes(str(action.word_key), "utf-8")
-            self._receivedData.put(b"[sentGcode:%s]" % gcodeString)
+        print("'ok' acknowledges: %s" % action[0], type(action[1]))
+        if isinstance(action[1], GCode):
+            self._receivedData.put(b"[sentGcode:%s]" % str(action.modal_copy()).encode("utf-8"))
 
     def _write(self, task) -> bool:
         try:
@@ -245,12 +255,14 @@ class Grbl1p1Controller(_ControllerBase):
         except Empty:
             return False
 
-        taskString = bytes(str(task), "utf-8") if isinstance(task, GCode) else task
+        taskString = task
+        if isinstance(task, Block):
+            taskString = str(task).encode("utf-8")
 
-        print("_writeStreaming", task, taskString, isinstance(task, GCode))
+        print("_writeStreaming", taskString)
         if self._write(taskString + b"\n"):
             self._sendBufLens.append(len(taskString) + 1)
-            self._sendBufActns.append(task)
+            self._sendBufActns.append((taskString, task))
             return True
         return False
 
@@ -260,7 +272,7 @@ class Grbl1p1Controller(_ControllerBase):
             Blocks while serial port remains connected. """
         while self.connectionStatus is ConnectionState.CONNECTED:
             # Read
-            while self._serial.inWaiting() or ( b"\r\n" in self._partialRead):
+            while self._serial.inWaiting() or (b"\r\n" in self._partialRead):
                 try:
                     line = self._serial.readline()
                 except serial.serialutil.SerialException:
@@ -273,8 +285,11 @@ class Grbl1p1Controller(_ControllerBase):
 
             # Request status update periodically.
             if self._lastWrite < self._time.time() - REPORT_INTERVAL:
-                self._write(b"?")
+                self._commandImmediate.put(b"?")
                 self._lastWrite = self._time.time()
+
+                print("GRBL receive buffer contains %s commands, %s bytes" %
+                        (len(self._sendBufLens), sum(self._sendBufLens)))
             self._time.sleep(SERIAL_INTERVAL)
 
             if self.testing:
@@ -303,12 +318,41 @@ class Grbl1p1Controller(_ControllerBase):
                 self._commandImmediate.put(b"~")
 
         if command.gcode is not None:
-            # The pygcode library allows us to sort gcode objects into a sane order.
-            # EG, feed rate (Fnnn) and incremental move (G91) should be sent before
-            # coordinates (G00 Xnnn ynnn).
-            for gcode in sorted(command.gcode.gcodes):
-                # self._commandStreaming.put(bytes(str(gcode), "utf-8") + b"\n")
-                self._commandStreaming.put(gcode)
+            if command.jog is FlagState.TRUE:
+                validGcode = True
+                jogCommandString = b"$J="
+                for gcode in sorted(command.gcode.gcodes):
+                    modal = str(gcode.modal_copy()).encode("utf-8")
+                    modalFirst = bytes([modal[0]])
+                    if (modal in self.SUPPORTED_JOG_GCODE or
+                            modalFirst in self.SUPPORTED_JOG_GCODE):
+                        jogCommandString += str(gcode).encode("utf-8")
+                    elif modal in [b"G00", b"G0", b"G01", b"G1"]:
+                        for param, value in gcode.get_param_dict().items():
+                            jogCommandString += param.encode("utf-8")
+                            jogCommandString += str(value).encode("utf-8")
+                    else:
+                        # Unsupported gcode.
+                        # TODO: Need a way of raising an error.
+                        print("Unsupported gcode: %s" % gcode, modal, modalFirst)
+                        self._commandImmediate.put(b"!")
+                        validGcode = False
+                if validGcode:
+                    self._commandStreaming.put(jogCommandString)
+            else:
+                validGcode = True
+                for gcode in sorted(command.gcode.gcodes):
+                    modal = str(gcode.modal_copy()).encode("utf-8")
+                    modalFirst = bytes([modal[0]])
+                    if (modal not in self.SUPPORTED_GCODE and
+                            modalFirst not in self.SUPPORTED_GCODE):
+                        # Unsupported gcode.
+                        # TODO: Need a way of raising an error.
+                        print("Unsupported gcode: %s" % gcode, modal, modalFirst)
+                        self._commandImmediate.put(b"!")
+                        validGcode = False
+                if validGcode:
+                    self._commandStreaming.put(command.gcode)
 
 
     def earlyUpdate(self):
@@ -351,6 +395,7 @@ class Grbl1p1Controller(_ControllerBase):
         except Empty:
             pass
         if receivedLine is not None:
+            print("receivedLine:", receivedLine)
             self.state.parseIncoming(receivedLine)
 
     def update(self):
