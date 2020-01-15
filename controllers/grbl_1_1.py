@@ -1,7 +1,4 @@
-from typing import Dict
 import time
-import serial
-import threading
 from queue import Queue, Empty
 from collections import deque
 
@@ -9,9 +6,9 @@ from collections import deque
 from terminals.gui import sg
 from pygcode import GCode, Block
 
-from controllers._controllerBase import _ControllerBase
-from interfaces._interfaceBase import UpdateState
 from definitions import ConnectionState
+from controllers._controllerSerialBase import _SerialControllerBase
+from interfaces._interfaceBase import UpdateState
 from controllers.stateMachine import StateMachineGrbl as State
 from definitions import FlagState
 
@@ -21,7 +18,7 @@ RX_BUFFER_SIZE = 128
 
 className = "Grbl1p1Controller"
 
-class Grbl1p1Controller(_ControllerBase):
+class Grbl1p1Controller(_SerialControllerBase):
 
     # GRBL1.1 only supports the following subset of gcode.
     # https://github.com/gnea/grbl/wiki/Grbl-v1.1-Commands
@@ -50,15 +47,14 @@ class Grbl1p1Controller(_ControllerBase):
         b"F"
         ))
 
+    SLOWCOMMANDS = [b"G10 L2 ", b"G10 L20 ", b"G28.1 ", b"G30.1 ", b"$x=", b"$I=",
+                    b"$Nx=", b"$RST=", b"G54 ", b"G55 ", b"G56 ", b"G57 ", b"G58 ",
+                    b"G59 ", b"G28 ", b"G30 ", b"$$", b"$I", b"$N", b"$#"]
 
     def __init__(self, label: str="grbl1.1"):
         super().__init__(label)
         self._time = time  # Allow replacing with a mock version when testing.
         self.state = State(self.publishFromHere)
-        #self.serialDevName = "spy:///tmp/ttyFAKE?file=/tmp/serialspy.txt"
-        self.serialDevName = "/tmp/ttyFAKE"
-        self.serialBaud = 115200
-        self._serial = None
         self._lastWrite = 0
         self._commandImmediate = Queue()
         self._commandStreaming = Queue()
@@ -96,84 +92,11 @@ class Grbl1p1Controller(_ControllerBase):
                 ]
         return layout
     
-    def connect(self):
-        print("connect")
-        if self.connectionStatus in [
-                ConnectionState.CONNECTING,
-                ConnectionState.CONNECTED,
-                ConnectionState.MISSING_RESOURCE]:
-            return self.connectionStatus
-
-        self.setConnectionStatus(ConnectionState.CONNECTING)
-        
-        try:
-            self._serial = serial.serial_for_url(
-                    self.serialDevName, self.serialBaud, timeout=0)
-        except AttributeError:
-            try:
-                self._serial = serial.Serial(
-                        self.serialDevName, self.serialBaud, timeout=0)
-            except serial.serialutil.SerialException:
-                self.setConnectionStatus(ConnectionState.MISSING_RESOURCE)
-        except serial.serialutil.SerialException:
-            self.setConnectionStatus(ConnectionState.MISSING_RESOURCE)
-            
-
-        return self.connectionStatus
-
-    def disconnect(self) :
-        print("Disconnected %s %s" % (self.label, self.serialDevName))
-        if self.connectionStatus in [
-                ConnectionState.DISCONNECTING,
-                ConnectionState.NOT_CONNECTED]:
-            return self.connectionStatus
-
-        if self._serial is None:
-            self.setConnectionStatus(ConnectionState.NOT_CONNECTED)
-        else:
-            self.setConnectionStatus(ConnectionState.DISCONNECTING)
-
-            self._serialThread.join()
-            self._serial.close()
-
-        self.readyForData = False
-        
-        return self.connectionStatus
-
-    def onConnected(self):
-        if not self._serial.is_open:
-            return
-
-        print("Connected %s %s" % (self.label, self.serialDevName))
-        self.setConnectionStatus(ConnectionState.CONNECTED)
-
-        # Drain the buffer of any noise.
-        self._serial.flush()
-        #while self._serial.inWaiting():
-        #    print(self._serial.readline())
-        while self._serial.readline():
-            pass
-
-        #self._serial.write(b"$G\n")
-        self._commandStreaming.put(b"$G")
-
-        self._serialThread = threading.Thread(target=self._periodicIO)
-        self._serialThread.daemon = True
-        self._serialThread.start()
-
-    def onDisconnected(self):
-        if self._serial.is_open:
-            return
-
-        print("Serial disconnected.")
-        self.setConnectionStatus(ConnectionState.NOT_CONNECTED)
-        self._serial = None
-
     def _completeBeforeContinue(self, command) -> bool:
-        slowCommands = [b"G10 L2 ", b"G10 L20 ", b"G28.1 ", b"G30.1 ", b"$x=", b"$I=",
-                        b"$Nx=", b"$RST=", b"G54 ", b"G55 ", b"G56 ", b"G57 ", b"G58 ",
-                        b"G59 ", b"G28 ", b"G30 ", b"$$", b"$I", b"$N", b"$#"]
-        for slowCommand in slowCommands:
+        """ Certain gcode commands write to EPROM which disabled interrupts which
+        would interfere with serial IO. When one of these commands is executed we
+        should pause before continuing with serial IO. """
+        for slowCommand in self.SLOWCOMMANDS:
             if slowCommand in command:
                 return True
         return False
@@ -227,14 +150,6 @@ class Grbl1p1Controller(_ControllerBase):
         if isinstance(action[1], GCode):
             self._receivedData.put(b"[sentGcode:%s]" % str(action.modal_copy()).encode("utf-8"))
 
-    def _write(self, task) -> bool:
-        try:
-            self._serial.write(task)
-        except serial.serialutil.SerialException:
-            self.setConnectionStatus(ConnectionState.FAIL)
-            return False
-        return True
-
     def _writeImmediate(self) -> bool:
         task = None
         try:
@@ -242,8 +157,8 @@ class Grbl1p1Controller(_ControllerBase):
         except Empty:
             return False
 
-        print("_writeImmediate", task)
-        return self._write(task)
+        #print("_writeImmediate", task)
+        return self._serialWrite(task)
 
     def _writeStreaming(self) -> bool:
         if sum(self._sendBufLens) >= RX_BUFFER_SIZE - 1:
@@ -259,8 +174,8 @@ class Grbl1p1Controller(_ControllerBase):
         if isinstance(task, Block):
             taskString = str(task).encode("utf-8")
 
-        print("_writeStreaming", taskString)
-        if self._write(taskString + b"\n"):
+        #print("_writeStreaming", taskString)
+        if self._serialWrite(taskString + b"\n"):
             self._sendBufLens.append(len(taskString) + 1)
             self._sendBufActns.append((taskString, task))
             return True
@@ -272,12 +187,10 @@ class Grbl1p1Controller(_ControllerBase):
             Blocks while serial port remains connected. """
         while self.connectionStatus is ConnectionState.CONNECTED:
             # Read
-            while self._serial.inWaiting() or (b"\r\n" in self._partialRead):
-                try:
-                    line = self._serial.readline()
-                except serial.serialutil.SerialException:
-                    self.setConnectionStatus(ConnectionState.FAIL)
-                self.parseIncoming(line)
+            read = self._serialRead()
+            while read or (b"\r\n" in self._partialRead):
+                self.parseIncoming(read)
+                read = self._serialRead()
 
             #Write
             if not self._writeImmediate():
@@ -288,8 +201,8 @@ class Grbl1p1Controller(_ControllerBase):
                 self._commandImmediate.put(b"?")
                 self._lastWrite = self._time.time()
 
-                print("GRBL receive buffer contains %s commands, %s bytes" %
-                        (len(self._sendBufLens), sum(self._sendBufLens)))
+                #print("Receive buffer contains %s commands, %s bytes" %
+                #        (len(self._sendBufLens), sum(self._sendBufLens)))
             self._time.sleep(SERIAL_INTERVAL)
 
             if self.testing:
@@ -357,36 +270,7 @@ class Grbl1p1Controller(_ControllerBase):
 
     def earlyUpdate(self):
         """ Called early in the event loop, before events have been received. """
-        if self.connectionStatus != self.desiredConnectionStatus:
-            # Transition between connection states.
-            if self.connectionStatus is ConnectionState.CONNECTING:
-                # Connection process already started.
-                self.onConnected()
-
-            elif self.connectionStatus is ConnectionState.DISCONNECTING:
-                # Trying to diconnect.
-                self.onDisconnected()
-
-            elif self.connectionStatus in [
-                    ConnectionState.FAIL, ConnectionState.MISSING_RESOURCE]:
-                # A serial port error occurred either # while opening a serial port or
-                # on an already open port.
-                self.setDesiredConnectionStatus(ConnectionState.NOT_CONNECTED)
-                self.setConnectionStatus(ConnectionState.CLEANUP)
-
-            elif self.desiredConnectionStatus is ConnectionState.CONNECTED:
-                # Start connection process.
-                self.connect()
-
-            elif self.desiredConnectionStatus is ConnectionState.NOT_CONNECTED:
-                # Start disconnection.
-                self.disconnect()
-        
-        if self.connectionStatus is ConnectionState.CONNECTED:
-            if not self.state.eventFired:
-                # Display debug info: Summary of machine state.
-                self.publishOneByValue(self.keyGen("state"), self.state)
-                self.state.eventFired = True
+        super().earlyUpdate()
 
         # Process data received over serial port.
         receivedLine = None
@@ -395,8 +279,14 @@ class Grbl1p1Controller(_ControllerBase):
         except Empty:
             pass
         if receivedLine is not None:
-            print("receivedLine:", receivedLine)
+            #print("receivedLine:", receivedLine)
             self.state.parseIncoming(receivedLine)
+
+        # Display debug info: Summary of machine state.
+        if self.connectionStatus is ConnectionState.CONNECTED:
+            if not self.state.eventFired:
+                self.publishOneByValue(self.keyGen("state"), self.state)
+                self.state.eventFired = True
 
     def update(self):
         super().update()
@@ -406,4 +296,12 @@ class Grbl1p1Controller(_ControllerBase):
             for update in self._queuedUpdates:
                 self.doCommand(update)
             self._queuedUpdates.clear()
+    
+    def onConnected(self):
+        """ Executed when serial port first comes up. """
+        super().onConnected()
+        
+        # Request a report on the modal state of the GRBL controller.
+        self._commandStreaming.put(b"$G")
+
 

@@ -105,6 +105,8 @@ class TestControllerReceiveDataFromSerial(unittest.TestCase):
         """ A line is split over 2 reads with empty read in between. """
         self.controller._serial.dummyData = [b"te", None, b"st\r\n", None, b"test2\r\n"]
         self.controller._periodicIO()
+        self.controller._periodicIO()  # "None" in data stopped read loop.
+        self.controller._periodicIO()  # "None" in data stopped read loop.
         self.assertEqual(self.controller._receivedData.qsize(), 2)
 
         self.assertEqual(self.controller._receivedData.get(), b"test")
