@@ -110,13 +110,13 @@ MODAL_COMMANDS = {
         b"G17": b"plane_selection",
         b"G18": b"plane_selection",
         b"G19": b"plane_selection",
-        b"G90": b"distance",
-        b"G91": b"distance",
+        b"G90": b"distance",                # Absolute
+        b"G91": b"distance",                # Incremental
         b"G91.1": b"arc_ijk_distance",
-        b"G93": b"feed_rate_mode",
-        b"G94": b"feed_rate_mode",
-        b"G20": b"units",
-        b"G21": b"units",
+        b"G93": b"feed_rate_mode",          # 1/time
+        b"G94": b"feed_rate_mode",          # units/min
+        b"G20": b"units",                   # Inches
+        b"G21": b"units",                   # mm
         b"G40": b"cutter_diameter_comp",
         b"G43.1": b"tool_length_offset",
         b"G49": b"tool_length_offset",

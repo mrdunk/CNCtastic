@@ -39,7 +39,7 @@ def main():
         terminal.debugShowEvents = args.debugShowEvents
 
     
-    coordinator = Coordinator(terminals, interfaces, controllers)
+    coordinator = Coordinator(terminals, interfaces, controllers, args.debugShowEvents)
 
 
     while True:

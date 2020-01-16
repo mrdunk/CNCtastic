@@ -53,7 +53,7 @@ class StateMachineBase:
         self.version: List = []  # Up to the controller how this is populated.
         self.machineIdentifier: List = []  # Up to the controller how this is populated.
 
-        self.eventFired: bool = False
+        self.changesMade: bool = True
 
     def __str__(self):
         output = ("Pause: {self.pause}\tHalt: {self.halt}\n")
@@ -98,8 +98,16 @@ class StateMachineBase:
             self.__workOffset["b"] = b
             self.workPos["b"] = self.machinePos["b"] - self.__workOffset.get("b", 0)
 
-        self.onUpdateCallback("workOffset", self.workOffset)
-        self.onUpdateCallback("workPos", self.workPos)
+        self.onUpdateCallback("wOffset:x", self.workOffset["x"])
+        self.onUpdateCallback("wOffset:y", self.workOffset["y"])
+        self.onUpdateCallback("wOffset:z", self.workOffset["z"])
+        self.onUpdateCallback("wOffset:a", self.workOffset["a"])
+        self.onUpdateCallback("wOffset:b", self.workOffset["b"])
+        self.onUpdateCallback("wPos:x", self.workPos["x"])
+        self.onUpdateCallback("wPos:y", self.workPos["y"])
+        self.onUpdateCallback("wPos:z", self.workPos["z"])
+        self.onUpdateCallback("wPos:a", self.workPos["a"])
+        self.onUpdateCallback("wPos:b", self.workPos["b"])
 
     @property
     def machinePos(self):
@@ -128,8 +136,16 @@ class StateMachineBase:
             self.machinePos["b"] = b
             self.workPos["b"] = self.machinePos["b"] - self.workOffset.get("b", 0)
         
-        self.onUpdateCallback("machinePos", self.machinePos)
-        self.onUpdateCallback("workPos", self.workPos)
+        self.onUpdateCallback("mPos:x", self.machinePos["x"])
+        self.onUpdateCallback("mPos:y", self.machinePos["y"])
+        self.onUpdateCallback("mPos:z", self.machinePos["z"])
+        self.onUpdateCallback("mPos:a", self.machinePos["a"])
+        self.onUpdateCallback("mPos:b", self.machinePos["b"])
+        self.onUpdateCallback("wPos:x", self.workPos["x"])
+        self.onUpdateCallback("wPos:y", self.workPos["y"])
+        self.onUpdateCallback("wPos:z", self.workPos["z"])
+        self.onUpdateCallback("wPos:a", self.workPos["a"])
+        self.onUpdateCallback("wPos:b", self.workPos["b"])
 
     @property
     def workPos(self):
@@ -158,8 +174,16 @@ class StateMachineBase:
             self.workPos["b"] = b
             self.workPos["b"] = self.workPos["b"] + self.__machineOffset.get("b", 0)
         
-        self.onUpdateCallback("machinePos", self.machinePos)
-        self.onUpdateCallback("workPos", self.workPos)
+        self.onUpdateCallback("mPos:x", self.machinePos["x"])
+        self.onUpdateCallback("mPos:y", self.machinePos["y"])
+        self.onUpdateCallback("mPos:z", self.machinePos["z"])
+        self.onUpdateCallback("mPos:a", self.machinePos["a"])
+        self.onUpdateCallback("mPos:b", self.machinePos["b"])
+        self.onUpdateCallback("wPos:x", self.workPos["x"])
+        self.onUpdateCallback("wPos:y", self.workPos["y"])
+        self.onUpdateCallback("wPos:z", self.workPos["z"])
+        self.onUpdateCallback("wPos:a", self.workPos["a"])
+        self.onUpdateCallback("wPos:b", self.workPos["b"])
 
     @property
     def feedRate(self):
@@ -417,7 +441,7 @@ class StateMachineGrbl(StateMachineBase):
             else:
                 print(identifier, value)
 
-        self.eventFired = False
+        self.changesMade = True
     
     def _parseIncomingFeedbackModal(self, msg):
         """ Parse report on which modal option was last used for each group.
@@ -515,7 +539,9 @@ class StateMachineGrbl(StateMachineBase):
 
     def _parseCoordinates(self, string) -> Dict:
         parts = string.split(b",")
-        assert len(parts) >= 3
+        if len(parts) < 3:
+            print(string, parts)
+            assert False, "Malformed coordinates: %s" % string
         coordinates = {}
         coordinates["x"] = float(parts[0])
         coordinates["y"] = float(parts[1])
@@ -533,7 +559,7 @@ class StateMachineGrbl(StateMachineBase):
         else:
             state, substate = states
             
-        assert state in self.MACHINE_STATES
+        assert state in self.MACHINE_STATES, "Invalid state: %s" % state
         if state in [b"Idle", b"Run", b"Jog", b"Home"]:
             self.pause = False
             self.pausePark = False

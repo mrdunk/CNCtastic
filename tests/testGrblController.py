@@ -47,7 +47,7 @@ class TestControllerReceiveDataFromSerial(unittest.TestCase):
         self.controller._time = MockTime()
         self.controller.connectionStatus = ConnectionState.CONNECTED
         self.controller.desiredConnectionStatus = ConnectionState.CONNECTED
-        self.controller.state.eventFired = True
+        self.controller.state.changesMade = False
         self.controller.testing = True
         
         self.assertTrue(self.controller._commandImmediate.empty())
@@ -198,7 +198,7 @@ class TestControllerSendDataToSerial(unittest.TestCase):
         self.controller._time = MockTime()
         self.controller.connectionStatus = ConnectionState.CONNECTED
         self.controller.desiredConnectionStatus = ConnectionState.CONNECTED
-        self.controller.state.eventFired = True
+        self.controller.state.changesMade = False
         self.controller.testing = True
         
         self.assertTrue(self.controller._commandImmediate.empty())

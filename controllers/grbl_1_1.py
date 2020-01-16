@@ -301,9 +301,9 @@ class Grbl1p1Controller(_SerialControllerBase):
 
         # Display debug info: Summary of machine state.
         if self.connectionStatus is ConnectionState.CONNECTED:
-            if not self.state.eventFired:
+            if self.state.changesMade:
                 self.publishOneByValue(self.keyGen("state"), self.state)
-                self.state.eventFired = True
+                self.state.changesMade = False
 
     def update(self):
         """ Called by the coordinator after events have been delivered. """

@@ -29,14 +29,16 @@ class JogWidget(_InterfaceBase):
                 self.keyGen("zMultiply"): ("_zJogStepMultiply", 10),
                 self.keyGen("zDivide"): ("_zJogStepMultiply", 0.1),
                 self.keyGen("zJogStep"): ("_zJogStep", None),
-                self.keyGen("ul"): ("_moveHandler", (-1, -1)),
-                self.keyGen("uc"): ("_moveHandler", (0, -1)),
-                self.keyGen("ur"): ("_moveHandler", (1, -1)),
-                self.keyGen("cl"): ("_moveHandler", (-1, 0)),
-                self.keyGen("cr"): ("_moveHandler", (1, 0)),
-                self.keyGen("dl"): ("_moveHandler", (-1, 1)),
-                self.keyGen("dc"): ("_moveHandler", (0, 1)),
-                self.keyGen("dr"): ("_moveHandler", (1, 1)),
+                self.keyGen("ul"): ("_moveHandler", (-1, -1, 0)),
+                self.keyGen("uc"): ("_moveHandler", (0, -1, 0)),
+                self.keyGen("ur"): ("_moveHandler", (1, -1, 0)),
+                self.keyGen("cl"): ("_moveHandler", (-1, 0, 0)),
+                self.keyGen("cr"): ("_moveHandler", (1, 0, 0)),
+                self.keyGen("dl"): ("_moveHandler", (-1, 1, 0)),
+                self.keyGen("dc"): ("_moveHandler", (0, 1, 0)),
+                self.keyGen("dr"): ("_moveHandler", (1, 1, 0)),
+                self.keyGen("uz"): ("_moveHandler", (0, 0, 1)),
+                self.keyGen("dz"): ("_moveHandler", (0, 0, -1)),
                 }
 
         self._xyJogStep = 10
@@ -59,13 +61,14 @@ class JogWidget(_InterfaceBase):
         self.moveTo(command="G00",
                     x=self._xyJogStep * values[0],
                     y=self._xyJogStep * values[1],
-                    f=100  # TODO: Feed rates on jog.py
+                    z=self._zJogStep * values[2],
+                    f=10000  # TODO: Feed rates on jog.py
                     )
 
     def guiLayout(self):
         butW = 5
         butH = 1.5
-        def txt(label: str) -> sg.Frame:
+        def txt(label: str, butW=butW, butH=butH) -> sg.Frame:
             t = sg.Text(label, justification="center", size=(butW, butH),
                     #background_color="grey"
                     )
@@ -80,7 +83,32 @@ class JogWidget(_InterfaceBase):
                        values=[0.001, 0.01, 0.1, 1, 10, 100, 1000],
                        default_value=self._xyJogStep, size=(butW, 1))
             return drop
-        
+
+        coordW = 10
+        coordH = 1
+        def wCoord(key: str) -> sg.InputText:
+            return sg.InputText(key,
+                                key=self.keyGen(key),
+                                size=(coordW, coordH),
+                                justification="right",
+                                pad=(0,0),
+                                #background_color="grey",
+                                )
+       
+        def mCoord(key: str) -> sg.InputText:
+            return sg.InputText(key,
+                                key="activeController:%s" % key,
+                                size=(coordW, coordH),
+                                justification="right",
+                                pad=(0,0),
+                                disabled=True,
+                                background_color="grey",
+                                )
+       
+        wPos = [txt("wPos", coordW, coordH), wCoord("wPos:x"), wCoord("wPos:y"), wCoord("wPos:z")]
+        mPos = [txt("mPos", coordW, coordH), mCoord("mPos:x"), mCoord("mPos:y"), mCoord("mPos:z")]
+                
+
         layoutXY = [
                 [txt(""),  txt(""),        txt("Y"),       txt("")],
                 [txt(""),  but("", "ul"),  but("^", "uc"), but("", "ur")],
@@ -99,6 +127,8 @@ class JogWidget(_InterfaceBase):
                 ]
 
         layout = [
+                wPos,
+                mPos,
                 [sg.Column(layoutXY, pad=(0,0), size=(1,1)),
                  sg.Column(layoutZ, pad=(0,0), size=(1,1)),
                  #sg.Stretch()

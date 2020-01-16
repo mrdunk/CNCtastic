@@ -103,8 +103,11 @@ class _SerialControllerBase(_ControllerBase):
 
     def _serialRead(self) -> bytes:
         """ Read data from serial port. """
-        if not self._serial.inWaiting():
-            return b""
+        try:
+            if not self._serial.inWaiting():
+                return b""
+        except OSError:
+            self.setConnectionStatus(ConnectionState.FAIL)
 
         line = None
         try:
