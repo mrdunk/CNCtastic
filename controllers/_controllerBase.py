@@ -14,7 +14,7 @@ class _ControllerBase(_ComponentBase):
     def __init__(self, label):
         super().__init__(label)
 
-        self.active: bool = False
+        self.__active: bool = False
         self.readyForData: bool = False
         self.connectionStatus: ConnectionState = ConnectionState.UNKNOWN
         self.desiredConnectionStatus: ConnectionState = ConnectionState.NOT_CONNECTED
@@ -33,6 +33,26 @@ class _ControllerBase(_ComponentBase):
 
         self.setConnectionStatus(ConnectionState.UNKNOWN)
         self.setDesiredConnectionStatus(ConnectionState.NOT_CONNECTED)
+
+    @property
+    def active(self) -> bool:
+        return self.__active
+
+    @active.setter
+    def active(self, value: bool):
+        self.__active = value
+        if value:
+            self.onActivate()
+        else:
+            self.onDeactivate()
+
+    def onActivate(self):
+        """ Called whenever self.active is set True. """
+        pass
+
+    def onDeactivate(self):
+        """ Called whenever self.active is set False. """
+        pass
 
     def setDesiredConnectionStatus(self, connectionStatus):
         self.desiredConnectionStatus = connectionStatus

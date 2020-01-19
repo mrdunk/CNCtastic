@@ -1,6 +1,6 @@
 from typing import Dict
 
-from definitions import MODAL_COMMANDS
+from definitions import MODAL_GROUPS, MODAL_COMMANDS
 
 
 class StateMachineBase:
@@ -23,9 +23,12 @@ class StateMachineBase:
         self.onUpdateCallback = onUpdateCallback
 
         self.__machinePos: Dict = {"x": 0, "y": 0, "z": 0, "a": 0, "b": 0}
+        self.__machinePosMax: Dict = {"x": 0, "y": 0, "z": 0, "a": 0, "b": 0}
+        self.__machinePosMin: Dict = {"x": 0, "y": 0, "z": 0, "a": 0, "b": 0}
         self.__workPos: Dict = {"x": 0, "y": 0, "z": 0, "a": 0, "b": 0}
         self.__workOffset: Dict = {"x": 0, "y": 0, "z": 0, "a": 0, "b": 0}
         self.__feedRate: int = 0
+        self.__feedRateMax: Dict = {"x": 0, "y": 0, "z": 0, "a": 0, "b": 0}
         self.__feedOverrride: int = 100
         self.__rapidOverrride: int = 100
         self.__spindleRate: int = 0
@@ -108,6 +111,62 @@ class StateMachineBase:
         self.onUpdateCallback("wPos:z", self.workPos["z"])
         self.onUpdateCallback("wPos:a", self.workPos["a"])
         self.onUpdateCallback("wPos:b", self.workPos["b"])
+
+    @property
+    def machinePosMax(self):
+        return self.__machinePosMax
+
+    @machinePosMax.setter
+    def machinePosMax(self, pos: Dict):
+        x = pos.get("x")
+        y = pos.get("y")
+        z = pos.get("z")
+        a = pos.get("a")
+        b = pos.get("b")
+        if x is not None:
+            self.machinePosMax["x"] = x
+        if y is not None:
+            self.machinePosMax["y"] = y
+        if z is not None:
+            self.machinePosMax["z"] = z
+        if a is not None:
+            self.machinePosMax["a"] = a
+        if b is not None:
+            self.machinePosMax["b"] = b
+        
+        self.onUpdateCallback("machinePosMax:x", self.machinePosMax["x"])
+        self.onUpdateCallback("machinePosMax:y", self.machinePosMax["y"])
+        self.onUpdateCallback("machinePosMax:z", self.machinePosMax["z"])
+        self.onUpdateCallback("machinePosMax:a", self.machinePosMax["a"])
+        self.onUpdateCallback("machinePosMax:b", self.machinePosMax["b"])
+
+    @property
+    def machinePosMin(self):
+        return self.__machinePosMin
+
+    @machinePosMin.setter
+    def machinePosMin(self, pos: Dict):
+        x = pos.get("x")
+        y = pos.get("y")
+        z = pos.get("z")
+        a = pos.get("a")
+        b = pos.get("b")
+        if x is not None:
+            self.machinePosMin["x"] = x
+        if y is not None:
+            self.machinePosMin["y"] = y
+        if z is not None:
+            self.machinePosMin["z"] = z
+        if a is not None:
+            self.machinePosMin["a"] = a
+        if b is not None:
+            self.machinePosMin["b"] = b
+        
+        self.onUpdateCallback("machinePosMin:x", self.machinePosMin["x"])
+        self.onUpdateCallback("machinePosMin:y", self.machinePosMin["y"])
+        self.onUpdateCallback("machinePosMin:z", self.machinePosMin["z"])
+        self.onUpdateCallback("machinePosMin:a", self.machinePosMin["a"])
+        self.onUpdateCallback("machinePosMin:b", self.machinePosMin["b"])
 
     @property
     def machinePos(self):
@@ -193,6 +252,34 @@ class StateMachineBase:
     def feedRate(self, feedRate: int):
         self.__feedRate = feedRate
         self.onUpdateCallback("feedRate", self.feedRate)
+
+    @property
+    def feedRateMax(self):
+        return self.__feedRateMax
+
+    @feedRateMax.setter
+    def feedRateMax(self, fr: Dict):
+        x = fr.get("x")
+        y = fr.get("y")
+        z = fr.get("z")
+        a = fr.get("a")
+        b = fr.get("b")
+        if x is not None:
+            self.feedRateMax["x"] = x
+        if y is not None:
+            self.feedRateMax["y"] = y
+        if z is not None:
+            self.feedRateMax["z"] = z
+        if a is not None:
+            self.feedRateMax["a"] = a
+        if b is not None:
+            self.feedRateMax["b"] = b
+        
+        self.onUpdateCallback("feedRateMax:x", self.feedRateMax["x"])
+        self.onUpdateCallback("feedRateMax:y", self.feedRateMax["y"])
+        self.onUpdateCallback("feedRateMax:z", self.feedRateMax["z"])
+        self.onUpdateCallback("feedRateMax:a", self.feedRateMax["a"])
+        self.onUpdateCallback("feedRateMax:b", self.feedRateMax["b"])
 
     @property
     def feedOverride(self):
@@ -390,7 +477,9 @@ class StateMachineGrbl(StateMachineBase):
     MACHINE_STATES = [
             b"Idle", b"Run", b"Hold", b"Jog", b"Alarm", b"Door", b"Check", b"Home", b"Sleep"]
 
-    MODALS = MODAL_COMMANDS
+    # Cheaper than global lookups
+    MODAL_GROUPS = MODAL_GROUPS
+    MODAL_COMMANDS = MODAL_COMMANDS
 
     def __init__(self, onUpdateCallback):
         super().__init__(onUpdateCallback)
@@ -439,7 +528,7 @@ class StateMachineGrbl(StateMachineBase):
             elif identifier == b"F":
                 self.feedRate = int(float(value))
             else:
-                print(identifier, value)
+                print("TODO. Unparsed status field: ", identifier, value)
 
         self.changesMade = True
     
@@ -451,20 +540,27 @@ class StateMachineGrbl(StateMachineBase):
            [GC:G0 G54 G17 G21 G90 G94 M5 M9 T0 F0.0 S0]
         2. A Gcode line in the form "G0 X123 Y345 F2000" would update the "Motion"
            group (G0) and the Feed group (F2000).
-        self.MODALS maps these words to a group. eg: G0 is in the "motion" group.  """
+        self.MODAL_COMMANDS maps these words to a group. eg: G0 is in the "motion" group.  """
         modals = msg.split(b" ")
+        updateUnits = False
         for modal in modals:
-            if modal in self.MODALS:
-                modalGroup = self.MODALS[modal]
+            if modal in self.MODAL_GROUPS["units"]:
+                modalGroup = self.MODAL_COMMANDS[modal]
+                if self.gcodeModal[modalGroup] != modal:
+                    # Grbl has changed from mm to inches or vice versa.
+                    updateUnits = True
+
+            if modal in self.MODAL_COMMANDS:
+                modalGroup = self.MODAL_COMMANDS[modal]
                 self.gcodeModal[modalGroup] = modal
-            elif chr(modal[0]).encode('utf-8') in self.MODALS:
-                modalGroup = self.MODALS[chr(modal[0]).encode('utf-8')]
+            elif chr(modal[0]).encode('utf-8') in self.MODAL_COMMANDS:
+                modalGroup = self.MODAL_COMMANDS[chr(modal[0]).encode('utf-8')]
                 self.gcodeModal[modalGroup] = modal
-            #elif chr(modal[0]).encode('utf-8') in [b"X", b"Y", b"Z", b"A", b"B"]:
-            #    pass
             else:
                 assert False, "Gcode word does not match any mmodal group: %s" % modal
         self.onUpdateCallback("gcodeModal", self.gcodeModal)
+
+        assert not updateUnits, "TODO: Units have changed. Lots of things will need recalculated."
 
     def _parseIncomingFeedback(self, incoming):
         assert incoming.startswith(b"[") and incoming.endswith(b"]")
@@ -504,6 +600,116 @@ class StateMachineGrbl(StateMachineBase):
 
     def _parseSetting(self, incoming):
         print("Setting:", incoming)
+        incoming = incoming.lstrip(b"$")
+        setting, value = incoming.split(b"=")
+
+        if setting == b"0":
+            # Step pulse, microseconds
+            pass
+        elif setting == b"1":
+            # Step idle delay, milliseconds
+            pass
+        elif setting == b"2":
+            # Step port invert, mask
+            pass
+        elif setting == b"3":
+            # Direction port invert, mask
+            pass
+        elif setting == b"4":
+            # Step enable invert, boolean
+            pass
+        elif setting == b"5":
+            # Limit pins invert, boolean
+            pass
+        elif setting == b"6":
+            # Probe pin invert, boolean
+            pass
+        elif setting == b"10":
+            # Status report, mask
+            pass
+        elif setting == b"11":
+            # Junction deviation, mm
+            pass
+        elif setting == b"12":
+            # Arc tolerance, mm
+            pass
+        elif setting == b"13":
+            # Report inches, boolean
+            pass
+        elif setting == b"20":
+            # Soft limits, boolean
+            pass
+        elif setting == b"21":
+            # Hard limits, boolean
+            pass
+        elif setting == b"22":
+            # Homing cycle, boolean
+            pass
+        elif setting == b"23":
+            # Homing dir invert, mask
+            pass
+        elif setting == b"24":
+            # Homing feed, mm/min
+            pass
+        elif setting == b"25":
+            # Homing seek, mm/min
+            pass
+        elif setting == b"26":
+            # Homing debounce, milliseconds
+            pass
+        elif setting == b"27":
+            # Homing pull-off, mm
+            pass
+        elif setting == b"30":
+            # Max spindle speed, RPM
+            pass
+        elif setting == b"31":
+            # Min spindle speed, RPM
+            pass
+        elif setting == b"32":
+            # Laser mode, boolean
+            pass
+        elif setting == b"100":
+            # X steps/mm
+            pass
+        elif setting == b"101":
+            # Y steps/mm
+            pass
+        elif setting == b"102":
+            # Z steps/mm
+            pass
+        elif setting == b"110":
+            # X Max rate, mm/min
+            value = int(float(value))
+            self.feedRateMax = {"x": value}
+        elif setting == b"111":
+            # Y Max rate, mm/min
+            value = int(float(value))
+            self.feedRateMax = {"y": value}
+        elif setting == b"112":
+            # Z Max rate, mm/min
+            value = int(float(value))
+            self.feedRateMax = {"z": value}
+        elif setting == b"120":
+            # X Acceleration, mm/sec^2
+            pass
+        elif setting == b"121":
+            # Y Acceleration, mm/sec^2
+            pass
+        elif setting == b"122":
+            # Z Acceleration, mm/sec^2
+            pass
+        elif setting == b"130":
+            # X Max travel, mm
+            pass
+        elif setting == b"131":
+            # Y Max travel, mm
+            pass
+        elif setting == b"132":
+            # Z Max travel, mm
+            pass
+        else:
+            assert False, "Unexpected setting: %s %s" % (setting, value)
 
     def _parseStartupLine(self, incoming):
         print("Startup:", incoming)

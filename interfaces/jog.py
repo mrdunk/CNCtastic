@@ -29,14 +29,14 @@ class JogWidget(_InterfaceBase):
                 self.keyGen("zMultiply"): ("_zJogStepMultiply", 10),
                 self.keyGen("zDivide"): ("_zJogStepMultiply", 0.1),
                 self.keyGen("zJogStep"): ("_zJogStep", None),
-                self.keyGen("ul"): ("_moveHandler", (-1, -1, 0)),
-                self.keyGen("uc"): ("_moveHandler", (0, -1, 0)),
-                self.keyGen("ur"): ("_moveHandler", (1, -1, 0)),
+                self.keyGen("ul"): ("_moveHandler", (-1, 1, 0)),
+                self.keyGen("uc"): ("_moveHandler", (0, 1, 0)),
+                self.keyGen("ur"): ("_moveHandler", (1, 1, 0)),
                 self.keyGen("cl"): ("_moveHandler", (-1, 0, 0)),
                 self.keyGen("cr"): ("_moveHandler", (1, 0, 0)),
-                self.keyGen("dl"): ("_moveHandler", (-1, 1, 0)),
-                self.keyGen("dc"): ("_moveHandler", (0, 1, 0)),
-                self.keyGen("dr"): ("_moveHandler", (1, 1, 0)),
+                self.keyGen("dl"): ("_moveHandler", (-1, -1, 0)),
+                self.keyGen("dc"): ("_moveHandler", (0, -1, 0)),
+                self.keyGen("dr"): ("_moveHandler", (1, -1, 0)),
                 self.keyGen("uz"): ("_moveHandler", (0, 0, 1)),
                 self.keyGen("dz"): ("_moveHandler", (0, 0, -1)),
                 }
@@ -104,10 +104,28 @@ class JogWidget(_InterfaceBase):
                                 disabled=True,
                                 background_color="grey",
                                 )
+        
+        def fCoord(key: str) -> sg.InputText:
+            return sg.InputText(key,
+                                key="activeController:%s" % key,
+                                size=(coordW / 2, coordH),
+                                justification="right",
+                                pad=(0,0),
+                                disabled=True,
+                                background_color="grey",
+                                )
        
-        wPos = [txt("wPos", coordW, coordH), wCoord("wPos:x"), wCoord("wPos:y"), wCoord("wPos:z")]
-        mPos = [txt("mPos", coordW, coordH), mCoord("mPos:x"), mCoord("mPos:y"), mCoord("mPos:z")]
-                
+        pos = [
+            [txt("mPos:", coordW / 2, coordH), mCoord("mPos:x"), mCoord("mPos:y"), mCoord("mPos:z")],
+            [txt("wPos:", coordW / 2, coordH), wCoord("wPos:x"), wCoord("wPos:y"), wCoord("wPos:z")],
+            ]
+        feed = [
+            [txt("Max feed:", coordW, coordH), fCoord("feedRateMax:x"),
+                                               fCoord("feedRateMax:y"),
+                                               fCoord("feedRateMax:z")],
+            [txt("Current feed:", coordW, coordH), fCoord("feedRate")]
+            ]
+
 
         layoutXY = [
                 [txt(""),  txt(""),        txt("Y"),       txt("")],
@@ -127,11 +145,13 @@ class JogWidget(_InterfaceBase):
                 ]
 
         layout = [
-                wPos,
-                mPos,
+                [sg.Column(pos),
+                 sg.Column(feed),
+                 sg.Stretch()
+                 ],
                 [sg.Column(layoutXY, pad=(0,0), size=(1,1)),
                  sg.Column(layoutZ, pad=(0,0), size=(1,1)),
-                 #sg.Stretch()
+                 sg.Stretch()
                  ]
                 ]
         return layout

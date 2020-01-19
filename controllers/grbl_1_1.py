@@ -75,8 +75,6 @@ class Grbl1p1Controller(_SerialControllerBase):
         self._sendBufLens: deque = deque()
         self._sendBufActns: deque = deque()
 
-        #self.active: bool = True
-    
     def publishFromHere(self, variableName, variableValue):
         self.publishOneByValue(self.keyGen(variableName), variableValue)
         
@@ -321,5 +319,20 @@ class Grbl1p1Controller(_SerialControllerBase):
         
         # Request a report on the modal state of the GRBL controller.
         self._commandStreaming.put(b"$G")
+        # Grbl settings report.
+        self._commandStreaming.put(b"$$")
 
+    def onActivate(self):
+        """ Called whenever self.active is set True. """
+        if self.connectionStatus is ConnectionState.CONNECTED:
+            # The easiest way to replay the following events is to just request
+            # the data from the Grbl controller again.
+            # This way the events get re-sent when fresh data arrives.
+            # (The alternative would be to have the StateMchine re send the
+            # cached data.)
+
+            # Request a report on the modal state of the GRBL controller.
+            self._commandStreaming.put(b"$G")
+            # Grbl settings report.
+            self._commandStreaming.put(b"$$")
 
