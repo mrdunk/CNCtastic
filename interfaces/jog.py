@@ -39,12 +39,12 @@ class JogWidget(_InterfaceBase):
                 self.keyGen("dr"): ("_moveHandler", (1, -1, 0)),
                 self.keyGen("uz"): ("_moveHandler", (0, 0, 1)),
                 self.keyGen("dz"): ("_moveHandler", (0, 0, -1)),
-                "activeController:wPos:x": ("_wPosHandlerX", None),
-                "activeController:wPos:y": ("_wPosHandlerY", None),
-                "activeController:wPos:z": ("_wPosHandlerZ", None),
-                self.keyGen("wPos:x"): ("_wPosHandlerXUpdate", None),
-                self.keyGen("wPos:y"): ("_wPosHandlerYUpdate", None),
-                self.keyGen("wPos:z"): ("_wPosHandlerZUpdate", None),
+                "activeController:workPos:x": ("_wPosHandlerX", None),
+                "activeController:workPos:y": ("_wPosHandlerY", None),
+                "activeController:workPos:z": ("_wPosHandlerZ", None),
+                self.keyGen("workPos:x"): ("_wPosHandlerXUpdate", None),
+                self.keyGen("workPos:y"): ("_wPosHandlerYUpdate", None),
+                self.keyGen("workPos:z"): ("_wPosHandlerZUpdate", None),
                 }
 
         self._xyJogStep = 10
@@ -73,40 +73,40 @@ class JogWidget(_InterfaceBase):
                     )
 
     def _wPosHandlerX(self, value):
-        """ Called in response to an activeController:wPos:x event. """
+        """ Called in response to an activeController:workPos:x event. """
         self._wPos["x"] = value
-        self.publishOneByValue(self.keyGen("wPos:x"), value)
+        self.publishOneByValue(self.keyGen("workPos:x"), value)
 
     def _wPosHandlerY(self, value):
-        """ Called in response to an activeController:wPos:y event. """
+        """ Called in response to an activeController:workPos:y event. """
         self._wPos["y"] = value
-        self.publishOneByValue(self.keyGen("wPos:y"), value)
+        self.publishOneByValue(self.keyGen("workPos:y"), value)
 
     def _wPosHandlerZ(self, value):
-        """ Called in response to an activeController:wPos:z event. """
+        """ Called in response to an activeController:workPos:z event. """
         self._wPos["z"] = value
-        self.publishOneByValue(self.keyGen("wPos:z"), value)
+        self.publishOneByValue(self.keyGen("workPos:z"), value)
 
     def _wPosHandlerXUpdate(self, value):
-        """ Called in response to a local :wPos:x event. """
+        """ Called in response to a local :workPos:x event. """
         if "x" in self._wPos and value == self._wPos["x"]:
             # Nothing to do.
             return
-        self._updatedData.wPos = self._wPos
+        self._updatedData.workPos = self._wPos
 
     def _wPosHandlerYUpdate(self, value):
-        """ Called in response to a local :wPos:y event. """
+        """ Called in response to a local :workPos:y event. """
         if "y" in self._wPos and value == self._wPos["y"]:
             # Nothing to do.
             return
-        self._updatedData.wPos = self._wPos
+        self._updatedData.workPos = self._wPos
 
     def _wPosHandlerZUpdate(self, value):
-        """ Called in response to a local :wPos:z event. """
+        """ Called in response to a local :workPos:z event. """
         if "z" in self._wPos and value == self._wPos["z"]:
             # Nothing to do.
             return
-        self._updatedData.wPos = self._wPos
+        self._updatedData.workPos = self._wPos
 
     def guiLayout(self):
         butW = 5
@@ -159,8 +159,8 @@ class JogWidget(_InterfaceBase):
                                 )
        
         pos = [
-            [txt("mPos:", coordW / 2, coordH), mCoord("mPos:x"), mCoord("mPos:y"), mCoord("mPos:z")],
-            [txt("wPos:", coordW / 2, coordH), wCoord("wPos:x"), wCoord("wPos:y"), wCoord("wPos:z")],
+            [txt("machinePos:", coordW / 2, coordH), mCoord("machinePos:x"), mCoord("machinePos:y"), mCoord("machinePos:z")],
+            [txt("workPos:", coordW / 2, coordH), wCoord("workPos:x"), wCoord("workPos:y"), wCoord("workPos:z")],
             ]
         feed = [
             [txt("Max feed:", coordW, coordH), fCoord("feedRateMax:x"),

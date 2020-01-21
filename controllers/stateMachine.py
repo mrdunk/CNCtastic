@@ -19,6 +19,31 @@ class StateMachineBase:
                      b"UNKNOWN": "Unknown reason for reset."
                     }
 
+    machineProperties = [
+            "machinePos",
+            "machinePosMax",
+            "machinePosMin",
+            "workPos",
+            "workOffset",
+            "feedRate",
+            "feedRateMax",
+            "feedRateAccel",
+            #"feedOverrride",
+            #"rapidOverrride",
+            "spindleRate",
+            "spindleOverride",
+            "limitX",
+            "limitY",
+            "limitZ",
+            "limitA",
+            "limitB",
+            "probe",
+            "pause",
+            "parking",
+            "halt",
+            "door",
+            ]
+
     def __init__(self, onUpdateCallback) -> None:
         self.onUpdateCallback = onUpdateCallback
 
@@ -39,11 +64,6 @@ class StateMachineBase:
         self.__limitZ: bool = False
         self.__limitA: bool = False
         self.__limitB: bool = False
-        self.__limitXMax: bool = False
-        self.__limitYMax: bool = False
-        self.__limitZMax: bool = False
-        self.__limitAMax: bool = False
-        self.__limitBMax: bool = False
         self.__probe: bool = False
         self.__pause: bool = False
         self.pauseReason: List = []
@@ -75,43 +95,67 @@ class StateMachineBase:
         output += "gcodeModalGroups: {self.gcodeModal}\r\n"
         return output.format(self=self)
 
+    def sync(self):
+        """ Publish all machine properties. """
+        for prop in self.machineProperties:
+            value = getattr(self, prop)
+            if type(prop) in ["number", "str"]:
+                self.onUpdateCallback(prop, value)
+                print(prop, value)
+            elif isinstance(value, dict):
+                for subProp, subValue in value.items():
+                    self.onUpdateCallback("%s:%s" % (prop, subProp), subValue)
+                    print("%s:%s" % (prop, subProp), subValue)
+
     @property
     def workOffset(self):
         return self.__workOffset
 
     @workOffset.setter
     def workOffset(self, pos: Dict):
+        dataChanged = False
         x = pos.get("x")
         y = pos.get("y")
         z = pos.get("z")
         a = pos.get("a")
         b = pos.get("b")
         if x is not None:
-            self.__workOffset["x"] = x
-            self.workPos["x"] = self.machinePos["x"] - self.__workOffset.get("x", 0)
+            if self.__workOffset["x"] != x:
+                dataChanged = True
+                self.__workOffset["x"] = x
+                self.workPos["x"] = self.machinePos["x"] - self.__workOffset.get("x", 0)
         if y is not None:
-            self.__workOffset["y"] = y
-            self.workPos["y"] = self.machinePos["y"] - self.__workOffset.get("y", 0)
+            if self.__workOffset["y"] != y:
+                dataChanged = True
+                self.__workOffset["y"] = y
+                self.workPos["y"] = self.machinePos["y"] - self.__workOffset.get("y", 0)
         if z is not None:
-            self.__workOffset["z"] = z
-            self.workPos["z"] = self.machinePos["z"] - self.__workOffset.get("z", 0)
+            if self.__workOffset["z"] != z:
+                dataChanged = True
+                self.__workOffset["z"] = z
+                self.workPos["z"] = self.machinePos["z"] - self.__workOffset.get("z", 0)
         if a is not None:
-            self.__workOffset["a"] = a
-            self.workPos["a"] = self.machinePos["a"] - self.__workOffset.get("a", 0)
+            if self.__workOffset["a"] != a:
+                dataChanged = True
+                self.__workOffset["a"] = a
+                self.workPos["a"] = self.machinePos["a"] - self.__workOffset.get("a", 0)
         if b is not None:
-            self.__workOffset["b"] = b
-            self.workPos["b"] = self.machinePos["b"] - self.__workOffset.get("b", 0)
+            if self.__workOffset["b"] != b:
+                dataChanged = True
+                self.__workOffset["b"] = b
+                self.workPos["b"] = self.machinePos["b"] - self.__workOffset.get("b", 0)
 
-        self.onUpdateCallback("wOffset:x", self.workOffset["x"])
-        self.onUpdateCallback("wOffset:y", self.workOffset["y"])
-        self.onUpdateCallback("wOffset:z", self.workOffset["z"])
-        self.onUpdateCallback("wOffset:a", self.workOffset["a"])
-        self.onUpdateCallback("wOffset:b", self.workOffset["b"])
-        self.onUpdateCallback("wPos:x", self.workPos["x"])
-        self.onUpdateCallback("wPos:y", self.workPos["y"])
-        self.onUpdateCallback("wPos:z", self.workPos["z"])
-        self.onUpdateCallback("wPos:a", self.workPos["a"])
-        self.onUpdateCallback("wPos:b", self.workPos["b"])
+        if dataChanged:
+            self.onUpdateCallback("workOffset:x", self.workOffset["x"])
+            self.onUpdateCallback("workOffset:y", self.workOffset["y"])
+            self.onUpdateCallback("workOffset:z", self.workOffset["z"])
+            self.onUpdateCallback("workOffset:a", self.workOffset["a"])
+            self.onUpdateCallback("workOffset:b", self.workOffset["b"])
+            self.onUpdateCallback("workPos:x", self.workPos["x"])
+            self.onUpdateCallback("workPos:y", self.workPos["y"])
+            self.onUpdateCallback("workPos:z", self.workPos["z"])
+            self.onUpdateCallback("workPos:a", self.workPos["a"])
+            self.onUpdateCallback("workPos:b", self.workPos["b"])
 
     @property
     def machinePosMax(self):
@@ -119,27 +163,39 @@ class StateMachineBase:
 
     @machinePosMax.setter
     def machinePosMax(self, pos: Dict):
+        dataChanged = False
         x = pos.get("x")
         y = pos.get("y")
         z = pos.get("z")
         a = pos.get("a")
         b = pos.get("b")
         if x is not None:
-            self.machinePosMax["x"] = x
+            if self.machinePosMax["x"] != x:
+                dataChanged = True
+                self.machinePosMax["x"] = x
         if y is not None:
-            self.machinePosMax["y"] = y
+            if self.machinePosMax["y"] != y:
+                dataChanged = True
+                self.machinePosMax["y"] = y
         if z is not None:
-            self.machinePosMax["z"] = z
+            if self.machinePosMax["z"] != z:
+                dataChanged = True
+                self.machinePosMax["z"] = z
         if a is not None:
-            self.machinePosMax["a"] = a
+            if self.machinePosMax["a"] != a:
+                dataChanged = True
+                self.machinePosMax["a"] = a
         if b is not None:
-            self.machinePosMax["b"] = b
+            if self.machinePosMax["b"] != b:
+                dataChanged = True
+                self.machinePosMax["b"] = b
         
-        self.onUpdateCallback("machinePosMax:x", self.machinePosMax["x"])
-        self.onUpdateCallback("machinePosMax:y", self.machinePosMax["y"])
-        self.onUpdateCallback("machinePosMax:z", self.machinePosMax["z"])
-        self.onUpdateCallback("machinePosMax:a", self.machinePosMax["a"])
-        self.onUpdateCallback("machinePosMax:b", self.machinePosMax["b"])
+        if dataChanged:
+            self.onUpdateCallback("machinePosMax:x", self.machinePosMax["x"])
+            self.onUpdateCallback("machinePosMax:y", self.machinePosMax["y"])
+            self.onUpdateCallback("machinePosMax:z", self.machinePosMax["z"])
+            self.onUpdateCallback("machinePosMax:a", self.machinePosMax["a"])
+            self.onUpdateCallback("machinePosMax:b", self.machinePosMax["b"])
 
     @property
     def machinePosMin(self):
@@ -147,27 +203,39 @@ class StateMachineBase:
 
     @machinePosMin.setter
     def machinePosMin(self, pos: Dict):
+        dataChanged = False
         x = pos.get("x")
         y = pos.get("y")
         z = pos.get("z")
         a = pos.get("a")
         b = pos.get("b")
         if x is not None:
-            self.machinePosMin["x"] = x
+            if self.machinePosMin["x"] != x:
+                dataChanged = True
+                self.machinePosMin["x"] = x
         if y is not None:
-            self.machinePosMin["y"] = y
+            if self.machinePosMin["y"] != y:
+                dataChanged = True
+                self.machinePosMin["y"] = y
         if z is not None:
-            self.machinePosMin["z"] = z
+            if self.machinePosMin["z"] != z:
+                dataChanged = True
+                self.machinePosMin["z"] = z
         if a is not None:
-            self.machinePosMin["a"] = a
+            if self.machinePosMin["a"] != a:
+                dataChanged = True
+                self.machinePosMin["a"] = a
         if b is not None:
-            self.machinePosMin["b"] = b
+            if self.machinePosMin["b"] != b:
+                dataChanged = True
+                self.machinePosMin["b"] = b
         
-        self.onUpdateCallback("machinePosMin:x", self.machinePosMin["x"])
-        self.onUpdateCallback("machinePosMin:y", self.machinePosMin["y"])
-        self.onUpdateCallback("machinePosMin:z", self.machinePosMin["z"])
-        self.onUpdateCallback("machinePosMin:a", self.machinePosMin["a"])
-        self.onUpdateCallback("machinePosMin:b", self.machinePosMin["b"])
+        if dataChanged:
+            self.onUpdateCallback("machinePosMin:x", self.machinePosMin["x"])
+            self.onUpdateCallback("machinePosMin:y", self.machinePosMin["y"])
+            self.onUpdateCallback("machinePosMin:z", self.machinePosMin["z"])
+            self.onUpdateCallback("machinePosMin:a", self.machinePosMin["a"])
+            self.onUpdateCallback("machinePosMin:b", self.machinePosMin["b"])
 
     @property
     def machinePos(self):
@@ -175,37 +243,49 @@ class StateMachineBase:
 
     @machinePos.setter
     def machinePos(self, pos: Dict):
+        dataChanged = False
         x = pos.get("x")
         y = pos.get("y")
         z = pos.get("z")
         a = pos.get("a")
         b = pos.get("b")
         if x is not None:
-            self.machinePos["x"] = x
-            self.workPos["x"] = self.machinePos["x"] - self.workOffset.get("x", 0)
+            if self.machinePos["x"] != x:
+                dataChanged = True
+                self.machinePos["x"] = x
+                self.workPos["x"] = self.machinePos["x"] - self.workOffset.get("x", 0)
         if y is not None:
-            self.machinePos["y"] = y
-            self.workPos["y"] = self.machinePos["y"] - self.workOffset.get("y", 0)
+            if self.machinePos["y"] != y:
+                dataChanged = True
+                self.machinePos["y"] = y
+                self.workPos["y"] = self.machinePos["y"] - self.workOffset.get("y", 0)
         if z is not None:
-            self.machinePos["z"] = z
-            self.workPos["z"] = self.machinePos["z"] - self.workOffset.get("z", 0)
+            if self.machinePos["z"] != z:
+                dataChanged = True
+                self.machinePos["z"] = z
+                self.workPos["z"] = self.machinePos["z"] - self.workOffset.get("z", 0)
         if a is not None:
-            self.machinePos["a"] = a
-            self.workPos["a"] = self.machinePos["a"] - self.workOffset.get("a", 0)
+            if self.machinePos["a"] != a:
+                dataChanged = True
+                self.machinePos["a"] = a
+                self.workPos["a"] = self.machinePos["a"] - self.workOffset.get("a", 0)
         if b is not None:
-            self.machinePos["b"] = b
-            self.workPos["b"] = self.machinePos["b"] - self.workOffset.get("b", 0)
+            if self.machinePos["b"] != b:
+                dataChanged = True
+                self.machinePos["b"] = b
+                self.workPos["b"] = self.machinePos["b"] - self.workOffset.get("b", 0)
         
-        self.onUpdateCallback("mPos:x", self.machinePos["x"])
-        self.onUpdateCallback("mPos:y", self.machinePos["y"])
-        self.onUpdateCallback("mPos:z", self.machinePos["z"])
-        self.onUpdateCallback("mPos:a", self.machinePos["a"])
-        self.onUpdateCallback("mPos:b", self.machinePos["b"])
-        self.onUpdateCallback("wPos:x", self.workPos["x"])
-        self.onUpdateCallback("wPos:y", self.workPos["y"])
-        self.onUpdateCallback("wPos:z", self.workPos["z"])
-        self.onUpdateCallback("wPos:a", self.workPos["a"])
-        self.onUpdateCallback("wPos:b", self.workPos["b"])
+        if dataChanged:
+            self.onUpdateCallback("machinePos:x", self.machinePos["x"])
+            self.onUpdateCallback("machinePos:y", self.machinePos["y"])
+            self.onUpdateCallback("machinePos:z", self.machinePos["z"])
+            self.onUpdateCallback("machinePos:a", self.machinePos["a"])
+            self.onUpdateCallback("machinePos:b", self.machinePos["b"])
+            self.onUpdateCallback("workPos:x", self.workPos["x"])
+            self.onUpdateCallback("workPos:y", self.workPos["y"])
+            self.onUpdateCallback("workPos:z", self.workPos["z"])
+            self.onUpdateCallback("workPos:a", self.workPos["a"])
+            self.onUpdateCallback("workPos:b", self.workPos["b"])
 
     @property
     def workPos(self):
@@ -213,37 +293,49 @@ class StateMachineBase:
 
     @workPos.setter
     def workPos(self, pos: Dict):
+        dataChanged = False
         x = pos.get("x")
         y = pos.get("y")
         z = pos.get("z")
         a = pos.get("a")
         b = pos.get("b")
         if x is not None:
-            self.workPos["x"] = x
-            self.workPos["x"] = self.workPos["x"] + self.__machineOffset.get("x", 0)
+            if self.workPos["x"] != x:
+                dataChanged = True
+                self.workPos["x"] = x
+                self.workPos["x"] = self.workPos["x"] + self.__machineOffset.get("x", 0)
         if y is not None:
-            self.workPos["y"] = y
-            self.workPos["y"] = self.workPos["y"] + self.__machineOffset.get("y", 0)
+            if self.workPos["y"] != y:
+                dataChanged = True
+                self.workPos["y"] = y
+                self.workPos["y"] = self.workPos["y"] + self.__machineOffset.get("y", 0)
         if z is not None:
-            self.workPos["z"] = z
-            self.workPos["z"] = self.workPos["z"] + self.__machineOffset.get("z", 0)
+            if self.workPos["z"] != z:
+                dataChanged = True
+                self.workPos["z"] = z
+                self.workPos["z"] = self.workPos["z"] + self.__machineOffset.get("z", 0)
         if a is not None:
-            self.workPos["a"] = a
-            self.workPos["a"] = self.workPos["a"] + self.__machineOffset.get("a", 0)
+            if self.workPos["a"] != a:
+                dataChanged = True
+                self.workPos["a"] = a
+                self.workPos["a"] = self.workPos["a"] + self.__machineOffset.get("a", 0)
         if b is not None:
-            self.workPos["b"] = b
-            self.workPos["b"] = self.workPos["b"] + self.__machineOffset.get("b", 0)
+            if self.workPos["b"] != b:
+                dataChanged = True
+                self.workPos["b"] = b
+                self.workPos["b"] = self.workPos["b"] + self.__machineOffset.get("b", 0)
         
-        self.onUpdateCallback("mPos:x", self.machinePos["x"])
-        self.onUpdateCallback("mPos:y", self.machinePos["y"])
-        self.onUpdateCallback("mPos:z", self.machinePos["z"])
-        self.onUpdateCallback("mPos:a", self.machinePos["a"])
-        self.onUpdateCallback("mPos:b", self.machinePos["b"])
-        self.onUpdateCallback("wPos:x", self.workPos["x"])
-        self.onUpdateCallback("wPos:y", self.workPos["y"])
-        self.onUpdateCallback("wPos:z", self.workPos["z"])
-        self.onUpdateCallback("wPos:a", self.workPos["a"])
-        self.onUpdateCallback("wPos:b", self.workPos["b"])
+        if dataChanged:
+            self.onUpdateCallback("machinePos:x", self.machinePos["x"])
+            self.onUpdateCallback("machinePos:y", self.machinePos["y"])
+            self.onUpdateCallback("machinePos:z", self.machinePos["z"])
+            self.onUpdateCallback("machinePos:a", self.machinePos["a"])
+            self.onUpdateCallback("machinePos:b", self.machinePos["b"])
+            self.onUpdateCallback("workPos:x", self.workPos["x"])
+            self.onUpdateCallback("workPos:y", self.workPos["y"])
+            self.onUpdateCallback("workPos:z", self.workPos["z"])
+            self.onUpdateCallback("workPos:a", self.workPos["a"])
+            self.onUpdateCallback("workPos:b", self.workPos["b"])
 
     @property
     def feedRate(self):
@@ -251,8 +343,9 @@ class StateMachineBase:
 
     @feedRate.setter
     def feedRate(self, feedRate: int):
+        if self.__feedRate != feedRate:
+            self.onUpdateCallback("feedRate", feedRate)
         self.__feedRate = feedRate
-        self.onUpdateCallback("feedRate", self.feedRate)
 
     @property
     def feedRateMax(self):
@@ -260,27 +353,39 @@ class StateMachineBase:
 
     @feedRateMax.setter
     def feedRateMax(self, fr: Dict):
+        dataChanged = False
         x = fr.get("x")
         y = fr.get("y")
         z = fr.get("z")
         a = fr.get("a")
         b = fr.get("b")
         if x is not None:
-            self.feedRateMax["x"] = x
+            if self.feedRateMax["x"] != x:
+                dataChanged = True
+                self.feedRateMax["x"] = x
         if y is not None:
-            self.feedRateMax["y"] = y
+            if self.feedRateMax["y"] != y:
+                dataChanged = True
+                self.feedRateMax["y"] = y
         if z is not None:
-            self.feedRateMax["z"] = z
+            if self.feedRateMax["z"] != z:
+                dataChanged = True
+                self.feedRateMax["z"] = z
         if a is not None:
-            self.feedRateMax["a"] = a
+            if self.feedRateMax["a"] != a:
+                dataChanged = True
+                self.feedRateMax["a"] = a
         if b is not None:
-            self.feedRateMax["b"] = b
+            if self.feedRateMax["b"] != b:
+                dataChanged = True
+                self.feedRateMax["b"] = b
         
-        self.onUpdateCallback("feedRateMax:x", self.feedRateMax["x"])
-        self.onUpdateCallback("feedRateMax:y", self.feedRateMax["y"])
-        self.onUpdateCallback("feedRateMax:z", self.feedRateMax["z"])
-        self.onUpdateCallback("feedRateMax:a", self.feedRateMax["a"])
-        self.onUpdateCallback("feedRateMax:b", self.feedRateMax["b"])
+        if dataChanged:
+            self.onUpdateCallback("feedRateMax:x", self.feedRateMax["x"])
+            self.onUpdateCallback("feedRateMax:y", self.feedRateMax["y"])
+            self.onUpdateCallback("feedRateMax:z", self.feedRateMax["z"])
+            self.onUpdateCallback("feedRateMax:a", self.feedRateMax["a"])
+            self.onUpdateCallback("feedRateMax:b", self.feedRateMax["b"])
 
     @property
     def feedRateAccel(self):
@@ -288,27 +393,34 @@ class StateMachineBase:
 
     @feedRateAccel.setter
     def feedRateAccel(self, fr: Dict):
+        dataChanged = False
         x = fr.get("x")
         y = fr.get("y")
         z = fr.get("z")
         a = fr.get("a")
         b = fr.get("b")
-        if x is not None:
+        if x is not None and self.feedRateAccel["x"] != x:
+            dataChanged = True
             self.feedRateAccel["x"] = x
-        if y is not None:
+        if y is not None and self.feedRateAccel["y"] != y:
+            dataChanged = True
             self.feedRateAccel["y"] = y
-        if z is not None:
+        if z is not None and self.feedRateAccel["z"] != z:
+            dataChanged = True
             self.feedRateAccel["z"] = z
-        if a is not None:
+        if a is not None and self.feedRateAccel["a"] != a:
+            dataChanged = True
             self.feedRateAccel["a"] = a
-        if b is not None:
+        if b is not None and self.feedRateAccel["b"] != b:
+            dataChanged = True
             self.feedRateAccel["b"] = b
         
-        self.onUpdateCallback("feedRateAccel:x", self.feedRateAccel["x"])
-        self.onUpdateCallback("feedRateAccel:y", self.feedRateAccel["y"])
-        self.onUpdateCallback("feedRateAccel:z", self.feedRateAccel["z"])
-        self.onUpdateCallback("feedRateAccel:a", self.feedRateAccel["a"])
-        self.onUpdateCallback("feedRateAccel:b", self.feedRateAccel["b"])
+        if dataChanged:
+            self.onUpdateCallback("feedRateAccel:x", self.feedRateAccel["x"])
+            self.onUpdateCallback("feedRateAccel:y", self.feedRateAccel["y"])
+            self.onUpdateCallback("feedRateAccel:z", self.feedRateAccel["z"])
+            self.onUpdateCallback("feedRateAccel:a", self.feedRateAccel["a"])
+            self.onUpdateCallback("feedRateAccel:b", self.feedRateAccel["b"])
 
     @property
     def feedOverride(self):
@@ -316,8 +428,9 @@ class StateMachineBase:
 
     @feedOverride.setter
     def feedOverride(self, feedOverride: int):
-        self.__feedOverride = feedOverride
-        self.onUpdateCallback("feedOverride", self.feedOverride)
+        if self.__feedOverride != feedOverride:
+            self.__feedOverride = feedOverride
+            self.onUpdateCallback("feedOverride", self.feedOverride)
 
     @property
     def rapidOverride(self):
@@ -325,8 +438,9 @@ class StateMachineBase:
 
     @rapidOverride.setter
     def rapidOverride(self, rapidOverride: int):
-        self.__rapidOverride = rapidOverride
-        self.onUpdateCallback("rapidOverride", self.rapidOverride)
+        if self.__rapidOverride != rapidOverride:
+            self.__rapidOverride = rapidOverride
+            self.onUpdateCallback("rapidOverride", self.rapidOverride)
 
     @property
     def spindleRate(self):
@@ -334,8 +448,9 @@ class StateMachineBase:
 
     @spindleRate.setter
     def spindleRate(self, spindleRate: int):
-        self.__spindleRate = spindleRate
-        self.onUpdateCallback("spindleRate", self.spindleRate)
+        if self.__spindleRate != spindleRate:
+            self.__spindleRate = spindleRate
+            self.onUpdateCallback("spindleRate", self.spindleRate)
 
     @property
     def spindleOverride(self):
@@ -343,8 +458,9 @@ class StateMachineBase:
 
     @spindleOverride.setter
     def spindleOverride(self, spindleOverride: int):
-        self.__spindleOverride = spindleOverride
-        self.onUpdateCallback("spindleOverride", self.spindleOverride)
+        if self.__spindleOverride != spindleOverride:
+            self.__spindleOverride = spindleOverride
+            self.onUpdateCallback("spindleOverride", self.spindleOverride)
 
     @property
     def limitX(self):
@@ -352,8 +468,9 @@ class StateMachineBase:
 
     @limitX.setter
     def limitX(self, limitX: Dict):
-        self.__limitX = limitX
-        self.onUpdateCallback("limitX", self.limitX)
+        if self.__limitX != limitX:
+            self.__limitX = limitX
+            self.onUpdateCallback("limitX", self.limitX)
 
     @property
     def limitY(self):
@@ -361,8 +478,9 @@ class StateMachineBase:
 
     @limitY.setter
     def limitY(self, limitY: Dict):
-        self.__limitY = limitY
-        self.onUpdateCallback("limitY", self.limitY)
+        if self.__limitY != limitY:
+            self.__limitY = limitY
+            self.onUpdateCallback("limitY", self.limitY)
 
     @property
     def limitZ(self):
@@ -370,8 +488,9 @@ class StateMachineBase:
 
     @limitZ.setter
     def limitZ(self, limitZ: Dict):
-        self.__limitZ = limitZ
-        self.onUpdateCallback("limitZ", self.limitZ)
+        if self.__limitZ != limitZ:
+            self.__limitZ = limitZ
+            self.onUpdateCallback("limitZ", self.limitZ)
 
     @property
     def limitA(self):
@@ -379,8 +498,9 @@ class StateMachineBase:
 
     @limitA.setter
     def limitA(self, limitA: Dict):
-        self.__limitA = limitA
-        self.onUpdateCallback("limitA", self.limitA)
+        if self.__limitA != limitA:
+            self.__limitA = limitA
+            self.onUpdateCallback("limitA", self.limitA)
 
     @property
     def limitB(self):
@@ -388,17 +508,9 @@ class StateMachineBase:
 
     @limitB.setter
     def limitB(self, limitB: Dict):
-        self.__limitB = limitB
-        self.onUpdateCallback("limitB", self.limitB)
-
-    @property
-    def limitXMax(self):
-        return self.__limitXMax
-
-    @limitXMax.setter
-    def limitXMax(self, limitXMax: Dict):
-        self.__limitXMax = limitXMax
-        self.onUpdateCallback("limitXMax", self.limitXMax)
+        if self.__limitB != limitB:
+            self.__limitB = limitB
+            self.onUpdateCallback("limitB", self.limitB)
 
     @property
     def limitYMax(self):
@@ -406,8 +518,9 @@ class StateMachineBase:
 
     @limitYMax.setter
     def limitYMax(self, limitYMax: Dict):
-        self.__limitYMax = limitYMax
-        self.onUpdateCallback("limitYMax", self.limitYMax)
+        if self.__limitYMax != limitYMax:
+            self.__limitYMax = limitYMax
+            self.onUpdateCallback("limitYMax", self.limitYMax)
 
     @property
     def limitZMax(self):
@@ -415,8 +528,9 @@ class StateMachineBase:
 
     @limitZMax.setter
     def limitZMax(self, limitZMax: Dict):
-        self.__limitZMax = limitZMax
-        self.onUpdateCallback("limitZMax", self.limitZMax)
+        if self.__limitZMax != limitZMax:
+            self.__limitZMax = limitZMax
+            self.onUpdateCallback("limitZMax", self.limitZMax)
 
     @property
     def limitAMax(self):
@@ -424,8 +538,9 @@ class StateMachineBase:
 
     @limitAMax.setter
     def limitAMax(self, limitAMax: Dict):
-        self.__limitAMax = limitAMax
-        self.onUpdateCallback("limitAMax", self.limitAMax)
+        if self.__limitAMax != limitAMax:
+            self.__limitAMax = limitAMax
+            self.onUpdateCallback("limitAMax", self.limitAMax)
 
     @property
     def limitBMax(self):
@@ -433,8 +548,9 @@ class StateMachineBase:
 
     @limitBMax.setter
     def limitBMax(self, limitBMax: Dict):
-        self.__limitBMax = limitBMax
-        self.onUpdateCallback("limitBMax", self.limitBMax)
+        if self.__limitBMax != limitBMax:
+            self.__limitBMax = limitBMax
+            self.onUpdateCallback("limitBMax", self.limitBMax)
 
     @property
     def probe(self):
@@ -442,8 +558,9 @@ class StateMachineBase:
 
     @probe.setter
     def probe(self, probe: Dict):
-        self.__probe = probe
-        self.onUpdateCallback("probe", self.probe)
+        if self.__probe != probe:
+            self.__probe = probe
+            self.onUpdateCallback("probe", self.probe)
 
     @property
     def pause(self):
@@ -451,11 +568,12 @@ class StateMachineBase:
 
     @pause.setter
     def pause(self, pause: Dict):
-        self.__pause = pause
-        self.onUpdateCallback("pause", self.pause)
-        if pause == False:
-            self.pauseReason.clear()
-            self.onUpdateCallback("pauseReason", self.pauseReason)
+        if self.__pause != pause:
+            self.__pause = pause
+            self.onUpdateCallback("pause", self.pause)
+            if pause == False:
+                self.pauseReason.clear()
+                self.onUpdateCallback("pauseReason", self.pauseReason)
 
     @property
     def parking(self):
@@ -463,8 +581,9 @@ class StateMachineBase:
 
     @parking.setter
     def parking(self, parking: Dict):
-        self.__parking = parking
-        self.onUpdateCallback("parking", self.parking)
+        if self.__parking != parking:
+            self.__parking = parking
+            self.onUpdateCallback("parking", self.parking)
 
     @property
     def halt(self):
@@ -472,11 +591,12 @@ class StateMachineBase:
 
     @halt.setter
     def halt(self, halt: Dict):
-        self.__halt = halt
-        self.onUpdateCallback("halt", self.halt)
-        if halt == False:
-            self.haltReason.clear()
-            self.onUpdateCallback("haltReason", self.haltReason)
+        if self.__halt != halt:
+            self.__halt = halt
+            self.onUpdateCallback("halt", self.halt)
+            if halt == False:
+                self.haltReason.clear()
+                self.onUpdateCallback("haltReason", self.haltReason)
 
     @property
     def door(self):
@@ -484,8 +604,9 @@ class StateMachineBase:
 
     @door.setter
     def door(self, door: Dict):
-        self.__door = door
-        self.onUpdateCallback("door", self.door)
+        if self.__door != door:
+            self.__door = door
+            self.onUpdateCallback("door", self.door)
 
 
 

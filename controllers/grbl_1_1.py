@@ -346,7 +346,9 @@ class Grbl1p1Controller(_SerialControllerBase):
             # cached data.)
 
             # Request a report on the modal state of the GRBL controller.
-            self._commandStreaming.put(b"$G")
+            #self._commandStreaming.put(b"$G")
             # Grbl settings report.
-            self._commandStreaming.put(b"$$")
+            #self._commandStreaming.put(b"$$")
+
+            self.state.sync()
 
