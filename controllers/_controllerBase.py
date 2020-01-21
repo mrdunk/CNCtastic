@@ -3,7 +3,7 @@ from enum import Enum
 from collections import deque
 
 from component import _ComponentBase
-from definitions import FlagState, Command, ConnectionState
+from definitions import FlagState, ConnectionState
 
 class _ControllerBase(_ComponentBase):
     """ Base class for CNC machine control hardware. """

@@ -19,7 +19,7 @@ class StateMachineBase:
                      b"UNKNOWN": "Unknown reason for reset."
                     }
 
-    def __init__(self, onUpdateCallback):
+    def __init__(self, onUpdateCallback) -> None:
         self.onUpdateCallback = onUpdateCallback
 
         self.__machinePos: Dict = {"x": 0, "y": 0, "z": 0, "a": 0, "b": 0}
@@ -29,6 +29,7 @@ class StateMachineBase:
         self.__workOffset: Dict = {"x": 0, "y": 0, "z": 0, "a": 0, "b": 0}
         self.__feedRate: int = 0
         self.__feedRateMax: Dict = {"x": 0, "y": 0, "z": 0, "a": 0, "b": 0}
+        self.__feedRateAccel: Dict = {"x": 0, "y": 0, "z": 0, "a": 0, "b": 0}
         self.__feedOverrride: int = 100
         self.__rapidOverrride: int = 100
         self.__spindleRate: int = 0
@@ -280,6 +281,34 @@ class StateMachineBase:
         self.onUpdateCallback("feedRateMax:z", self.feedRateMax["z"])
         self.onUpdateCallback("feedRateMax:a", self.feedRateMax["a"])
         self.onUpdateCallback("feedRateMax:b", self.feedRateMax["b"])
+
+    @property
+    def feedRateAccel(self):
+        return self.__feedRateAccel
+
+    @feedRateAccel.setter
+    def feedRateAccel(self, fr: Dict):
+        x = fr.get("x")
+        y = fr.get("y")
+        z = fr.get("z")
+        a = fr.get("a")
+        b = fr.get("b")
+        if x is not None:
+            self.feedRateAccel["x"] = x
+        if y is not None:
+            self.feedRateAccel["y"] = y
+        if z is not None:
+            self.feedRateAccel["z"] = z
+        if a is not None:
+            self.feedRateAccel["a"] = a
+        if b is not None:
+            self.feedRateAccel["b"] = b
+        
+        self.onUpdateCallback("feedRateAccel:x", self.feedRateAccel["x"])
+        self.onUpdateCallback("feedRateAccel:y", self.feedRateAccel["y"])
+        self.onUpdateCallback("feedRateAccel:z", self.feedRateAccel["z"])
+        self.onUpdateCallback("feedRateAccel:a", self.feedRateAccel["a"])
+        self.onUpdateCallback("feedRateAccel:b", self.feedRateAccel["b"])
 
     @property
     def feedOverride(self):
@@ -599,7 +628,6 @@ class StateMachineGrbl(StateMachineBase):
         print("ALARM:", incoming)
 
     def _parseSetting(self, incoming):
-        print("Setting:", incoming)
         incoming = incoming.lstrip(b"$")
         setting, value = incoming.split(b"=")
 
@@ -692,13 +720,16 @@ class StateMachineGrbl(StateMachineBase):
             self.feedRateMax = {"z": value}
         elif setting == b"120":
             # X Acceleration, mm/sec^2
-            pass
+            value = int(float(value))
+            self.feedRateAccel = {"x": value}
         elif setting == b"121":
             # Y Acceleration, mm/sec^2
-            pass
+            value = int(float(value))
+            self.feedRateAccel = {"y": value}
         elif setting == b"122":
             # Z Acceleration, mm/sec^2
-            pass
+            value = int(float(value))
+            self.feedRateAccel = {"z": value}
         elif setting == b"130":
             # X Max travel, mm
             pass

@@ -4,7 +4,7 @@ from collections import deque
 from pygcode import block, Machine
 
 from component import _ComponentBase
-from definitions import FlagState, Command, ConnectionState
+from definitions import FlagState, ConnectionState
 
 class Coordinator(_ComponentBase):
     """ Contains all system data.
@@ -12,7 +12,7 @@ class Coordinator(_ComponentBase):
     request data. """
 
     def __init__(self, terminals: List, interfaces: List, controllers: List,
-                 debugShowEvents: bool = False):
+                 debugShowEvents: bool = False) -> None:
         """
         Args:
             interfaces: A list of objects deriving from the _InterfaceBase class.
@@ -20,9 +20,9 @@ class Coordinator(_ComponentBase):
         """
         super().__init__("__coordinator__")
 
-        self.terminals: Dict() = {terminal.label:terminal for terminal in terminals}
-        self.interfaces: Dict() = {interface.label:interface for interface in interfaces}
-        self.controllers: Dict() = {controller.label:controller for controller in controllers}
+        self.terminals: Dict = {terminal.label:terminal for terminal in terminals}
+        self.interfaces: Dict = {interface.label:interface for interface in interfaces}
+        self.controllers: Dict = {controller.label:controller for controller in controllers}
         self.debugShowEvents = debugShowEvents
 
         self.activeController = None

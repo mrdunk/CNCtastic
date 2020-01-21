@@ -6,7 +6,7 @@ from collections import deque
 from terminals.gui import sg
 
 from controllers._controllerBase import _ControllerBase
-from definitions import Command, ConnectionState
+from definitions import ConnectionState
 
 CONNECT_DELAY =  4  # seconds
 PUSH_DELAY = 1      # seconds

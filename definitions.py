@@ -1,4 +1,4 @@
-from typing import Dict
+from typing import Dict, Optional
 from enum import Enum
 
 from pygcode import block, GCodeLinearMove, GCodeRapidMove, GCodeArcMoveCW, GCodeArcMoveCCW, GCodeStraightProbe, GCodeCancelCannedCycle, GCodeIncrementalDistanceMode, GCodeAbsoluteDistanceMode, GCodeUseMillimeters, GCodeUseInches, GCodeFeedRate
@@ -7,18 +7,6 @@ class FlagState(Enum):
     UNSET = 0
     TRUE = 1
     FALSE = 2
-
-class Command:
-    _sequence: int = 0
-    sequence: int = None
-    gcode: Dict = None
-    halt: bool = None
-    pause: bool = None
-    cancel: bool = None
-
-    def __init__(self):
-        self.sequence = Command._sequence
-        Command._sequence += 1
 
 class ConnectionState(Enum):
     UNKNOWN = 0

@@ -17,7 +17,7 @@ class JogWidget(_InterfaceBase):
     """ Allows user to directly control various machine settings. eg: Jog the
     head to given coordinates. """
 
-    def __init__(self, label: str = "jogWidget"):
+    def __init__(self, label: str = "jogWidget") -> None:
         super().__init__(label)
 
         self.label = label
@@ -39,10 +39,17 @@ class JogWidget(_InterfaceBase):
                 self.keyGen("dr"): ("_moveHandler", (1, -1, 0)),
                 self.keyGen("uz"): ("_moveHandler", (0, 0, 1)),
                 self.keyGen("dz"): ("_moveHandler", (0, 0, -1)),
+                "activeController:wPos:x": ("_wPosHandlerX", None),
+                "activeController:wPos:y": ("_wPosHandlerY", None),
+                "activeController:wPos:z": ("_wPosHandlerZ", None),
+                self.keyGen("wPos:x"): ("_wPosHandlerXUpdate", None),
+                self.keyGen("wPos:y"): ("_wPosHandlerYUpdate", None),
+                self.keyGen("wPos:z"): ("_wPosHandlerZUpdate", None),
                 }
 
         self._xyJogStep = 10
         self._zJogStep = 10
+        self._wPos = {}
 
     def _xyJogStepMultiply(self, multiplier):
         self._xyJogStep = round1SF(self._xyJogStep * multiplier)
@@ -57,13 +64,49 @@ class JogWidget(_InterfaceBase):
         self.publishOneByValue(self.keyGen("zJogStep"), self._zJogStep)
 
     def _moveHandler(self, values):
-        self.absoluteDistanceMode(self, False)
+        self.absoluteDistanceMode(False)
         self.moveTo(command="G00",
                     x=self._xyJogStep * values[0],
                     y=self._xyJogStep * values[1],
                     z=self._zJogStep * values[2],
                     f=10000  # TODO: Feed rates on jog.py
                     )
+
+    def _wPosHandlerX(self, value):
+        """ Called in response to an activeController:wPos:x event. """
+        self._wPos["x"] = value
+        self.publishOneByValue(self.keyGen("wPos:x"), value)
+
+    def _wPosHandlerY(self, value):
+        """ Called in response to an activeController:wPos:y event. """
+        self._wPos["y"] = value
+        self.publishOneByValue(self.keyGen("wPos:y"), value)
+
+    def _wPosHandlerZ(self, value):
+        """ Called in response to an activeController:wPos:z event. """
+        self._wPos["z"] = value
+        self.publishOneByValue(self.keyGen("wPos:z"), value)
+
+    def _wPosHandlerXUpdate(self, value):
+        """ Called in response to a local :wPos:x event. """
+        if "x" in self._wPos and value == self._wPos["x"]:
+            # Nothing to do.
+            return
+        self._updatedData.wPos = self._wPos
+
+    def _wPosHandlerYUpdate(self, value):
+        """ Called in response to a local :wPos:y event. """
+        if "y" in self._wPos and value == self._wPos["y"]:
+            # Nothing to do.
+            return
+        self._updatedData.wPos = self._wPos
+
+    def _wPosHandlerZUpdate(self, value):
+        """ Called in response to a local :wPos:z event. """
+        if "z" in self._wPos and value == self._wPos["z"]:
+            # Nothing to do.
+            return
+        self._updatedData.wPos = self._wPos
 
     def guiLayout(self):
         butW = 5
@@ -123,6 +166,9 @@ class JogWidget(_InterfaceBase):
             [txt("Max feed:", coordW, coordH), fCoord("feedRateMax:x"),
                                                fCoord("feedRateMax:y"),
                                                fCoord("feedRateMax:z")],
+            [txt("Feed accel:", coordW, coordH), fCoord("feedRateAccel:x"),
+                                                 fCoord("feedRateAccel:y"),
+                                                 fCoord("feedRateAccel:z")],
             [txt("Current feed:", coordW, coordH), fCoord("feedRate")]
             ]
 

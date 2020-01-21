@@ -1,5 +1,5 @@
 from enum import Enum
-from typing import Dict
+from typing import Dict, Optional
 
 from pygcode import block, GCodeFeedRate
 
@@ -10,7 +10,8 @@ from definitions import FlagState, MODAL_GROUPS
 class UpdateState:
     """ Data container representing changes to be made to the state of the system. """
     def __init__(self,
-                 gcode: block.Block = None,
+                 gcode: Optional[block.Block] = None,
+                 wPos: Optional[Dict] = None,
                  halt: FlagState = FlagState.UNSET,
                  pause: FlagState = FlagState.UNSET,
                  jog: FlagState = FlagState.UNSET,
@@ -24,6 +25,7 @@ class UpdateState:
             TODO: reset flag. Others?
         """    
         self.gcode: block.Block = gcode
+        self.wPos: Dict[str:int] = wPos
         self.halt: FlagState = halt
         self.pause: FlagState = pause
         self.jog: FlagState = jog
@@ -37,6 +39,12 @@ class UpdateState:
             output += "gcode: None\t"
         else:
             output += "gcode: {self.gcode.gcodes}\t"
+
+        if self.wPos is None:
+            output += "wPos: None\t"
+        else:
+            output += "wPos: {self.wPos}\t"
+
         output += "halt: {self.halt.name}\t"
         output += "pause: {self.pause.name}\t"
         output += "jog: {self.jog.name}\t"
@@ -96,9 +104,9 @@ class _InterfaceBase(_ComponentBase):
 
     def absoluteDistanceMode(self, *argv, **argkv):
         if "command" not in argkv:
-            if len(argv) > 1:
-                if isinstance(argv[1], bool):
-                    if argv[1]:
+            if len(argv) > 0:
+                if isinstance(argv[0], bool):
+                    if argv[0]:
                         argkv["command"] = "G90"
                     else:
                         argkv["command"] = "G91"

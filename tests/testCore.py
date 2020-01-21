@@ -8,7 +8,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(testdir, srcdir)))
 from collections import deque
 import unittest
 from pygcode import block, GCodeCublcSpline
-from definitions import FlagState, Command, ConnectionState
+from definitions import FlagState, ConnectionState
 from coordinator.coordinator import Coordinator
 from interfaces.mockInterface import MockWidget
 from controllers.mockController import MockController

@@ -75,6 +75,20 @@ class Grbl1p1Controller(_SerialControllerBase):
         self._sendBufLens: deque = deque()
         self._sendBufActns: deque = deque()
 
+        """ Certain gcode commands write to EPROM which disabled interrupts which
+        would interfere with serial IO. When one of these commands is executed we
+        should pause before continuing with serial IO. """
+        self.flushBeforeContinue = False
+
+    def _completeBeforeContinue(self, command) -> bool:
+        """ Certain gcode commands write to EPROM which disabled interrupts which
+        would interfere with serial IO. When one of these commands is executed we
+        should pause before continuing with serial IO. """
+        for slowCommand in self.SLOWCOMMANDS:
+            if slowCommand in command:
+                return True
+        return False
+
     def publishFromHere(self, variableName, variableValue):
         self.publishOneByValue(self.keyGen(variableName), variableValue)
         
@@ -99,15 +113,6 @@ class Grbl1p1Controller(_SerialControllerBase):
                 ]
         return layout
     
-    def _completeBeforeContinue(self, command) -> bool:
-        """ Certain gcode commands write to EPROM which disabled interrupts which
-        would interfere with serial IO. When one of these commands is executed we
-        should pause before continuing with serial IO. """
-        for slowCommand in self.SLOWCOMMANDS:
-            if slowCommand in command:
-                return True
-        return False
-
     def parseIncoming(self, incoming):
         """ Process data received from serial port.
         Handles urgent updates here and puts the rest in _receivedData buffer for
@@ -175,6 +180,12 @@ class Grbl1p1Controller(_SerialControllerBase):
 
     def _writeStreaming(self) -> bool:
         """ Write entries in the _commandStreaming buffer to serial port. """
+        if self.flushBeforeContinue and sum(self._sendBufLens) == 0:
+            self.flushBeforeContinue = False
+
+        if self._sendBufLens:
+            return False
+
         if sum(self._sendBufLens) >= RX_BUFFER_SIZE - 1:
             return False
 
@@ -183,6 +194,9 @@ class Grbl1p1Controller(_SerialControllerBase):
             task = self._commandStreaming.get(block=False)
         except Empty:
             return False
+
+        if self._completeBeforeContinue(task):
+            self.flushBeforeContinue = True
 
         taskString = task
         if isinstance(task, Block):

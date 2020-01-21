@@ -3,7 +3,7 @@ from collections import deque
 
 from pygcode import block, Machine
 
-from definitions import FlagState, Command, ConnectionState
+from definitions import FlagState, ConnectionState
 
 class _ComponentBase:
     """ General methods required by all components. """
@@ -16,7 +16,7 @@ class _ComponentBase:
     eventsToPublish: Dict[str, str] 
     _delivered: Deque[Any]
    
-    def __init__(self, label: str):
+    def __init__(self, label: str) -> None:
         self.label: str = label
 
         # Events to be delivered to this class with callback as value.
@@ -59,7 +59,7 @@ class _ComponentBase:
 
         if eventName and prop is None:
             if eventName not in self.eventsToPublish:
-                raise AttributeError("Property for event \"%s\" not listed in %s"
+                raise AttributeError("Property for event \"%s\" not listed in %s" %
                         (eventName, self.eventsToPublish))
             prop = self.eventsToPublish[eventName]
 
@@ -133,7 +133,8 @@ class _ComponentBase:
                 raise AttributeError("Action (in self.eventSubscriptions) should be a "
                                      "string of the property name")
             if not hasattr(self, action):
-                raise AttributeError("Property for event \"%s\" does not exist.")
+                raise AttributeError("Property for event \"%s\" does not exist." % action)
+
             callback = getattr(self, action)
             if callable(callback):
                 # Refers to a class method.

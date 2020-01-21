@@ -1,5 +1,5 @@
 from controllers.debug import DebugController
-from definitions import Command, ConnectionState
+from definitions import ConnectionState
 
 class MockController(DebugController):
     def __init__(self, label="debug"):
