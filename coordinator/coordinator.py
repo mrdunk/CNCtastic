@@ -53,8 +53,8 @@ class Coordinator(_ComponentBase):
 
         # Activate terminals.
         for terminal in self.terminals.values():
-            print("Terminal %s being activated: %s" % (terminal.label, terminal.activateNow))
-            if not terminal.activateNow:
+            print("Terminal %s being activated: %s" % (terminal.label, terminal.active))
+            if not terminal.active:
                 continue
 
             if hasattr(terminal, "layout"):
@@ -184,7 +184,8 @@ class Coordinator(_ComponentBase):
     def updateComponents(self) -> bool:
         """ Iterate through all components, delivering and acting upon events. """
         for terminalName, terminal in self.terminals.items():
-            self.running = self.running and terminal.earlyUpdate()
+            if terminal.active:
+                self.running = self.running and terminal.earlyUpdate()
 
         for component in self.interfaces.values():
             component.earlyUpdate()

@@ -46,7 +46,7 @@ class _TerminalBase(_ComponentBase):
     def __init__(self, label="_guiBase"):
         super().__init__(label)
         self.activeByDefault = True
-        self.activateNow = False
+        self.active = False
 
     def earlyUpdate(self) -> bool:
         """ To be called once per frame.

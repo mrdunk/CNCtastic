@@ -35,8 +35,8 @@ def main():
     print(args)
 
     for terminal in terminals:
-        terminal.activateNow = getattr(args, terminal.label)
-        terminal.debugShowEvents = args.debugShowEvents
+        terminal.active: bool = getattr(args, terminal.label)
+        terminal.debugShowEvents: bool = args.debugShowEvents
 
     
     coordinator = Coordinator(terminals, interfaces, controllers, args.debugShowEvents)
