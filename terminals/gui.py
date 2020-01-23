@@ -66,7 +66,7 @@ class Gui(_TerminalBase):
         self._lastvalues = values
         
         # Combine events with the values. Put the event key in there with empty value.
-        if not event == "__TIMEOUT__":
+        if not event == "__TIMEOUT__" and event not in self._diffValues:
             self._diffValues[event] = None
         
         #if(not event == "__TIMEOUT__" or self._diffValues) and self.debugShowEvents:
@@ -77,7 +77,7 @@ class Gui(_TerminalBase):
     def publish(self):
         for eventKey, value in self._diffValues.items():
             if isinstance(value, str):
-                value = value.rstrip()
+                value = value.strip()
             self.publishOneByValue(eventKey, value)
 
     def receive(self):
@@ -91,6 +91,10 @@ class Gui(_TerminalBase):
             event, value = self._delivered.popleft()
             if isinstance(value, Enum):
                 self.window[event].update(value.name)
+            elif isinstance(value, float):
+                if int(value) == value:
+                    value = int(value)
+                self.window[event].update(value)
             else:
                 self.window[event].update(value)
 
