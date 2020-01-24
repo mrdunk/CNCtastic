@@ -7,7 +7,7 @@ from definitions import ConnectionState
 from coordinator.coordinator import Coordinator
 
 
-def main():
+def main() -> None:
 
     terminals = common.loadPlugins("terminals")
     controllers = common.loadPlugins("controllers")
@@ -35,8 +35,8 @@ def main():
     print(args)
 
     for terminal in terminals:
-        terminal.active: bool = getattr(args, terminal.label)
-        terminal.debugShowEvents: bool = args.debugShowEvents
+        terminal.active: bool = getattr(args, terminal.label)   # type: ignore
+        terminal.debugShowEvents: bool = args.debugShowEvents   # type: ignore
 
     
     coordinator = Coordinator(terminals, interfaces, controllers, args.debugShowEvents)

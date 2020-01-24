@@ -1,7 +1,5 @@
-from typing import List, Dict, Any, Tuple, Deque
+from typing import List, Dict, Any, Tuple, Deque, Optional, Union
 from collections import deque
-
-from pygcode import block, Machine
 
 from definitions import FlagState, ConnectionState
 
@@ -39,15 +37,15 @@ class _ComponentBase:
 
         self.debugShowEvents = False
 
-    def keyGen(self, tag):
+    def keyGen(self, tag: str) -> str:
         return "%s:%s" % (self.label, tag)
 
-    def earlyUpdate(self):
+    def earlyUpdate(self) -> None:
         """ To be called periodically.
         Any housekeeping tasks should happen here. """
         pass
 
-    def publish(self, eventName: str = "", prop=None):
+    def publish(self, eventName: str = "", prop: Optional[str]=None) -> None:
         """ Publish all events listed in the self.eventsToPublish collection. """
         if not hasattr(self, "eventsToPublish"):
             return
@@ -65,14 +63,14 @@ class _ComponentBase:
 
         self.publishOneByValue(eventName, prop)
 
-    def _publishAllRegistered(self):
+    def _publishAllRegistered(self) -> None:
         """ Publish events for all listed in self.eventsToPublish. """
         for eventName, prop in self.eventsToPublish.items():
             self._publishOneByKey(eventName, prop)
 
-    def _publishOneByKey(self, eventName: str, prop: str):
+    def _publishOneByKey(self, eventName: str, prop: str) -> None:
 
-        # Convert a string reperesentation of an object property into that property.
+        # Convert a string representation of an object property into that property.
         totalProperty = self
         for p in prop.split("."):  # TODO: Don't split every time?
             if isinstance(totalProperty, dict) and p in totalProperty:
@@ -88,11 +86,13 @@ class _ComponentBase:
         self.publishOneByValue(eventName, totalProperty)
         
 
-    def publishOneByValue(self, eventName: str, eventValue):
+    def publishOneByValue(self,
+                          eventName: str,
+                          eventValue: Any) -> None:
         """ Distribute an event to all subscribed components. """
         self._eventQueue.append((eventName, eventValue))
 
-    def receive(self):
+    def receive(self) -> None:
         """ Deliver events this object is subscribed to. """
         #print(self.label, "receive", self._eventQueue)
         if not hasattr(self, "eventSubscriptions"):
@@ -102,18 +102,18 @@ class _ComponentBase:
             if event in self.eventSubscriptions:
                 self._delivered.append((event, value))
 
-    def updateEarly(self):
+    def updateEarly(self) -> None:
         """ Called before events get delivered. """
         pass
 
-    def update(self):
+    def update(self) -> None:
         """ Called after events get delivered. """
         # for event in self._delivered:
         #     print(self.label, event)
         pass
 
 
-    def _update(self):
+    def _update(self) -> None:
         """ Populate class variables and callbacks in response to configured events. """
 
         # This will be done after /all/ events have been delivered for all

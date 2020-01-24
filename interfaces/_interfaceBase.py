@@ -1,7 +1,7 @@
 from enum import Enum
-from typing import Dict, Optional
+from typing import Dict, Optional, Union, Any, Callable, cast
 
-from pygcode import block, GCodeFeedRate
+from pygcode import block, GCodeFeedRate     # type: ignore
 
 from component import _ComponentBase
 from definitions import FlagState, MODAL_GROUPS
@@ -16,7 +16,7 @@ class UpdateState:
                  pause: FlagState = FlagState.UNSET,
                  jog: FlagState = FlagState.UNSET,
                  home: FlagState = FlagState.UNSET,
-                 door: FlagState = FlagState.UNSET):
+                 door: FlagState = FlagState.UNSET) -> None:
         """
         Args:
             gcode: A pygcode Block object containing a single gcode line.
@@ -24,8 +24,8 @@ class UpdateState:
             pause: A boolean flag requesting all current tasks should pause.
             TODO: reset flag. Others?
         """    
-        self.gcode: block.Block = gcode
-        self.wPos: Dict[str:int] = wPos
+        self.gcode: Optional[block.Block] = gcode
+        self.wPos: Optional[Dict[str, int]] = wPos
         self.halt: FlagState = halt
         self.pause: FlagState = pause
         self.jog: FlagState = jog
@@ -33,7 +33,7 @@ class UpdateState:
         self.door: FlagState = door
         self.flags = ["halt", "pause", "jog", "home", "door"]
 
-    def __str__(self):
+    def __str__(self) -> str:
         output = ""
         if self.gcode is None:
             output += "gcode: None\t"
@@ -55,9 +55,12 @@ class UpdateState:
 class _InterfaceBase(_ComponentBase):
     """ A base class for user input objects used for controlling the machine. """
 
-    modalGroups = MODAL_GROUPS  # Make a class reference to avoid expensive global lookup.
+    # Make a class reference to avoid expensive global lookup.
+    #modalGroups: Dict[str, object] = MODAL_GROUPS
+    #modalGroups: Dict[str, Dict[str, Callable]] = MODAL_GROUPS
+    modalGroups = cast(Dict[str, Dict[str, Callable]], MODAL_GROUPS)
 
-    def __init__(self, label: str = ""):
+    def __init__(self, label: str = "") -> None:
         """ Args:
                 label: A string identifying this object.
                 status: The current state of this object. eg: Is it ready for use?
@@ -66,7 +69,7 @@ class _InterfaceBase(_ComponentBase):
         super().__init__(label)
         self._updatedData: UpdateState = UpdateState()
     
-    def update(self):
+    def update(self) -> None:
         for flag in self._updatedData.flags:
             attr = getattr(self._updatedData, flag)
             if attr != FlagState.UNSET:
@@ -77,7 +80,7 @@ class _InterfaceBase(_ComponentBase):
         # Clear self._updatedData 
         self._updatedData = UpdateState()
        
-    def moveTo(self, **argkv):
+    def moveTo(self, **argkv: Union[str, float]) -> None:
         """ Move the machine head.
         Args:
             argkv: A dict containing one or more of the following parameters:
@@ -99,10 +102,13 @@ class _InterfaceBase(_ComponentBase):
             del argkv["F"]
 
         self._gcodeCommand("motion", **argkv)
+
+        assert self._updatedData.gcode is not None, "self._updatedData.gcode not set yet."
+
         if feed is not None:
             self._updatedData.gcode.gcodes.append(GCodeFeedRate(feed))
 
-    def absoluteDistanceMode(self, *argv, **argkv):
+    def absoluteDistanceMode(self, *argv: bool, **argkv: Union[str, float]) -> None:
         if "command" not in argkv:
             if len(argv) > 0:
                 if isinstance(argv[0], bool):
@@ -125,8 +131,8 @@ class _InterfaceBase(_ComponentBase):
 
         self._gcodeCommand("distance", **argkv)
 
-    def _gcodeCommand(self, modalGroup, **argkv):
-        command = argkv["command"]
+    def _gcodeCommand(self, modalGroup: str, **argkv: Union[str, float]) -> None:
+        command = cast(str, argkv["command"])
         del argkv["command"]
 
         if command not in self.modalGroups[modalGroup]:

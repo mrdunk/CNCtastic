@@ -1,16 +1,16 @@
-from typing import Dict
+from typing import Dict, List, Union
 from math import log10, floor
 from collections import deque
 
-#import PySimpleGUIQt as sg
-from terminals.gui import sg
+#import PySimpleGUIQt as sg       # type: ignore
+from terminals.gui import sg      # type: ignore
 
-from interfaces._interfaceBase import _InterfaceBase
+from interfaces._interfaceBase import _InterfaceBase  # type: ignore
 from definitions import FlagState
 
 className = "JogWidget"
 
-def round1SF(number) -> float:
+def round1SF(number: float) -> float:
     return round(number, -int(floor(log10(abs(number)))))
 
 class JogWidget(_InterfaceBase):
@@ -47,23 +47,23 @@ class JogWidget(_InterfaceBase):
                 self.keyGen("workPos:z"): ("_wPosHandlerZUpdate", None),
                 }
 
-        self._xyJogStep = 10
-        self._zJogStep = 10
-        self._wPos = {}
+        self._xyJogStep: float = 10
+        self._zJogStep: float = 10
+        self._wPos: Dict = {}
 
-    def _xyJogStepMultiply(self, multiplier):
+    def _xyJogStepMultiply(self, multiplier: float) -> None:
         self._xyJogStep = round1SF(self._xyJogStep * multiplier)
         # Need to explicitly push this here as the GUI also sends an update with
         # the old value. This publish will take effect later.
         self.publishOneByValue(self.keyGen("xyJogStep"), self._xyJogStep)
 
-    def _zJogStepMultiply(self, multiplier):
+    def _zJogStepMultiply(self, multiplier: float) -> None:
         self._zJogStep = round1SF(self._zJogStep * multiplier)
         # Need to explicitly push this here as the GUI also sends an update with
         # the old value. This publish will take effect later.
         self.publishOneByValue(self.keyGen("zJogStep"), self._zJogStep)
 
-    def _moveHandler(self, values):
+    def _moveHandler(self, values: List[int]) -> None:
         self.absoluteDistanceMode(False)
         self.moveTo(command="G00",
                     x=self._xyJogStep * values[0],
@@ -72,46 +72,46 @@ class JogWidget(_InterfaceBase):
                     f=10000  # TODO: Feed rates on jog.py
                     )
 
-    def _wPosHandlerX(self, value):
+    def _wPosHandlerX(self, value: float) -> None:
         """ Called in response to an activeController:workPos:x event. """
         self._wPos["x"] = value
         self.publishOneByValue(self.keyGen("workPos:x"), value)
 
-    def _wPosHandlerY(self, value):
+    def _wPosHandlerY(self, value: float) -> None:
         """ Called in response to an activeController:workPos:y event. """
         self._wPos["y"] = value
         self.publishOneByValue(self.keyGen("workPos:y"), value)
 
-    def _wPosHandlerZ(self, value):
+    def _wPosHandlerZ(self, value: float) -> None:
         """ Called in response to an activeController:workPos:z event. """
         self._wPos["z"] = value
         self.publishOneByValue(self.keyGen("workPos:z"), value)
 
-    def _wPosHandlerXUpdate(self, value):
+    def _wPosHandlerXUpdate(self, value: float) -> None:
         """ Called in response to a local :workPos:x event. """
         if "x" in self._wPos and value == self._wPos["x"]:
             # Nothing to do.
             return
         self._updatedData.workPos = self._wPos
 
-    def _wPosHandlerYUpdate(self, value):
+    def _wPosHandlerYUpdate(self, value: float) -> None:
         """ Called in response to a local :workPos:y event. """
         if "y" in self._wPos and value == self._wPos["y"]:
             # Nothing to do.
             return
         self._updatedData.workPos = self._wPos
 
-    def _wPosHandlerZUpdate(self, value):
+    def _wPosHandlerZUpdate(self, value: float) -> None:
         """ Called in response to a local :workPos:z event. """
         if "z" in self._wPos and value == self._wPos["z"]:
             # Nothing to do.
             return
         self._updatedData.workPos = self._wPos
 
-    def guiLayout(self):
+    def guiLayout(self) -> List:
         butW = 5
         butH = 1.5
-        def txt(label: str, butW=butW, butH=butH) -> sg.Frame:
+        def txt(label: str, butW: float = butW, butH: float = butH) -> sg.Frame:
             t = sg.Text(label, justification="center", size=(butW, butH),
                     #background_color="grey"
                     )
@@ -127,8 +127,8 @@ class JogWidget(_InterfaceBase):
                        default_value=self._xyJogStep, size=(butW, 1))
             return drop
 
-        coordW = 10
-        coordH = 1
+        coordW: float = 10
+        coordH : float= 1
         def wCoord(key: str) -> sg.InputText:
             return sg.InputText(key,
                                 key=self.keyGen(key),
@@ -202,7 +202,7 @@ class JogWidget(_InterfaceBase):
                 ]
         return layout
 
-    def moveTo(self, **argkv):
+    def moveTo(self, **argkv: Union[float, str]) -> None:
         """ Move the machine head.
         Args:
             argkv: A dict containing one or more of the following parameters:
