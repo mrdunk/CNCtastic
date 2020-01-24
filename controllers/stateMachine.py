@@ -101,11 +101,9 @@ class StateMachineBase:
             value = getattr(self, prop)
             if type(prop) in ["number", "str"]:
                 self.onUpdateCallback(prop, value)
-                print(prop, value)
             elif isinstance(value, dict):
                 for subProp, subValue in value.items():
                     self.onUpdateCallback("%s:%s" % (prop, subProp), subValue)
-                    print("%s:%s" % (prop, subProp), subValue)
 
     @property
     def workOffset(self):
