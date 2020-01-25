@@ -1,17 +1,19 @@
-from typing import Dict, Any
+from typing import Dict, Any, Deque, Set
 from enum import Enum
 from collections import deque
 
+from pygcode import GCode
+
 from component import _ComponentBase
-from definitions import FlagState, ConnectionState
+from definitions import FlagState, ConnectionState, ConnectionStateTypes
 
 class _ControllerBase(_ComponentBase):
     """ Base class for CNC machine control hardware. """
 
     # Strings of the gcode commands this controller supports.
-    SUPPORTED_GCODE = set()
+    SUPPORTED_GCODE: Set = set()
 
-    def __init__(self, label):
+    def __init__(self, label: str) -> None:
         super().__init__(label)
 
         self.__active: bool = False
@@ -39,34 +41,34 @@ class _ControllerBase(_ComponentBase):
         return self.__active
 
     @active.setter
-    def active(self, value: bool):
+    def active(self, value: bool) -> None:
         self.__active = value
         if value:
             self.onActivate()
         else:
             self.onDeactivate()
 
-    def onActivate(self):
+    def onActivate(self) -> None:
         """ Called whenever self.active is set True. """
         pass
 
-    def onDeactivate(self):
+    def onDeactivate(self) -> None:
         """ Called whenever self.active is set False. """
         pass
 
-    def setDesiredConnectionStatus(self, connectionStatus):
+    def setDesiredConnectionStatus(self, connectionStatus: ConnectionStateTypes) -> None:
         self.desiredConnectionStatus = connectionStatus
         self.publishOneByValue(self.keyGen("desiredConnectionStatus"), connectionStatus)
 
-    def setConnectionStatus(self, connectionStatus):
+    def setConnectionStatus(self, connectionStatus: ConnectionStateTypes) -> None:
         self.connectionStatus = connectionStatus
         self.publishOneByValue(self.keyGen("connectionStatus"), connectionStatus)
 
-    def connect(self):
+    def connect(self) -> ConnectionStateTypes:
         raise NotImplementedError
         return ConnectionState.UNKNOWN
 
-    def disconnect(self):
+    def disconnect(self) -> ConnectionStateTypes:
         raise NotImplementedError
         return ConnectionState.UNKNOWN
 
@@ -83,7 +85,7 @@ class _ControllerBase(_ComponentBase):
         
         raise AttributeError("Cannot tell if %s is valid gcode." % command)
 
-    def update(self):
+    def update(self) -> None:
         if(self._delivered and
                 self.connectionStatus is ConnectionState.CONNECTED and
                 self.active):

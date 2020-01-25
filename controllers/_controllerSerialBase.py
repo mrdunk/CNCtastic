@@ -1,15 +1,15 @@
-import serial
+import serial    # type: ignore  
 import threading
 
 
 from controllers._controllerBase import _ControllerBase
-from definitions import ConnectionState
+from definitions import ConnectionState, ConnectionStateTypes
 
 SERIAL_INTERVAL = 0.02 # seconds
 
 
 class _SerialControllerBase(_ControllerBase):
-    def __init__(self, label: str="serialController"):
+    def __init__(self, label: str="serialController") -> None:
         super().__init__(label)
         #self.serialDevName = "spy:///tmp/ttyFAKE?file=/tmp/serialspy.txt"
         self.serialDevName = "/tmp/ttyFAKE"
@@ -17,7 +17,7 @@ class _SerialControllerBase(_ControllerBase):
         self._serial = None
         self.testing: bool = False  # Prevent _periodicIO() from blocking during tests.
     
-    def connect(self):
+    def connect(self) -> ConnectionStateTypes:
         """ Try to open serial port. Set connectionStatus to CONNECTING. """
         print("connect")
         if self.connectionStatus in [
@@ -42,7 +42,7 @@ class _SerialControllerBase(_ControllerBase):
 
         return self.connectionStatus
 
-    def disconnect(self) :
+    def disconnect(self) -> ConnectionStateTypes:
         """ Close serial port, shut down serial port thread, etc.
         Set connectionStatus to DISCONNECTING.. """
         print("Disconnecting %s %s" % (self.label, self.serialDevName))
@@ -63,10 +63,14 @@ class _SerialControllerBase(_ControllerBase):
         
         return self.connectionStatus
 
-    def onConnected(self):
+    def onConnected(self) -> None:
         """ Executed when serial port first comes up.
         Check serial port is open then start serial port thread.
         Set connectionStatus to CONNECTED. """
+        if self._serial is None:
+            self.setConnectionStatus(ConnectionState.FAIL)
+            return
+
         if not self._serial.is_open:
             return
 
@@ -82,9 +86,13 @@ class _SerialControllerBase(_ControllerBase):
         self._serialThread.daemon = True
         self._serialThread.start()
 
-    def onDisconnected(self):
+    def onDisconnected(self) -> None:
         """ Executed when serial port is confirmed closed.
         Check serial port was closed then set connectionStatus to NOT_CONNECTED. """
+        if self._serial is None:
+            self.setConnectionStatus(ConnectionState.FAIL)
+            return
+
         if self._serial.is_open:
             return
 
@@ -92,8 +100,12 @@ class _SerialControllerBase(_ControllerBase):
         self.setConnectionStatus(ConnectionState.NOT_CONNECTED)
         self._serial = None
 
-    def _serialWrite(self, data) -> bool:
+    def _serialWrite(self, data: bytes) -> bool:
         """ Send data to serial port. """
+        if self._serial is None:
+            self.setConnectionStatus(ConnectionState.FAIL)
+            return False
+
         try:
             self._serial.write(data)
         except serial.serialutil.SerialException:
@@ -103,6 +115,10 @@ class _SerialControllerBase(_ControllerBase):
 
     def _serialRead(self) -> bytes:
         """ Read data from serial port. """
+        if self._serial is None:
+            self.setConnectionStatus(ConnectionState.FAIL)
+            return b""
+
         try:
             if not self._serial.inWaiting():
                 return b""
@@ -116,7 +132,7 @@ class _SerialControllerBase(_ControllerBase):
             self.setConnectionStatus(ConnectionState.FAIL)
         return line
 
-    def earlyUpdate(self):
+    def earlyUpdate(self) -> None:
         """ Called early in the event loop, before events have been received. """
         if self.connectionStatus != self.desiredConnectionStatus:
             # Transition between connection states.
@@ -143,7 +159,7 @@ class _SerialControllerBase(_ControllerBase):
                 # Start disconnection.
                 self.disconnect()
         
-    def _periodicIO(self):
+    def _periodicIO(self) -> None:
         """ Read from and write to serial port.
             Called from a separate thread.
             Blocks while serial port remains connected. """

@@ -1,8 +1,6 @@
 from typing import List, Dict, Any, Tuple, Deque, Optional
 from collections import deque
 
-from pygcode import block, Machine
-
 from component import _ComponentBase
 from definitions import FlagState, ConnectionState
 from controllers._controllerBase import _ControllerBase   # type: ignore

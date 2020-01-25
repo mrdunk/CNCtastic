@@ -1,3 +1,4 @@
+from typing import List, Any, Optional
 import time
 from queue import Queue, Empty
 from collections import deque
@@ -6,7 +7,7 @@ from collections import deque
 from terminals.gui import sg
 from pygcode import GCode, Block
 
-from definitions import ConnectionState
+from definitions import ConnectionState, ConnectionStateTypes
 from controllers._controllerSerialBase import _SerialControllerBase
 from interfaces._interfaceBase import UpdateState
 from controllers.stateMachine import StateMachineGrbl as State
@@ -51,25 +52,25 @@ class Grbl1p1Controller(_SerialControllerBase):
                     b"$Nx=", b"$RST=", b"G54 ", b"G55 ", b"G56 ", b"G57 ", b"G58 ",
                     b"G59 ", b"G28 ", b"G30 ", b"$$", b"$I", b"$N", b"$#"]
 
-    def __init__(self, label: str="grbl1.1"):
+    def __init__(self, label: str="grbl1.1") -> None:
         super().__init__(label)
 
         # Allow replacing with a mock version when testing.
-        self._time = time
+        self._time: Any = time
 
         # State machine to track current GRBL state.
         self.state = State(self.publishFromHere)
 
         # Populate with GRBL commands that are processed immediately and don't need queued.
-        self._commandImmediate = Queue()
+        self._commandImmediate: Queue = Queue()
         # Populate with GRBL commands that are processed sequentially.
-        self._commandStreaming = Queue()
+        self._commandStreaming: Queue = Queue()
 
         # Data received from GRBL that does not need processed immediately.
-        self._receivedData = Queue()
+        self._receivedData: Queue = Queue()
 
-        self._partialRead: str = b""
-        self._lastWrite = 0
+        self._partialRead: bytes = b""
+        self._lastWrite: float = 0
         self._errorCount: int = 0
         self._okCount: int = 0
         self._sendBufLens: deque = deque()
@@ -80,7 +81,7 @@ class Grbl1p1Controller(_SerialControllerBase):
         should pause before continuing with serial IO. """
         self.flushBeforeContinue = False
 
-    def _completeBeforeContinue(self, command) -> bool:
+    def _completeBeforeContinue(self, command: bytes) -> bool:
         """ Certain gcode commands write to EPROM which disabled interrupts which
         would interfere with serial IO. When one of these commands is executed we
         should pause before continuing with serial IO. """
@@ -89,10 +90,10 @@ class Grbl1p1Controller(_SerialControllerBase):
                 return True
         return False
 
-    def publishFromHere(self, variableName, variableValue):
+    def publishFromHere(self, variableName: str, variableValue: Any) -> None:
         self.publishOneByValue(self.keyGen(variableName), variableValue)
         
-    def guiLayout(self):
+    def guiLayout(self) -> List:
         layout = [
                 [sg.Text("Title:", size=(20,1)),
                     sg.Text("unknown", key=self.keyGen("label"), size=(20,1)),
@@ -113,7 +114,7 @@ class Grbl1p1Controller(_SerialControllerBase):
                 ]
         return layout
     
-    def parseIncoming(self, incoming):
+    def parseIncoming(self, incoming: Optional[bytes]) -> None:
         """ Process data received from serial port.
         Handles urgent updates here and puts the rest in _receivedData buffer for
         later processing. """
@@ -147,7 +148,7 @@ class Grbl1p1Controller(_SerialControllerBase):
         else:
             self._receivedData.put(incoming)
 
-    def _incomingError(self, incoming):
+    def _incomingError(self, incoming: bytes) -> None:
         """ Called when GRBL returns an "error:". """
         self._errorCount += 1
         self._sendBufLens.popleft()
@@ -156,7 +157,7 @@ class Grbl1p1Controller(_SerialControllerBase):
         # Feed Hold:
         self._commandImmediate.put(b"!")
 
-    def _incomingOk(self, incoming):
+    def _incomingOk(self, incoming: bytes) -> None:
         """ Called when GRBL returns an "ok". """
         if not self._sendBufLens:
             return
@@ -209,7 +210,7 @@ class Grbl1p1Controller(_SerialControllerBase):
             return True
         return False
 
-    def _periodicIO(self):
+    def _periodicIO(self) -> None:
         """ Read from and write to serial port.
             Called from a separate thread.
             Blocks while serial port remains connected. """
@@ -236,7 +237,7 @@ class Grbl1p1Controller(_SerialControllerBase):
             if self.testing:
                 break
 
-    def doCommand(self, command: UpdateState):
+    def doCommand(self, command: UpdateState) -> None:
         """ Turn update received via event into something GRBL can parse and put
         in a command buffer. """
         assert isinstance(command, UpdateState)
@@ -297,7 +298,7 @@ class Grbl1p1Controller(_SerialControllerBase):
                     self._commandStreaming.put(command.gcode)
 
 
-    def earlyUpdate(self):
+    def earlyUpdate(self) -> None:
         """ Called early in the event loop, before events have been received. """
         super().earlyUpdate()
 
@@ -317,7 +318,7 @@ class Grbl1p1Controller(_SerialControllerBase):
                 self.publishOneByValue(self.keyGen("state"), self.state)
                 self.state.changesMade = False
 
-    def update(self):
+    def update(self) -> None:
         """ Called by the coordinator after events have been delivered. """
         super().update()
 
@@ -327,7 +328,7 @@ class Grbl1p1Controller(_SerialControllerBase):
                 self.doCommand(update)
             self._queuedUpdates.clear()
     
-    def onConnected(self):
+    def onConnected(self) -> None:
         """ Executed when serial port first comes up. """
         super().onConnected()
         
@@ -336,7 +337,7 @@ class Grbl1p1Controller(_SerialControllerBase):
         # Grbl settings report.
         self._commandStreaming.put(b"$$")
 
-    def onActivate(self):
+    def onActivate(self) -> None:
         """ Called whenever self.active is set True. """
         if self.connectionStatus is ConnectionState.CONNECTED:
             # The easiest way to replay the following events is to just request

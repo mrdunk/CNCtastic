@@ -1,18 +1,20 @@
+from typing import Dict, List, Any
+
 from controllers.debug import DebugController
-from definitions import ConnectionState
+from definitions import ConnectionState, ConnectionStateTypes
 
 class MockController(DebugController):
-    def __init__(self, label="debug"):
+    def __init__(self, label: str="debug") -> None:
         super().__init__(label)
-        self.logCallData: {} = {}
-        self.overideCallReturn: {} = {}
+        self.logCallData: Dict = {}
+        self.overideCallReturn: Dict = {}
 
-    def logCall(self, method, args, kvargs):
+    def logCall(self, method: str, args: List[Any], kvargs: Dict[str, Any]) -> None:
         if method not in self.logCallData:
             self.logCallData[method] = []
         self.logCallData[method].append((args, kvargs))
 
-    def overideReturn(self, method, expectedReturnVal):
+    def overideReturn(self, method: str, expectedReturnVal: Any) -> ConnectionStateTypes:
         if method in self.overideCallReturn:
             if isinstance(self.overideCallReturn[method], list):
                 self.overideCallReturn[method].pop()
@@ -20,7 +22,7 @@ class MockController(DebugController):
                 return self.overideCallReturn[method]
         return expectedReturnVal
 
-    def earlyUpdate(self):
+    def earlyUpdate(self) -> None:
         if self.connectionStatus == ConnectionState.CONNECTING:
             self.connectionStatus = ConnectionState.CONNECTED
         elif self.connectionStatus == ConnectionState.DISCONNECTING:

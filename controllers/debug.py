@@ -1,4 +1,4 @@
-from typing import Dict, Deque
+from typing import Dict, Deque, List
 import time
 from collections import deque
 
@@ -6,7 +6,7 @@ from collections import deque
 from terminals.gui import sg
 
 from controllers._controllerBase import _ControllerBase
-from definitions import ConnectionState
+from definitions import ConnectionState, ConnectionStateTypes
 
 CONNECT_DELAY =  4  # seconds
 PUSH_DELAY = 1      # seconds
@@ -33,13 +33,13 @@ class DebugController(_ControllerBase):
             "G04", "G10 L2", "G10 L20", "G28", "G30", "G28.1", "G30.1", "G53", "G92", "G92.1",
             ))
 
-    def __init__(self, label: str="debug"):
+    def __init__(self, label: str="debug") -> None:
         super().__init__(label)
         self.gcode: deque = deque()
-        self._connectTime: int = 0;
-        self._lastReceiveDataAt: int = 0;
+        self._connectTime: float = 0;
+        self._lastReceiveDataAt: float = 0;
 
-    def guiLayout(self):
+    def guiLayout(self) -> List:
         layout = [
                 [sg.Text("Title:", size=(20,1)),
                     sg.Text(self.label, key=self.keyGen("label"), size=(20,1)),
@@ -60,7 +60,7 @@ class DebugController(_ControllerBase):
                 ]
         return layout
     
-    def connect(self) :
+    def connect(self) -> ConnectionStateTypes:
         if self.connectionStatus in [
                 ConnectionState.CONNECTING,
                 ConnectionState.CONNECTED,
@@ -71,7 +71,7 @@ class DebugController(_ControllerBase):
         self._connectTime = time.time()
         return self.connectionStatus
 
-    def disconnect(self) :
+    def disconnect(self) -> ConnectionStateTypes:
         if self.connectionStatus in [
                 ConnectionState.DISCONNECTING,
                 ConnectionState.NOT_CONNECTED]:
@@ -84,7 +84,7 @@ class DebugController(_ControllerBase):
         
         return self.connectionStatus
     
-    def earlyUpdate(self):
+    def earlyUpdate(self) -> None:
         if self.connectionStatus != self.desiredConnectionStatus:
             if time.time() - self._connectTime >= CONNECT_DELAY:
                 if self.connectionStatus == ConnectionState.CONNECTING:
@@ -103,7 +103,7 @@ class DebugController(_ControllerBase):
         else:
                 self.readyForData = False
     
-    def update(self):
+    def update(self) -> None:
         super().update()
 
         if self.readyForData and self._queuedUpdates:

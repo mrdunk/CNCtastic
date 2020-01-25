@@ -1,4 +1,5 @@
 from typing import Dict, Optional
+from typing_extensions import Literal
 from enum import Enum
 
 from pygcode import block, GCodeLinearMove, GCodeRapidMove, GCodeArcMoveCW, GCodeArcMoveCCW, GCodeStraightProbe, GCodeCancelCannedCycle, GCodeIncrementalDistanceMode, GCodeAbsoluteDistanceMode, GCodeUseMillimeters, GCodeUseInches, GCodeFeedRate   # type: ignore
@@ -17,6 +18,7 @@ class ConnectionState(Enum):
     DISCONNECTING = 5
     FAIL = 6
     CLEANUP = 7
+ConnectionStateTypes = Literal[ConnectionState]  # For type checking Enum.
 
 # Mapping of modal groups to the individual gcode commands they contain.
 MODAL_GROUPS = {
