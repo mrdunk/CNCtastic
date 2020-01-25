@@ -9,17 +9,15 @@ from terminals._terminalBase import _TerminalBase, diffDicts
 className = "Gui"
 
 class Gui(_TerminalBase):
-    def __init__(self, layouts: List=[], label="gui"):
+    def __init__(self, label: str="gui") -> None:
         super().__init__(label)
         self.setupDone: bool = False
-        self.layout = []
-        if layouts:
-            self.setup(layouts)
+        self.layout: List[List] = []
         self._lastvalues: Dict = {}
         self._diffValues: Dict = {}
         self.description = "GUI interface."
 
-    def setup(self, layouts: Dict):
+    def setup(self, layouts: Dict) -> None:
         """ Since this component relies on data from many other components,
         we cannot do all the setup in __init__.
         Call this once layout data exists. """
@@ -55,7 +53,7 @@ class Gui(_TerminalBase):
             bool: True: Continue execution.
                   False: An "Exit" or empty event occurred. Stop execution. """
         if not self.setupDone:
-            return
+            return False
 
         event, values = self.window.read(timeout=10)
         if event is None or values is None:
@@ -74,13 +72,13 @@ class Gui(_TerminalBase):
 
         return event not in (None, ) and not event.startswith("Exit")
    
-    def publish(self):
+    def publish(self) -> None:
         for eventKey, value in self._diffValues.items():
             if isinstance(value, str):
                 value = value.strip()
             self.publishOneByValue(eventKey, value)
 
-    def receive(self):
+    def receive(self) -> None:
         super().receive()
         
         # Since latency is important in the GUI, lets update the scree as soon
@@ -98,11 +96,11 @@ class Gui(_TerminalBase):
             else:
                 self.window[event].update(value)
 
-    def close(self):
+    def close(self) -> None:
         if not self.setupDone:
             return
 
         self.window.close()
 
-    def __del__(self):
+    def __del__(self) -> None:
         self.close()

@@ -43,15 +43,16 @@ def diffDicts(original: Dict, new: Dict) -> Dict:
 
 
 class _TerminalBase(_ComponentBase):
-    def __init__(self, label="_guiBase"):
+    def __init__(self, label: str="_guiBase") -> None:
         super().__init__(label)
         self.activeByDefault = True
         self.active = False
 
-    def earlyUpdate(self) -> bool:
+    def earlyUpdate(self) -> None:
         """ To be called once per frame.
         Returns:
             bool: True: Continue execution.
                   False: An "Exit" or empty event occurred. Stop execution. """
         raise NotImplementedError
+        return False
 

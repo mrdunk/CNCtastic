@@ -45,11 +45,14 @@ class _SerialControllerBase(_ControllerBase):
     def disconnect(self) -> ConnectionStateTypes:
         """ Close serial port, shut down serial port thread, etc.
         Set connectionStatus to DISCONNECTING.. """
-        print("Disconnecting %s %s" % (self.label, self.serialDevName))
         if self.connectionStatus in [
                 ConnectionState.DISCONNECTING,
                 ConnectionState.NOT_CONNECTED]:
             return self.connectionStatus
+        if self.connectionStatus in [
+                ConnectionState.CONNECTED,
+                ConnectionState.CONNECTING]:
+            print("Disconnecting %s %s" % (self.label, self.serialDevName))
 
         if self._serial is None:
             self.setConnectionStatus(ConnectionState.NOT_CONNECTED)

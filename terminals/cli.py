@@ -1,4 +1,4 @@
-from typing import List, Dict
+from typing import List, Dict, Optional, Any, Union
 
 import atexit
 from io import StringIO 
@@ -11,13 +11,13 @@ from terminals._terminalBase import _TerminalBase, diffDicts
 className = "Cli"
 
 class Cli(_TerminalBase):
-    def __init__(self, layouts: List=[], label="cli"):
+    def __init__(self, layouts: List=[], label: str="cli") -> None:
         super().__init__(label)
         self.setupDone: bool = False
         self.activeByDefault = False
         self.description = "CLI interface for console operation."
 
-    def setup(self):
+    def setup(self) -> None:
         self.setupDone = True
         os.environ.setdefault('ESCDELAY', '25')
 
@@ -59,9 +59,9 @@ class Cli(_TerminalBase):
         #    self.stdscr.addstr(3,3,"Pretty text", curses.color_pair(1))
 
         self.stdscr.refresh()
-        self.winYesNo = None
+        self.winYesNo: Optional[Any] = None
 
-    def yesNo(self, message=""):
+    def yesNo(self, message: str="") -> None:
         if message:
             begin_x = int(curses.COLS / 2 - 10); begin_y = int(curses.LINES / 2 - 3)
             height = 6; width = 20
@@ -88,13 +88,13 @@ class Cli(_TerminalBase):
         if not self.setupDone:
             return True
         
-        c = None
+        c: Union[str, bytes, int, None] = None
         try:
             #c = self.stdscr.getkey()   # read a keypress
             c = self.stdscr.getch()   # read a keypress
         except:
             pass
-        if c > -1:
+        if c is not None and isinstance(c, int) and c > -1:
             self.winMainout.addstr("%s %s\n" % (c, curses.keyname(c)))
             self.winMainout.refresh()
 
@@ -119,7 +119,7 @@ class Cli(_TerminalBase):
 
         return True
 
-    def close(self):
+    def close(self) -> None:
         if not self.setupDone:
             return
 
