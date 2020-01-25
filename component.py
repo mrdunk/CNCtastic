@@ -1,7 +1,5 @@
-from typing import List, Dict, Any, Tuple, Deque, Optional, Union
+from typing import List, Dict, Any, Tuple, Deque, Optional
 from collections import deque
-
-from definitions import FlagState, ConnectionState
 
 class _ComponentBase:
     """ General methods required by all components. """
@@ -11,19 +9,19 @@ class _ComponentBase:
     _eventQueue: Deque[Event] = deque()
     # Unique copy per instance.
     eventSubscriptions: Dict[str, Any]
-    eventsToPublish: Dict[str, str] 
+    eventsToPublish: Dict[str, str]
     _delivered: Deque[Any]
-   
+
     def __init__(self, label: str) -> None:
         self.label: str = label
 
         # Events to be delivered to this class with callback as value.
         if not hasattr(self, "eventSubscriptions"):
             self.eventSubscriptions: Dict[str, Any] = {
-                    # "$COMPONENTNAME:$DESCRIPTION": ("$CALLBACK", None),
-                    # "$COMPONENTNAME:$DESCRIPTION": ("$CALLBACK", $DEFAULTVALUE),
-                    # "$COMPONENTNAME:$DESCRIPTION": ("$PROPERTYNAME", $DEFAULTVALUE)
-                    }
+                # "$COMPONENTNAME:$DESCRIPTION": ("$CALLBACK", None),
+                # "$COMPONENTNAME:$DESCRIPTION": ("$CALLBACK", $DEFAULTVALUE),
+                # "$COMPONENTNAME:$DESCRIPTION": ("$PROPERTYNAME", $DEFAULTVALUE)
+                }
 
         # Variables to automatically export when publish() method is called.
         # TODO: This isn't actually used. Will it be useful in the future?
@@ -38,14 +36,15 @@ class _ComponentBase:
         self.debugShowEvents = False
 
     def keyGen(self, tag: str) -> str:
+        """ Return an event name prepended with the component name.
+        eg: "componentName:eventName". """
         return "%s:%s" % (self.label, tag)
 
     def earlyUpdate(self) -> None:
         """ To be called periodically.
         Any housekeeping tasks should happen here. """
-        pass
 
-    def publish(self, eventName: str = "", prop: Optional[str]=None) -> None:
+    def publish(self, eventName: str = "", property_: Optional[str] = None) -> None:
         """ Publish all events listed in the self.eventsToPublish collection. """
         if not hasattr(self, "eventsToPublish"):
             return
@@ -55,36 +54,35 @@ class _ComponentBase:
             self._publishAllRegistered()
             return
 
-        if eventName and prop is None:
+        if eventName and property_ is None:
             if eventName not in self.eventsToPublish:
                 raise AttributeError("Property for event \"%s\" not listed in %s" %
-                        (eventName, self.eventsToPublish))
-            prop = self.eventsToPublish[eventName]
+                                     (eventName, self.eventsToPublish))
+            property_ = self.eventsToPublish[eventName]
 
-        self.publishOneByValue(eventName, prop)
+        self.publishOneByValue(eventName, property_)
 
     def _publishAllRegistered(self) -> None:
         """ Publish events for all listed in self.eventsToPublish. """
-        for eventName, prop in self.eventsToPublish.items():
-            self._publishOneByKey(eventName, prop)
+        for eventName, property_ in self.eventsToPublish.items():
+            self._publishOneByKey(eventName, property_)
 
-    def _publishOneByKey(self, eventName: str, prop: str) -> None:
+    def _publishOneByKey(self, eventName: str, property_: str) -> None:
 
         # Convert a string representation of an object property into that property.
         totalProperty = self
-        for p in prop.split("."):  # TODO: Don't split every time?
-            if isinstance(totalProperty, dict) and p in totalProperty:
-                totalProperty = totalProperty[p]
+        for prop in property_.split("."):  # TODO: Don't split every time?
+            if isinstance(totalProperty, dict) and prop in totalProperty:
+                totalProperty = totalProperty[prop]
             elif (isinstance(totalProperty, List) and
-                    p.isnumeric() and int(p) < len(totalProperty)):
-                totalProperty = totalProperty[int(p)]
-            elif hasattr(totalProperty, p):
-                totalProperty = getattr(totalProperty, p)
+                  prop.isnumeric() and int(prop) < len(totalProperty)):
+                totalProperty = totalProperty[int(prop)]
+            elif hasattr(totalProperty, prop):
+                totalProperty = getattr(totalProperty, prop)
             else:
                 raise AttributeError("Invalid property \"%s\" in %s." %
-                        (prop, self.eventsToPublish))
+                                     (property_, self.eventsToPublish))
         self.publishOneByValue(eventName, totalProperty)
-        
 
     def publishOneByValue(self,
                           eventName: str,
@@ -104,14 +102,11 @@ class _ComponentBase:
 
     def updateEarly(self) -> None:
         """ Called before events get delivered. """
-        pass
 
     def update(self) -> None:
         """ Called after events get delivered. """
         # for event in self._delivered:
         #     print(self.label, event)
-        pass
-
 
     def _update(self) -> None:
         """ Populate class variables and callbacks in response to configured events. """
@@ -145,4 +140,3 @@ class _ComponentBase:
             else:
                 # Refers to a class variable.
                 setattr(self, action, eventValue)
-

@@ -1,13 +1,19 @@
 #!/usr/bin/env python3
+""" Control computerised machine tools using G-Code programming language.
+https://en.wikipedia.org/wiki/G-code
+
+Uses plugins for different hardware controller types. (Eg, Grbl, etc.)
+Uses plugins for different operating modes. (Eg. Jog, run GCode file, etc.)
+"""
 
 import argparse
 
 import common
-from definitions import ConnectionState
 from coordinator.coordinator import Coordinator
 
 
 def main() -> None:
+    """ Main program loop. """
 
     terminals = common.loadPlugins("terminals")
     controllers = common.loadPlugins("controllers")
@@ -30,7 +36,7 @@ def main() -> None:
                                 dest=terminal.label,
                                 action="store_true",
                                 help=terminal.description)
-    
+
     args = parser.parse_args()
     print(args)
 
@@ -38,7 +44,7 @@ def main() -> None:
         terminal.active: bool = getattr(args, terminal.label)   # type: ignore
         terminal.debugShowEvents: bool = args.debugShowEvents   # type: ignore
 
-    
+
     coordinator = Coordinator(terminals, interfaces, controllers, args.debugShowEvents)
 
 

@@ -1,15 +1,21 @@
-from typing import Dict, Optional
-from typing_extensions import Literal
 from enum import Enum
+from typing_extensions import Literal
 
-from pygcode import block, GCodeLinearMove, GCodeRapidMove, GCodeArcMoveCW, GCodeArcMoveCCW, GCodeStraightProbe, GCodeCancelCannedCycle, GCodeIncrementalDistanceMode, GCodeAbsoluteDistanceMode, GCodeUseMillimeters, GCodeUseInches, GCodeFeedRate   # type: ignore
+from pygcode import (GCodeLinearMove, GCodeRapidMove, GCodeArcMoveCW,
+                     GCodeArcMoveCCW, GCodeStraightProbe, GCodeCancelCannedCycle,
+                     GCodeIncrementalDistanceMode, GCodeAbsoluteDistanceMode,
+                     GCodeUseMillimeters, GCodeUseInches)   # type: ignore
 
 class FlagState(Enum):
+    """ Flag state used in place of a boolean when we may need to infer the value
+    has not changed. """
     UNSET = 0
     TRUE = 1
     FALSE = 2
 
 class ConnectionState(Enum):
+    """ Connection state of one of the controller components.
+    Used extensively by _ControllerBase and it's derivatives."""
     UNKNOWN = 0
     NOT_CONNECTED = 1
     MISSING_RESOURCE = 2
@@ -125,4 +131,3 @@ MODAL_COMMANDS = {
         b"S": b"spindle_speed",
         b"T": b"tool",
         }
-

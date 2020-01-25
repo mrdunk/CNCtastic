@@ -1,7 +1,7 @@
 from typing import List, Dict, Optional, Any, Union
 
 import atexit
-from io import StringIO 
+from io import StringIO
 import sys
 import os
 import curses

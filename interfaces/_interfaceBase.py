@@ -23,7 +23,7 @@ class UpdateState:
             halt: A boolean flag requesting all current tasks should stop.
             pause: A boolean flag requesting all current tasks should pause.
             TODO: reset flag. Others?
-        """    
+        """
         self.gcode: Optional[block.Block] = gcode
         self.wPos: Optional[Dict[str, int]] = wPos
         self.halt: FlagState = halt
@@ -49,7 +49,7 @@ class UpdateState:
         output += "pause: {self.pause.name}\t"
         output += "jog: {self.jog.name}\t"
         output += "home: {self.home.name}"
-            
+
         return output.format(self=self)
 
 class _InterfaceBase(_ComponentBase):
@@ -68,7 +68,7 @@ class _InterfaceBase(_ComponentBase):
                 _updatedData: Store desired changes to state here to be pulled later. """
         super().__init__(label)
         self._updatedData: UpdateState = UpdateState()
-    
+
     def update(self) -> None:
         for flag in self._updatedData.flags:
             attr = getattr(self._updatedData, flag)
@@ -76,10 +76,10 @@ class _InterfaceBase(_ComponentBase):
                 self.publishOneByValue("desiredState:%s" % flag, attr)
         if self._updatedData.gcode is not None:
             self.publishOneByValue("desiredState:newGcode", self._updatedData)
-        
-        # Clear self._updatedData 
+
+        # Clear self._updatedData
         self._updatedData = UpdateState()
-       
+
     def moveTo(self, **argkv: Union[str, float]) -> None:
         """ Move the machine head.
         Args:

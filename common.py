@@ -1,9 +1,11 @@
 from typing import List, Any
-import pkgutil, os, sys
+import pkgutil
+import os
+import sys
 
 #from controllers import debug
 
-baseDir = os.path.dirname(sys.argv[0])
+BASEDIR = os.path.dirname(sys.argv[0])
 
 def loadPlugins(directory: str) -> List[Any]:
     """ Load plugins.
@@ -15,8 +17,8 @@ def loadPlugins(directory: str) -> List[Any]:
     Returns:
         A dictionary of name: module pairs. """
     plugins: List[Any] = []
-    fullDir = os.path.join(baseDir, directory)
-    for finder, name, ispkg in pkgutil.iter_modules([fullDir]):
+    fullDir = os.path.join(BASEDIR, directory)
+    for _, name, _ in pkgutil.iter_modules([fullDir]):
         if name[0] == "_":
             continue
         plugin = getattr(__import__("%s.%s" % (directory, name)), name)
@@ -25,7 +27,7 @@ def loadPlugins(directory: str) -> List[Any]:
 
             plugin = getattr(plugin, className)()
             plugins.append(plugin)
-            
+
             print("Plugin: %s.py %s as %s" % (name, className, plugin.label))
 
     return plugins
