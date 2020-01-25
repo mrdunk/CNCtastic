@@ -1,4 +1,4 @@
-from typing import List, Dict
+from typing import List, Dict, Any
 from enum import Enum
 
 import PySimpleGUIQt as sg
@@ -9,13 +9,18 @@ from terminals._terminalBase import _TerminalBase, diffDicts
 className = "Gui"
 
 class Gui(_TerminalBase):
-    def __init__(self, label: str="gui") -> None:
+    """ Display GUI interface.
+    Will display the widgets in any other component loaded as a plugin's "layout"
+    property. See the "JogWidget" component as an example. """
+
+    def __init__(self, label: str = "gui") -> None:
         super().__init__(label)
         self.setupDone: bool = False
         self.layout: List[List] = []
         self._lastvalues: Dict = {}
         self._diffValues: Dict = {}
         self.description = "GUI interface."
+        self.window: Any = None
 
     def setup(self, layouts: Dict) -> None:
         """ Since this component relies on data from many other components,
@@ -23,7 +28,7 @@ class Gui(_TerminalBase):
         Call this once layout data exists. """
         if self.setupDone:
             print("WARNING: Attempting to run setup() more than once on %s" %
-                    self.label)
+                  self.label)
             return
 
         sg.SetOptions(element_padding=(1, 1))
@@ -35,7 +40,7 @@ class Gui(_TerminalBase):
         self.layout = [[sg.TabGroup([tabs])]]
 
         self.window = sg.Window("CNCtastic", self.layout,
-                                resizable=True, size=(600,600),
+                                resizable=True, size=(600, 600),
                                 return_keyboard_events=True,
                                 auto_size_text=False, auto_size_buttons=False,
                                 default_element_size=(4, 2),
@@ -59,29 +64,31 @@ class Gui(_TerminalBase):
         if event is None or values is None:
             print("Quitting via %s" % self.label)
             return False
-        
+
         self._diffValues = diffDicts(self._lastvalues, values)
         self._lastvalues = values
-        
+
         # Combine events with the values. Put the event key in there with empty value.
         if not event == "__TIMEOUT__" and event not in self._diffValues:
             self._diffValues[event] = None
-        
+
         #if(not event == "__TIMEOUT__" or self._diffValues) and self.debugShowEvents:
         #    print(event, self._diffValues)
 
         return event not in (None, ) and not event.startswith("Exit")
-   
+
     def publish(self) -> None:
+        """ Publish all events listed in the self.eventsToPublish collection. """
         for eventKey, value in self._diffValues.items():
             if isinstance(value, str):
                 value = value.strip()
             self.publishOneByValue(eventKey, value)
 
     def receive(self) -> None:
+        """ Receive events this object is subscribed to. """
         super().receive()
-        
-        # Since latency is important in the GUI, lets update the scree as soon
+
+        # Since latency is important in the GUI, lets update the screen as soon
         # as possible after receiving the event.
         # This also helps with event loops when multiple things update a widget
         # that in turn sends an event.
@@ -97,6 +104,7 @@ class Gui(_TerminalBase):
                 self.window[event].update(value)
 
     def close(self) -> None:
+        """ Close GUI window. """
         if not self.setupDone:
             return
 

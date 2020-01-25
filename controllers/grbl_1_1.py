@@ -1,4 +1,5 @@
 from typing import List, Any, Optional
+
 import time
 from queue import Queue, Empty
 from collections import deque
@@ -7,7 +8,7 @@ from collections import deque
 from terminals.gui import sg
 from pygcode import GCode, Block
 
-from definitions import ConnectionState, ConnectionStateTypes
+from definitions import ConnectionState
 from controllers._controllerSerialBase import _SerialControllerBase
 from interfaces._interfaceBase import UpdateState
 from controllers.stateMachine import StateMachineGrbl as State

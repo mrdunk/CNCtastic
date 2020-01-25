@@ -1,4 +1,4 @@
-from typing import List, Dict
+from typing import Dict
 
 from component import _ComponentBase
 
@@ -43,7 +43,7 @@ def diffDicts(original: Dict, new: Dict) -> Dict:
 
 
 class _TerminalBase(_ComponentBase):
-    def __init__(self, label: str="_guiBase") -> None:
+    def __init__(self, label: str = "_guiBase") -> None:
         super().__init__(label)
         self.activeByDefault = True
         self.active = False
@@ -54,5 +54,3 @@ class _TerminalBase(_ComponentBase):
             bool: True: Continue execution.
                   False: An "Exit" or empty event occurred. Stop execution. """
         raise NotImplementedError
-        return False
-

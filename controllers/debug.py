@@ -1,4 +1,8 @@
 from typing import Dict, Deque, List
+try:
+    from typing import Literal              # type: ignore
+except:
+    from typing_extensions import Literal   # type: ignore
 import time
 from collections import deque
 
@@ -6,7 +10,7 @@ from collections import deque
 from terminals.gui import sg
 
 from controllers._controllerBase import _ControllerBase
-from definitions import ConnectionState, ConnectionStateTypes
+from definitions import ConnectionState
 
 CONNECT_DELAY =  4  # seconds
 PUSH_DELAY = 1      # seconds
@@ -60,7 +64,7 @@ class DebugController(_ControllerBase):
                 ]
         return layout
     
-    def connect(self) -> ConnectionStateTypes:
+    def connect(self) -> Literal[ConnectionState]:
         if self.connectionStatus in [
                 ConnectionState.CONNECTING,
                 ConnectionState.CONNECTED,
@@ -71,7 +75,7 @@ class DebugController(_ControllerBase):
         self._connectTime = time.time()
         return self.connectionStatus
 
-    def disconnect(self) -> ConnectionStateTypes:
+    def disconnect(self) -> Literal[ConnectionState]:
         if self.connectionStatus in [
                 ConnectionState.DISCONNECTING,
                 ConnectionState.NOT_CONNECTED]:

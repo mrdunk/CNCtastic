@@ -1,7 +1,11 @@
 from typing import Dict, List, Any
+try:
+    from typing import Literal              # type: ignore
+except:
+    from typing_extensions import Literal   # type: ignore
 
 from controllers.debug import DebugController
-from definitions import ConnectionState, ConnectionStateTypes
+from definitions import ConnectionState
 
 class MockController(DebugController):
     def __init__(self, label: str="debug") -> None:
@@ -14,7 +18,7 @@ class MockController(DebugController):
             self.logCallData[method] = []
         self.logCallData[method].append((args, kvargs))
 
-    def overideReturn(self, method: str, expectedReturnVal: Any) -> ConnectionStateTypes:
+    def overideReturn(self, method: str, expectedReturnVal: Any) -> Literal[ConnectionState]:
         if method in self.overideCallReturn:
             if isinstance(self.overideCallReturn[method], list):
                 self.overideCallReturn[method].pop()

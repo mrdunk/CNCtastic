@@ -91,7 +91,7 @@ class _ComponentBase:
         self._eventQueue.append((eventName, eventValue))
 
     def receive(self) -> None:
-        """ Deliver events this object is subscribed to. """
+        """ Receive events this object is subscribed to. """
         #print(self.label, "receive", self._eventQueue)
         if not hasattr(self, "eventSubscriptions"):
             return

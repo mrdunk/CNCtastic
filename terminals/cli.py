@@ -1,4 +1,4 @@
-from typing import List, Dict, Optional, Any, Union
+from typing import List, Optional, Any, Union
 
 import atexit
 from io import StringIO
@@ -6,7 +6,7 @@ import sys
 import os
 import curses
 
-from terminals._terminalBase import _TerminalBase, diffDicts
+from terminals._terminalBase import _TerminalBase
 
 className = "Cli"
 

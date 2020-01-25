@@ -3,7 +3,7 @@ from collections import deque
 
 from component import _ComponentBase
 from definitions import FlagState, ConnectionState
-from controllers._controllerBase import _ControllerBase   # type: ignore
+from controllers._controllerBase import _ControllerBase
 
 class Coordinator(_ComponentBase):
     """ Contains all system data.

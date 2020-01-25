@@ -1,9 +1,14 @@
-import serial    # type: ignore  
+try:
+    from typing import Literal              # type: ignore
+except:
+    from typing_extensions import Literal   # type: ignore
+
+import serial    # type: ignore
 import threading
 
 
 from controllers._controllerBase import _ControllerBase
-from definitions import ConnectionState, ConnectionStateTypes
+from definitions import ConnectionState
 
 SERIAL_INTERVAL = 0.02 # seconds
 
@@ -17,7 +22,7 @@ class _SerialControllerBase(_ControllerBase):
         self._serial = None
         self.testing: bool = False  # Prevent _periodicIO() from blocking during tests.
     
-    def connect(self) -> ConnectionStateTypes:
+    def connect(self) -> Literal[ConnectionState]:
         """ Try to open serial port. Set connectionStatus to CONNECTING. """
         print("connect")
         if self.connectionStatus in [
@@ -42,7 +47,7 @@ class _SerialControllerBase(_ControllerBase):
 
         return self.connectionStatus
 
-    def disconnect(self) -> ConnectionStateTypes:
+    def disconnect(self) -> Literal[ConnectionState]:
         """ Close serial port, shut down serial port thread, etc.
         Set connectionStatus to DISCONNECTING.. """
         if self.connectionStatus in [

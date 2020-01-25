@@ -1,11 +1,15 @@
 from typing import Dict, Any, Deque, Set
+try:
+    from typing import Literal              # type: ignore
+except:
+    from typing_extensions import Literal   # type: ignore
 from enum import Enum
 from collections import deque
 
 from pygcode import GCode
 
 from component import _ComponentBase
-from definitions import FlagState, ConnectionState, ConnectionStateTypes
+from definitions import FlagState, ConnectionState
 
 class _ControllerBase(_ComponentBase):
     """ Base class for CNC machine control hardware. """
@@ -56,19 +60,19 @@ class _ControllerBase(_ComponentBase):
         """ Called whenever self.active is set False. """
         pass
 
-    def setDesiredConnectionStatus(self, connectionStatus: ConnectionStateTypes) -> None:
+    def setDesiredConnectionStatus(self, connectionStatus: Literal[ConnectionState]) -> None:
         self.desiredConnectionStatus = connectionStatus
         self.publishOneByValue(self.keyGen("desiredConnectionStatus"), connectionStatus)
 
-    def setConnectionStatus(self, connectionStatus: ConnectionStateTypes) -> None:
+    def setConnectionStatus(self, connectionStatus: Literal[ConnectionState]) -> None:
         self.connectionStatus = connectionStatus
         self.publishOneByValue(self.keyGen("connectionStatus"), connectionStatus)
 
-    def connect(self) -> ConnectionStateTypes:
+    def connect(self) -> Literal[ConnectionState]:
         raise NotImplementedError
         return ConnectionState.UNKNOWN
 
-    def disconnect(self) -> ConnectionStateTypes:
+    def disconnect(self) -> Literal[ConnectionState]:
         raise NotImplementedError
         return ConnectionState.UNKNOWN
 
