@@ -325,7 +325,7 @@ class TestCoordinator(unittest.TestCase):
 
         # Send data to controller.
         data = {"X": 10, "Y": 20, "F": 100}
-        self.mock_widget.moveTo(**data)
+        self.mock_widget.move_to(**data)
         self.coordinator.updateComponents()  # Push event from mock_widget onto queue.
         self.coordinator.updateComponents()  # Push event from queue to mock_controller.
 
@@ -335,7 +335,7 @@ class TestCoordinator(unittest.TestCase):
 
         # Send more data to controller.
         data = {"X": 1.2345, "Y": -6.7889, "F": 1000}
-        self.mock_widget.moveTo(**data)
+        self.mock_widget.move_to(**data)
         self.coordinator.updateComponents()  # Push event from mock_widget onto queue.
         self.coordinator.updateComponents()  # Push event from queue to mock_controller.
 
@@ -352,10 +352,10 @@ class TestCoordinator(unittest.TestCase):
         self.assertEqual(len(self.mock_controller.gcode), 0)
 
         # Send data to controller.
-        self.mock_widget.moveTo(x=10, y=20, f=100)
+        self.mock_widget.move_to(x=10, y=20, f=100)
         self.coordinator.updateComponents()  # Push event from mock_widget onto queue.
         self.coordinator.updateComponents()  # Push event from queue to mock_controller.
-        self.mock_widget.moveTo(x=50, y=100, f=100)
+        self.mock_widget.move_to(x=50, y=100, f=100)
         self.coordinator.updateComponents()  # Push event from mock_widget onto queue.
         self.coordinator.updateComponents()  # Push event from queue to mock_controller.
 
@@ -377,7 +377,7 @@ class TestCoordinator(unittest.TestCase):
         self.assertEqual(len(self.mock_controller2.gcode), 0)
 
         # Push data to new controller.
-        self.mock_widget.moveTo(x=100, y=200, f=1000)
+        self.mock_widget.move_to(x=100, y=200, f=1000)
         self.coordinator.updateComponents()  # Push event from mock_widget onto queue.
         self.coordinator.updateComponents()  # Push event from queue to mock_controller.
 
@@ -390,7 +390,7 @@ class TestCoordinator(unittest.TestCase):
         self.coordinator.activateController(controller=self.mock_controller)
 
         # Push data to original controller.
-        self.mock_widget.moveTo(x=-1, y=-2, f=1)
+        self.mock_widget.move_to(x=-1, y=-2, f=1)
         self.coordinator.updateComponents()  # Push event from mock_widget onto queue.
         self.coordinator.updateComponents()  # Push event from queue to mock_controller.
 

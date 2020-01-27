@@ -1,5 +1,6 @@
-from enum import Enum
-from typing import Dict, Optional, Union, Any, Callable, cast
+""" Pluging providing control of some aspect of the active controller. """
+
+from typing import Dict, Optional, Union, Callable, cast
 
 from pygcode import block, GCodeFeedRate     # type: ignore
 
@@ -65,22 +66,24 @@ class _InterfaceBase(_ComponentBase):
                 label: A string identifying this object.
                 status: The current state of this object. eg: Is it ready for use?
                 state: A reference to the Coordinator's state object. Do not modify it here.
-                _updatedData: Store desired changes to state here to be pulled later. """
+                _updated_data: Store desired changes to state here to be pulled later. """
         super().__init__(label)
-        self._updatedData: UpdateState = UpdateState()
+        self._updated_data: UpdateState = UpdateState()
 
     def update(self) -> None:
-        for flag in self._updatedData.flags:
-            attr = getattr(self._updatedData, flag)
+        """ Act on any events destined for this component.
+            Called by the coordinator. """
+        for flag in self._updated_data.flags:
+            attr = getattr(self._updated_data, flag)
             if attr != FlagState.UNSET:
                 self.publish_one_by_value("desiredState:%s" % flag, attr)
-        if self._updatedData.gcode is not None:
-            self.publish_one_by_value("desiredState:newGcode", self._updatedData)
+        if self._updated_data.gcode is not None:
+            self.publish_one_by_value("desiredState:newGcode", self._updated_data)
 
-        # Clear self._updatedData
-        self._updatedData = UpdateState()
+        # Clear self._updated_data
+        self._updated_data = UpdateState()
 
-    def moveTo(self, **argkv: Union[str, float]) -> None:
+    def move_to(self, **argkv: Union[str, float]) -> None:
         """ Move the machine head.
         Args:
             argkv: A dict containing one or more of the following parameters:
@@ -101,14 +104,15 @@ class _InterfaceBase(_ComponentBase):
             feed = argkv["F"]
             del argkv["F"]
 
-        self._gcodeCommand("motion", **argkv)
+        self._gcode_command("motion", **argkv)
 
-        assert self._updatedData.gcode is not None, "self._updatedData.gcode not set yet."
+        assert self._updated_data.gcode is not None, "self._updated_data.gcode not set yet."
 
         if feed is not None:
-            self._updatedData.gcode.gcodes.append(GCodeFeedRate(feed))
+            self._updated_data.gcode.gcodes.append(GCodeFeedRate(feed))
 
-    def absoluteDistanceMode(self, *argv: bool, **argkv: Union[str, float]) -> None:
+    def absolute_distance_mode(self, *argv: bool, **argkv: Union[str, float]) -> None:
+        """ Switch between "G90" and "G91" distance modes. """
         if "command" not in argkv:
             if len(argv) > 0:
                 if isinstance(argv[0], bool):
@@ -129,22 +133,20 @@ class _InterfaceBase(_ComponentBase):
                 raise ValueError("Expected bool or \"command='G90'\" "
                                  "or \"command='G91'\" as paramiter.")
 
-        self._gcodeCommand("distance", **argkv)
+        self._gcode_command("distance", **argkv)
 
-    def _gcodeCommand(self, modalGroup: str, **argkv: Union[str, float]) -> None:
+    def _gcode_command(self, modal_group: str, **argkv: Union[str, float]) -> None:
         command = cast(str, argkv["command"])
         del argkv["command"]
 
-        if command not in self.modalGroups[modalGroup]:
+        if command not in self.modalGroups[modal_group]:
             # Add gcode definition to self.modalGroups.
             raise ValueError(
-                    "WARNING: gcode from modal group %s not supported: %s" %
-                    (modalGroup, command))
+                "WARNING: gcode from modal group %s not supported: %s" %
+                (modal_group, command))
 
-        movetype = self.modalGroups[modalGroup][command]
+        movetype = self.modalGroups[modal_group][command]
 
-        if self._updatedData.gcode is None:
-            self._updatedData.gcode = block.Block()
-        self._updatedData.gcode.gcodes.append(movetype(**argkv))
-        
-
+        if self._updated_data.gcode is None:
+            self._updated_data.gcode = block.Block()
+        self._updated_data.gcode.gcodes.append(movetype(**argkv))
