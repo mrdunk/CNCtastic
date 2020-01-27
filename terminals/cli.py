@@ -1,3 +1,5 @@
+""" Plugin to provide command line IO using curses library. """
+
 from typing import List, Optional, Any, Union
 
 import atexit
@@ -11,14 +13,18 @@ from terminals._terminalBase import _TerminalBase
 class_name = "Cli"
 
 class Cli(_TerminalBase):
-    def __init__(self, layouts: List=[], label: str="cli") -> None:
+    """ Plugin to provide command line IO using curses library. """
+
+    # pylint: disable=W0613
+    def __init__(self, label: str = "cli") -> None:
         super().__init__(label)
-        self.setupDone: bool = False
-        self.activeByDefault = False
+        self._setup_done: bool = False
+        self.active_by_default = False
         self.description = "CLI interface for console operation."
 
     def setup(self) -> None:
-        self.setupDone = True
+        """ Configuration to be done after class instantiation. """
+        self._setup_done = True
         os.environ.setdefault('ESCDELAY', '25')
 
         # Replace default stdout (terminal) with a stream so it doesn't mess with
@@ -40,14 +46,17 @@ class Cli(_TerminalBase):
         self.stdscr.nodelay(True)
         self.stdscr.clear()
 
-        begin_x = 0; begin_y = 0
-        height = curses.LINES; width = int(curses.COLS / 2)
+        begin_x = 0
+        begin_y = 0
+        height = curses.LINES
+        width = int(curses.COLS / 2)
         self.winMainBorder = self.stdscr.subwin(height, width, begin_y, begin_x)
         self.winMainBorder.border()
         self.winMainout = curses.newwin(height - 2, width - 2, begin_y + 1, begin_x + 1)
         self.winMainout.scrollok(True)
 
-        begin_x = int(curses.COLS / 2); begin_y = 0
+        begin_x = int(curses.COLS / 2)
+        begin_y = 0
         self.winStdoutBorder = self.stdscr.subwin(height, width, begin_y, begin_x)
         self.winStdoutBorder.border()
         self.winStdout = curses.newwin(height - 2, width - 2, begin_y + 1, begin_x + 1)
@@ -61,10 +70,13 @@ class Cli(_TerminalBase):
         self.stdscr.refresh()
         self.winYesNo: Optional[Any] = None
 
-    def yesNo(self, message: str="") -> None:
+    def yesno(self, message: str = "") -> None:
+        """ Display confirmation window. """
         if message:
-            begin_x = int(curses.COLS / 2 - 10); begin_y = int(curses.LINES / 2 - 3)
-            height = 6; width = 20
+            begin_x = int(curses.COLS / 2 - 10)
+            begin_y = int(curses.LINES / 2 - 3)
+            height = 6
+            width = 20
             self.winYesNo = curses.newwin(height, width, begin_y, begin_x)
             self.winYesNo.clear()
             self.winYesNo.border()
@@ -79,23 +91,23 @@ class Cli(_TerminalBase):
             self.winStdoutBorder.refresh()
             self.winMainout.refresh()
             self.winStdout.refresh()
-    
+
     def early_update(self) -> bool:
         """ To be called once per frame.
         Returns:
             bool: True: Continue execution.
                   False: An "Exit" or empty event occurred. Stop execution. """
-        if not self.setupDone:
+        if not self._setup_done:
             return True
-        
-        c: Union[str, bytes, int, None] = None
+
+        character: Union[str, bytes, int, None] = None
         try:
-            #c = self.stdscr.getkey()   # read a keypress
-            c = self.stdscr.getch()   # read a keypress
+            #character = self.stdscr.getkey()   # read a keypress
+            character = self.stdscr.getch()   # read a keypress
         except:
             pass
-        if c is not None and isinstance(c, int) and c > -1:
-            self.winMainout.addstr("%s %s\n" % (c, curses.keyname(c)))
+        if character is not None and isinstance(character, int) and character > -1:
+            self.winMainout.addstr("%s %s\n" % (character, curses.keyname(character)))
             self.winMainout.refresh()
 
         if self.tempStdout.tell() > self.tempStdoutPos:
@@ -107,20 +119,21 @@ class Cli(_TerminalBase):
             self.winStdout.refresh()
 
         if self.winYesNo:
-            if c == 27:   # Esc
-                # Cancel yesNo.
-                self.yesNo()
-            elif c == 10:  # Enter
+            if character == 27:   # Esc
+                # Cancel yesno.
+                self.yesno()
+            elif character == 10:  # Enter
                 # Quit.
                 return False
-        elif c == 27:
-            # Enable yesNo.
-            self.yesNo("Enter to quit.")
+        elif character == 27:
+            # Enable yesno.
+            self.yesno("Enter to quit.")
 
         return True
 
     def close(self) -> None:
-        if not self.setupDone:
+        """ Close curses session, restore shell settings. """
+        if not self._setup_done:
             return
 
         curses.nocbreak()
@@ -133,6 +146,4 @@ class Cli(_TerminalBase):
         sys.stdout = sys.__stdout__
         #sys.stdout.write(self.tempStdout.getvalue())
 
-        self.setupDone = False
-
-
+        self._setup_done = False

@@ -1,10 +1,12 @@
+""" Plugin to provide GUI using PySimpleGUI. """
+
 from typing import List, Dict, Any
 from enum import Enum
 
 import PySimpleGUIQt as sg
 #import PySimpleGUIWeb as sg
 
-from terminals._terminalBase import _TerminalBase, diffDicts
+from terminals._terminalBase import _TerminalBase, diff_dicts
 
 class_name = "Gui"
 
@@ -15,10 +17,10 @@ class Gui(_TerminalBase):
 
     def __init__(self, label: str = "gui") -> None:
         super().__init__(label)
-        self.setupDone: bool = False
+        self._setup_done: bool = False
         self.layout: List[List] = []
         self._lastvalues: Dict = {}
-        self._diffValues: Dict = {}
+        self._diffvalues: Dict = {}
         self.description = "GUI interface."
         self.window: Any = None
 
@@ -26,7 +28,7 @@ class Gui(_TerminalBase):
         """ Since this component relies on data from many other components,
         we cannot do all the setup in __init__.
         Call this once layout data exists. """
-        if self.setupDone:
+        if self._setup_done:
             print("WARNING: Attempting to run setup() more than once on %s" %
                   self.label)
             return
@@ -46,7 +48,7 @@ class Gui(_TerminalBase):
                                 default_element_size=(4, 2),
                                 default_button_element_size=(4, 2)
                                 )
-        self.setupDone: bool = True
+        self._setup_done: bool = True
 
         # Subscribe to events matching GUI widget keys.
         for event in self.window.AllKeysDict:
@@ -57,7 +59,7 @@ class Gui(_TerminalBase):
         Returns:
             bool: True: Continue execution.
                   False: An "Exit" or empty event occurred. Stop execution. """
-        if not self.setupDone:
+        if not self._setup_done:
             return False
 
         event, values = self.window.read(timeout=10)
@@ -65,24 +67,24 @@ class Gui(_TerminalBase):
             print("Quitting via %s" % self.label)
             return False
 
-        self._diffValues = diffDicts(self._lastvalues, values)
+        self._diffvalues = diff_dicts(self._lastvalues, values)
         self._lastvalues = values
 
         # Combine events with the values. Put the event key in there with empty value.
-        if not event == "__TIMEOUT__" and event not in self._diffValues:
-            self._diffValues[event] = None
+        if not event == "__TIMEOUT__" and event not in self._diffvalues:
+            self._diffvalues[event] = None
 
-        #if(not event == "__TIMEOUT__" or self._diffValues) and self.debug_show_events:
-        #    print(event, self._diffValues)
+        #if(not event == "__TIMEOUT__" or self._diffvalues) and self.debug_show_events:
+        #    print(event, self._diffvalues)
 
         return event not in (None, ) and not event.startswith("Exit")
 
-    def publish(self) -> None:
+    def publish(self) -> None:  # pylint: disable=W0221  # Un-needed arguments.
         """ Publish all events listed in the self.events_to_publish collection. """
-        for eventKey, value in self._diffValues.items():
+        for event_, value in self._diffvalues.items():
             if isinstance(value, str):
                 value = value.strip()
-            self.publish_one_by_value(eventKey, value)
+            self.publish_one_by_value(event_, value)
 
     def receive(self) -> None:
         """ Receive events this object is subscribed to. """
@@ -105,7 +107,7 @@ class Gui(_TerminalBase):
 
     def close(self) -> None:
         """ Close GUI window. """
-        if not self.setupDone:
+        if not self._setup_done:
             return
 
         self.window.close()

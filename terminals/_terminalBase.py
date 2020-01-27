@@ -1,9 +1,12 @@
+""" Terminals are the plugins used for providing input and receiving output.
+    This contains code common to all terminals. """
+
 from typing import Dict
 
 from component import _ComponentBase
 
 
-def diffDicts(original: Dict, new: Dict) -> Dict:
+def diff_dicts(original: Dict, new: Dict) -> Dict:
     """ Compare 2 Dicts, returning any values that differ.
     It is presumed that the new Dict will contain all keys that are in the
     original Dict. The new Dict may have some keys that were not in the original.
@@ -45,7 +48,7 @@ def diffDicts(original: Dict, new: Dict) -> Dict:
 class _TerminalBase(_ComponentBase):
     def __init__(self, label: str = "_guiBase") -> None:
         super().__init__(label)
-        self.activeByDefault = True
+        self.active_by_default = True
         self.active = False
 
     def early_update(self) -> None:

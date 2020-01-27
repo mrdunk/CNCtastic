@@ -26,7 +26,7 @@ def main() -> None:
                         help="Display events.")
 
     for terminal in terminals:
-        if terminal.activeByDefault:
+        if terminal.active_by_default:
             parser.add_argument("-no_%s" % terminal.label,
                                 dest=terminal.label,
                                 action="store_false",
