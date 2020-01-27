@@ -1,405 +1,412 @@
 #!/usr/bin/env python3
 
-import sys, os
-testdir = os.path.dirname(__file__)
-srcdir = '../'
-sys.path.insert(0, os.path.abspath(os.path.join(testdir, srcdir)))
+""" Base infrastructure tests.
+    Plug in components will be tested in separate test files. """
 
-from collections import deque
+#pylint: disable=protected-access
+
+import sys
+import os
+TESTDIR = os.path.dirname(__file__)
+SRCDIR = '../'
+sys.path.insert(0, os.path.abspath(os.path.join(TESTDIR, SRCDIR)))
+
 import unittest
-from pygcode import block, GCodeCublcSpline
-from definitions import FlagState, ConnectionState
 from coordinator.coordinator import Coordinator
-from interfaces.mockInterface import MockWidget
 from controllers.mockController import MockController
+from interfaces.mockInterface import MockWidget
+from definitions import ConnectionState
 
 
 class TestController(unittest.TestCase):
+    """ Controllers base functionality. """
     def setUp(self):
-        self.mockController = MockController()
+        self.mock_controller = MockController()
 
     def test_initilise(self):
         """ Connect and disconnect the controller. """
-        self.assertEqual(self.mockController.connectionStatus, ConnectionState.UNKNOWN)
-        self.assertFalse(self.mockController.readyForData)
+        self.assertEqual(self.mock_controller.connectionStatus, ConnectionState.UNKNOWN)
+        self.assertFalse(self.mock_controller.readyForData)
 
-        self.mockController.early_update()
-        self.assertEqual(self.mockController.connectionStatus, ConnectionState.UNKNOWN)
+        self.mock_controller.early_update()
+        self.assertEqual(self.mock_controller.connectionStatus, ConnectionState.UNKNOWN)
 
-        self.mockController.connect()
-        self.assertEqual(self.mockController.connectionStatus, ConnectionState.CONNECTING)
-        self.assertFalse(self.mockController.readyForData)
+        self.mock_controller.connect()
+        self.assertEqual(self.mock_controller.connectionStatus, ConnectionState.CONNECTING)
+        self.assertFalse(self.mock_controller.readyForData)
 
-        self.mockController.early_update()
-        self.mockController.readyForData = True  # Will stay set while still connected.
-        self.assertEqual(self.mockController.connectionStatus, ConnectionState.CONNECTED)
-        self.assertTrue(self.mockController.readyForData)
+        self.mock_controller.early_update()
+        self.mock_controller.readyForData = True  # Will stay set while still connected.
+        self.assertEqual(self.mock_controller.connectionStatus, ConnectionState.CONNECTED)
+        self.assertTrue(self.mock_controller.readyForData)
 
-        self.mockController.connect()
-        self.mockController.early_update()
-        self.assertEqual(self.mockController.connectionStatus, ConnectionState.CONNECTED)
-        self.assertTrue(self.mockController.readyForData)
+        self.mock_controller.connect()
+        self.mock_controller.early_update()
+        self.assertEqual(self.mock_controller.connectionStatus, ConnectionState.CONNECTED)
+        self.assertTrue(self.mock_controller.readyForData)
 
-        self.mockController.disconnect()
-        self.assertEqual(self.mockController.connectionStatus, ConnectionState.DISCONNECTING)
-        self.assertFalse(self.mockController.readyForData)
+        self.mock_controller.disconnect()
+        self.assertEqual(self.mock_controller.connectionStatus, ConnectionState.DISCONNECTING)
+        self.assertFalse(self.mock_controller.readyForData)
 
-        self.mockController.early_update()
-        self.assertEqual(self.mockController.connectionStatus, ConnectionState.NOT_CONNECTED)
-        self.assertFalse(self.mockController.readyForData)
+        self.mock_controller.early_update()
+        self.assertEqual(self.mock_controller.connectionStatus, ConnectionState.NOT_CONNECTED)
+        self.assertFalse(self.mock_controller.readyForData)
 
-        self.mockController.disconnect()
-        self.mockController.early_update()
-        self.assertEqual(self.mockController.connectionStatus, ConnectionState.NOT_CONNECTED)
+        self.mock_controller.disconnect()
+        self.mock_controller.early_update()
+        self.assertEqual(self.mock_controller.connectionStatus, ConnectionState.NOT_CONNECTED)
 
-        self.mockController.connect()
-        self.assertEqual(self.mockController.connectionStatus, ConnectionState.CONNECTING)
-        self.assertFalse(self.mockController.readyForData)
+        self.mock_controller.connect()
+        self.assertEqual(self.mock_controller.connectionStatus, ConnectionState.CONNECTING)
+        self.assertFalse(self.mock_controller.readyForData)
 
-        self.mockController.early_update()
-        self.assertEqual(self.mockController.connectionStatus, ConnectionState.CONNECTED)
+        self.mock_controller.early_update()
+        self.assertEqual(self.mock_controller.connectionStatus, ConnectionState.CONNECTED)
 
-    def test_validGcodeByString(self):
-        """ """
-        # TODO
+    def test_valid_gcode_by_string(self):
+        """ TODO """
 
-    def test_validGcodeByLine(self):
-        """ """
-        # TODO
+    def test_valid_gcode_by_line(self):
+        """ TODO """
 
-    def test_disabledNotReactsToEvent(self):
-        """ 
-        """
-        # TODO
+    def test_disabled_not_reacts_to_event(self):
+        """ TODO """
 
-    def test_enabledReactsToEvent(self):
-        """ 
-        """
-        # TODO
+    def test_enabled_reacts_to_event(self):
+        """ TODO """
 
 class TestCoordinator(unittest.TestCase):
+    """ Coordinator interaction with components. """
+
     def setUp(self):
-        self.mockWidget = MockWidget()
-        self.mockController = MockController()
-        self.coordinator = Coordinator([], [self.mockWidget], [self.mockController])
-        self.coordinator.activeController = self.mockController
+        self.mock_widget = MockWidget()
+        self.mock_controller = MockController()
+        self.coordinator = Coordinator([], [self.mock_widget], [self.mock_controller])
+        self.coordinator.activeController = self.mock_controller
         self.coordinator.activeController.connect()
         self.coordinator.updateComponents()  # Push events to subscribed targets.
 
+        # Pacify linter.
+        self.mock_controller1 = None
+        self.mock_controller2 = None
+        self.mock_controller3 = None
+        self.mock_controller4 = None
+
     def tearDown(self):
-        self.mockWidget._eventQueue.clear()
-        self.assertEqual(len(self.mockController._eventQueue), 0)
+        self.mock_widget._eventQueue.clear()
+        self.assertEqual(len(self.mock_controller._eventQueue), 0)
         self.coordinator.close()
 
-    def test_collectionNameIsLabel(self):
+    def test_collection_name_is_label(self):
         """ The keys in the collections should match the component's label. """
-        self.mockController1 = MockController("debug")
-        self.mockController2 = MockController("owl")
-        self.coordinator = Coordinator([], [], [self.mockController1, self.mockController2])
+        self.mock_controller1 = MockController("debug")
+        self.mock_controller2 = MockController("owl")
+        self.coordinator = Coordinator([], [], [self.mock_controller1, self.mock_controller2])
 
-        self.assertIn(self.mockController1.label, self.coordinator.controllers)
-        self.assertIn(self.mockController2.label, self.coordinator.controllers)
+        self.assertIn(self.mock_controller1.label, self.coordinator.controllers)
+        self.assertIn(self.mock_controller2.label, self.coordinator.controllers)
 
-    def test_activateControllerTiebreaker(self):
+    def test_activate_controller_tiebreaker(self):
         """ The "debug" controller gets enabled if no others are eligible. """
-        self.mockController1 = MockController("owl")
-        self.mockController2 = MockController("tiger")
-        self.mockController3 = MockController("debug")
-        self.mockController1.active = False
-        self.mockController2.active = False
-        self.mockController3.active = False
-        self.coordinator = Coordinator([], [],
-                [self.mockController1, self.mockController2, self.mockController3])
+        self.mock_controller1 = MockController("owl")
+        self.mock_controller2 = MockController("tiger")
+        self.mock_controller3 = MockController("debug")
+        self.mock_controller1.active = False
+        self.mock_controller2.active = False
+        self.mock_controller3.active = False
+        self.coordinator = Coordinator(
+            [], [], [self.mock_controller1, self.mock_controller2, self.mock_controller3])
 
-        self.assertFalse(self.mockController1.active)
-        self.assertFalse(self.mockController2.active)
-        self.assertTrue(self.mockController3.active)
-        self.assertIs(self.coordinator.activeController, self.mockController3)
+        self.assertFalse(self.mock_controller1.active)
+        self.assertFalse(self.mock_controller2.active)
+        self.assertTrue(self.mock_controller3.active)
+        self.assertIs(self.coordinator.activeController, self.mock_controller3)
 
-    def test_activateControllerActiveFlag(self):
+    def test_activate_controller_active_flag(self):
         """ The first controller with it's "active" flag set gets enabled. """
-        self.mockController1 = MockController("owl")
-        self.mockController2 = MockController("tiger")
-        self.mockController3 = MockController("debug")
-        self.mockController1.active = False
-        self.mockController2.active = True
-        self.mockController3.active = False
-        self.coordinator = Coordinator([], [],
-                [self.mockController1, self.mockController2, self.mockController3])
+        self.mock_controller1 = MockController("owl")
+        self.mock_controller2 = MockController("tiger")
+        self.mock_controller3 = MockController("debug")
+        self.mock_controller1.active = False
+        self.mock_controller2.active = True
+        self.mock_controller3.active = False
+        self.coordinator = Coordinator(
+            [], [], [self.mock_controller1, self.mock_controller2, self.mock_controller3])
 
-        self.assertFalse(self.mockController1.active)
-        self.assertTrue(self.mockController2.active)
-        self.assertFalse(self.mockController3.active)
-        self.assertIs(self.coordinator.activeController, self.mockController2)
+        self.assertFalse(self.mock_controller1.active)
+        self.assertTrue(self.mock_controller2.active)
+        self.assertFalse(self.mock_controller3.active)
+        self.assertIs(self.coordinator.activeController, self.mock_controller2)
 
-    def test_activateControllerMultiActiveFlag(self):
+    def test_activate_controller_multi_active_flag(self):
         """ The first controller with it's "active" flag set gets enabled. """
-        self.mockController1 = MockController("owl")
-        self.mockController2 = MockController("tiger")
-        self.mockController3 = MockController("debug")
-        self.mockController1.active = True
-        self.mockController2.active = True
-        self.mockController3.active = False
-        self.coordinator = Coordinator([], [],
-                [self.mockController1, self.mockController2, self.mockController3])
+        self.mock_controller1 = MockController("owl")
+        self.mock_controller2 = MockController("tiger")
+        self.mock_controller3 = MockController("debug")
+        self.mock_controller1.active = True
+        self.mock_controller2.active = True
+        self.mock_controller3.active = False
+        self.coordinator = Coordinator(
+            [], [], [self.mock_controller1, self.mock_controller2, self.mock_controller3])
 
-        self.assertTrue(self.mockController1.active)
-        self.assertFalse(self.mockController2.active)
-        self.assertFalse(self.mockController3.active)
-        self.assertIs(self.coordinator.activeController, self.mockController1)
+        self.assertTrue(self.mock_controller1.active)
+        self.assertFalse(self.mock_controller2.active)
+        self.assertFalse(self.mock_controller3.active)
+        self.assertIs(self.coordinator.activeController, self.mock_controller1)
 
-    def test_activateControllerPreferNotDebug(self):
+    def test_activate_controller_prefer_not_debug(self):
         """ The first controller with it's "active" flag set gets enabled but
         prefer one that isn't the debug one."""
-        self.mockController1 = MockController("debug")
-        self.mockController2 = MockController("owl")
-        self.mockController3 = MockController("tiger")
-        self.mockController1.active = True
-        self.mockController2.active = False
-        self.mockController3.active = True
-        self.coordinator = Coordinator([], [],
-                [self.mockController1, self.mockController2, self.mockController3])
+        self.mock_controller1 = MockController("debug")
+        self.mock_controller2 = MockController("owl")
+        self.mock_controller3 = MockController("tiger")
+        self.mock_controller1.active = True
+        self.mock_controller2.active = False
+        self.mock_controller3.active = True
+        self.coordinator = Coordinator(
+            [], [], [self.mock_controller1, self.mock_controller2, self.mock_controller3])
 
         # Not the first active in the list..
-        self.assertFalse(self.mockController1.active)
-        self.assertFalse(self.mockController2.active)
-        self.assertTrue(self.mockController3.active)
-        self.assertIs(self.coordinator.activeController, self.mockController3)
+        self.assertFalse(self.mock_controller1.active)
+        self.assertFalse(self.mock_controller2.active)
+        self.assertTrue(self.mock_controller3.active)
+        self.assertIs(self.coordinator.activeController, self.mock_controller3)
 
-    def test_activateControllerAddLater(self):
+    def test_activate_controller_add_later(self):
         """ Add a new controller later. """
-        self.mockController1 = MockController("owl")
-        self.mockController2 = MockController("tiger")
-        self.mockController3 = MockController("debug")
-        self.mockController1.active = True
-        self.mockController2.active = False
-        self.mockController3.active = False
-        self.coordinator = Coordinator([], [],
-                [self.mockController1, self.mockController2, self.mockController3])
+        self.mock_controller1 = MockController("owl")
+        self.mock_controller2 = MockController("tiger")
+        self.mock_controller3 = MockController("debug")
+        self.mock_controller1.active = True
+        self.mock_controller2.active = False
+        self.mock_controller3.active = False
+        self.coordinator = Coordinator(
+            [], [], [self.mock_controller1, self.mock_controller2, self.mock_controller3])
 
         # Auto chose the active one.
-        self.assertTrue(self.mockController1.active)
-        self.assertFalse(self.mockController2.active)
-        self.assertFalse(self.mockController3.active)
-        self.assertIs(self.coordinator.activeController, self.mockController1)
+        self.assertTrue(self.mock_controller1.active)
+        self.assertFalse(self.mock_controller2.active)
+        self.assertFalse(self.mock_controller3.active)
+        self.assertIs(self.coordinator.activeController, self.mock_controller1)
 
-        self.mockController4 = MockController("KingKong")
-        self.mockController4.active = False
-        self.coordinator.activateController(controller=self.mockController4)
-        
+        self.mock_controller4 = MockController("KingKong")
+        self.mock_controller4.active = False
+        self.coordinator.activateController(controller=self.mock_controller4)
+
         # The new one is now added and active.
-        self.assertFalse(self.mockController1.active)
-        self.assertFalse(self.mockController2.active)
-        self.assertFalse(self.mockController3.active)
-        self.assertTrue(self.mockController4.active)
-        self.assertIn(self.mockController4.label, self.coordinator.controllers)
-        self.assertIn(self.mockController4, self.coordinator.allComponents)
-        self.assertEqual(self.coordinator.allComponents.count(self.mockController4), 1)
-        self.assertIs(self.coordinator.activeController, self.mockController4)
+        self.assertFalse(self.mock_controller1.active)
+        self.assertFalse(self.mock_controller2.active)
+        self.assertFalse(self.mock_controller3.active)
+        self.assertTrue(self.mock_controller4.active)
+        self.assertIn(self.mock_controller4.label, self.coordinator.controllers)
+        self.assertIn(self.mock_controller4, self.coordinator.allComponents)
+        self.assertEqual(self.coordinator.allComponents.count(self.mock_controller4), 1)
+        self.assertIs(self.coordinator.activeController, self.mock_controller4)
 
-    def test_activateControllerByInstance(self):
+    def test_activate_controller_by_instance(self):
         """ Enable a controller specified by instance. """
-        self.mockController1 = MockController("owl")
-        self.mockController2 = MockController("tiger")
-        self.mockController3 = MockController("debug")
-        self.mockController1.active = True
-        self.mockController2.active = False
-        self.mockController3.active = False
-        self.coordinator = Coordinator([], [],
-                [self.mockController1, self.mockController2, self.mockController3])
+        self.mock_controller1 = MockController("owl")
+        self.mock_controller2 = MockController("tiger")
+        self.mock_controller3 = MockController("debug")
+        self.mock_controller1.active = True
+        self.mock_controller2.active = False
+        self.mock_controller3.active = False
+        self.coordinator = Coordinator(
+            [], [], [self.mock_controller1, self.mock_controller2, self.mock_controller3])
 
         # Auto chose the active one.
-        self.assertTrue(self.mockController1.active)
-        self.assertFalse(self.mockController2.active)
-        self.assertFalse(self.mockController3.active)
-        self.assertIs(self.coordinator.activeController, self.mockController1)
+        self.assertTrue(self.mock_controller1.active)
+        self.assertFalse(self.mock_controller2.active)
+        self.assertFalse(self.mock_controller3.active)
+        self.assertIs(self.coordinator.activeController, self.mock_controller1)
 
-        self.coordinator.activateController(controller=self.mockController2)
-        
+        self.coordinator.activateController(controller=self.mock_controller2)
+
         # The specified one is now active.
-        self.assertFalse(self.mockController1.active)
-        self.assertTrue(self.mockController2.active)
-        self.assertFalse(self.mockController3.active)
-        self.assertIn(self.mockController2.label, self.coordinator.controllers)
-        self.assertIs(self.coordinator.activeController, self.mockController2)
-        self.assertEqual(self.coordinator.allComponents.count(self.mockController2), 1)
+        self.assertFalse(self.mock_controller1.active)
+        self.assertTrue(self.mock_controller2.active)
+        self.assertFalse(self.mock_controller3.active)
+        self.assertIn(self.mock_controller2.label, self.coordinator.controllers)
+        self.assertIs(self.coordinator.activeController, self.mock_controller2)
+        self.assertEqual(self.coordinator.allComponents.count(self.mock_controller2), 1)
 
-    def test_activateControllerByLabel(self):
+    def test_activate_controller_by_label(self):
         """ The controller with the specified label gets enabled. """
-        self.mockController1 = MockController("owl")
-        self.mockController2 = MockController("tiger")
-        self.mockController3 = MockController("debug")
-        self.mockController1.active = True
-        self.mockController2.active = False
-        self.mockController3.active = False
-        self.coordinator = Coordinator([], [],
-                [self.mockController1, self.mockController2, self.mockController3])
+        self.mock_controller1 = MockController("owl")
+        self.mock_controller2 = MockController("tiger")
+        self.mock_controller3 = MockController("debug")
+        self.mock_controller1.active = True
+        self.mock_controller2.active = False
+        self.mock_controller3.active = False
+        self.coordinator = Coordinator(
+            [], [], [self.mock_controller1, self.mock_controller2, self.mock_controller3])
 
         # Auto chose the active one.
-        self.assertTrue(self.mockController1.active)
-        self.assertIs(self.coordinator.activeController, self.mockController1)
+        self.assertTrue(self.mock_controller1.active)
+        self.assertIs(self.coordinator.activeController, self.mock_controller1)
 
         self.coordinator.activateController(label="debug")
-        
-        # The specified one is now active.
-        self.assertFalse(self.mockController1.active)
-        self.assertFalse(self.mockController2.active)
-        self.assertTrue(self.mockController3.active)
-        self.assertIn(self.mockController3.label, self.coordinator.controllers)
-        self.assertIs(self.coordinator.activeController, self.mockController3)
 
-    def test_activateControllerOnEventSet(self):
+        # The specified one is now active.
+        self.assertFalse(self.mock_controller1.active)
+        self.assertFalse(self.mock_controller2.active)
+        self.assertTrue(self.mock_controller3.active)
+        self.assertIn(self.mock_controller3.label, self.coordinator.controllers)
+        self.assertIs(self.coordinator.activeController, self.mock_controller3)
+
+    def test_activate_controller_on_event_set(self):
         """ The "_activeControllerOnEvent" event handler changes active controller. """
-        self.mockController1 = MockController("owl")
-        self.mockController2 = MockController("tiger")
-        self.mockController3 = MockController("debug")
-        self.mockController1.active = False
-        self.mockController2.active = False
-        self.mockController3.active = False
-        self.coordinator = Coordinator([], [],
-                [self.mockController1, self.mockController2, self.mockController3])
+        self.mock_controller1 = MockController("owl")
+        self.mock_controller2 = MockController("tiger")
+        self.mock_controller3 = MockController("debug")
+        self.mock_controller1.active = False
+        self.mock_controller2.active = False
+        self.mock_controller3.active = False
+        self.coordinator = Coordinator(
+            [], [], [self.mock_controller1, self.mock_controller2, self.mock_controller3])
 
         # Default startup has "debug" controller active.
-        self.assertFalse(self.mockController1.active)
-        self.assertFalse(self.mockController2.active)
-        self.assertTrue(self.mockController3.active)
-        self.assertIs(self.coordinator.activeController, self.mockController3)
+        self.assertFalse(self.mock_controller1.active)
+        self.assertFalse(self.mock_controller2.active)
+        self.assertTrue(self.mock_controller3.active)
+        self.assertIs(self.coordinator.activeController, self.mock_controller3)
 
         # "_activeControllerOnEvent" changes the default controller.
         self.coordinator._activeControllerOnEvent("tiger:active", True)
-        
-        self.assertFalse(self.mockController1.active)
-        self.assertTrue(self.mockController2.active)
-        self.assertFalse(self.mockController3.active)
-        self.assertIs(self.coordinator.activeController, self.mockController2)
 
-    def test_activateControllerOnEventUnset(self):
+        self.assertFalse(self.mock_controller1.active)
+        self.assertTrue(self.mock_controller2.active)
+        self.assertFalse(self.mock_controller3.active)
+        self.assertIs(self.coordinator.activeController, self.mock_controller2)
+
+    def test_activate_controller_on_event_unset(self):
         """ The "_activeControllerOnEvent" event handler un-sets active controller,
         returning it to "debug". """
-        self.mockController1 = MockController("owl")
-        self.mockController2 = MockController("tiger")
-        self.mockController3 = MockController("debug")
-        self.mockController1.active = False
-        self.mockController2.active = True
-        self.mockController3.active = False
-        self.coordinator = Coordinator([], [],
-                [self.mockController1, self.mockController2, self.mockController3])
+        self.mock_controller1 = MockController("owl")
+        self.mock_controller2 = MockController("tiger")
+        self.mock_controller3 = MockController("debug")
+        self.mock_controller1.active = False
+        self.mock_controller2.active = True
+        self.mock_controller3.active = False
+        self.coordinator = Coordinator(
+            [], [], [self.mock_controller1, self.mock_controller2, self.mock_controller3])
 
         # Default startup has "debug" controller active.
-        self.assertFalse(self.mockController1.active)
-        self.assertTrue(self.mockController2.active)
-        self.assertFalse(self.mockController3.active)
-        self.assertIs(self.coordinator.activeController, self.mockController2)
+        self.assertFalse(self.mock_controller1.active)
+        self.assertTrue(self.mock_controller2.active)
+        self.assertFalse(self.mock_controller3.active)
+        self.assertIs(self.coordinator.activeController, self.mock_controller2)
 
         # "_activeControllerOnEvent" un-sets the currently active.
         # The default controller ("debug") will be made the active.
         self.coordinator._activeControllerOnEvent("tiger:active", False)
-        
-        self.assertFalse(self.mockController1.active)
-        self.assertFalse(self.mockController2.active)
-        self.assertTrue(self.mockController3.active)
-        self.assertIs(self.coordinator.activeController, self.mockController3)
 
-    def test_pushFromInterfaceToController(self):
+        self.assertFalse(self.mock_controller1.active)
+        self.assertFalse(self.mock_controller2.active)
+        self.assertTrue(self.mock_controller3.active)
+        self.assertIs(self.coordinator.activeController, self.mock_controller3)
+
+    def test_push_from_interface_to_controller(self):
         """ Data pushed as an event is processed by the controller. """
-        def dataMatch(gcode, data):
+        def data_match(gcode, data):
             for section in gcode.gcodes:
-                paramDict = section.get_param_dict()
+                param_dict = section.get_param_dict()
                 if section.word_letter == "G":
-                    self.assertEqual(paramDict["X"], data["X"])
-                    self.assertEqual(paramDict["Y"], data["Y"])
+                    self.assertEqual(param_dict["X"], data["X"])
+                    self.assertEqual(param_dict["Y"], data["Y"])
                 elif section.word_letter == "F":
                     self.assertEqual(str(section), "F%s" % data["F"])
 
-        self.assertIs(self.coordinator.activeController, self.mockController)
-        self.assertEqual(self.mockController.connectionStatus, ConnectionState.CONNECTED)
-        # No data on mockController yet.
-        self.assertEqual(len(self.mockController.gcode), 0)
+        self.assertIs(self.coordinator.activeController, self.mock_controller)
+        self.assertEqual(self.mock_controller.connectionStatus, ConnectionState.CONNECTED)
+        # No data on mock_controller yet.
+        self.assertEqual(len(self.mock_controller.gcode), 0)
 
         # Send data to controller.
         data = {"X": 10, "Y": 20, "F": 100}
-        self.mockWidget.moveTo(**data)
-        self.coordinator.updateComponents()  # Push event from mockWidget onto queue.
-        self.coordinator.updateComponents()  # Push event from queue to mockController.
+        self.mock_widget.moveTo(**data)
+        self.coordinator.updateComponents()  # Push event from mock_widget onto queue.
+        self.coordinator.updateComponents()  # Push event from queue to mock_controller.
 
-        self.assertEqual(len(self.mockController.gcode), 1)
-        self.assertEqual(self.mockController.gcode[-1][0], "TRUE")
-        dataMatch(self.mockController.gcode[-1][1], data)
+        self.assertEqual(len(self.mock_controller.gcode), 1)
+        self.assertEqual(self.mock_controller.gcode[-1][0], "TRUE")
+        data_match(self.mock_controller.gcode[-1][1], data)
 
         # Send more data to controller.
         data = {"X": 1.2345, "Y": -6.7889, "F": 1000}
-        self.mockWidget.moveTo(**data)
-        self.coordinator.updateComponents()  # Push event from mockWidget onto queue.
-        self.coordinator.updateComponents()  # Push event from queue to mockController.
+        self.mock_widget.moveTo(**data)
+        self.coordinator.updateComponents()  # Push event from mock_widget onto queue.
+        self.coordinator.updateComponents()  # Push event from queue to mock_controller.
 
-        self.assertEqual(len(self.mockController.gcode), 2)
-        self.assertEqual(self.mockController.gcode[-1][0], "TRUE")
-        dataMatch(self.mockController.gcode[-1][1], data)
+        self.assertEqual(len(self.mock_controller.gcode), 2)
+        self.assertEqual(self.mock_controller.gcode[-1][0], "TRUE")
+        data_match(self.mock_controller.gcode[-1][1], data)
 
-    def test_swapControllers(self):
+    def test_swap_controllers(self):
         """ Push to one controller, set a different controller active, push there
         then revert and confirm original has correct state. """
-        self.assertIs(self.coordinator.activeController, self.mockController)
-        self.assertEqual(self.mockController.connectionStatus, ConnectionState.CONNECTED)
-        # No data on mockController yet.
-        self.assertEqual(len(self.mockController.gcode), 0)
+        self.assertIs(self.coordinator.activeController, self.mock_controller)
+        self.assertEqual(self.mock_controller.connectionStatus, ConnectionState.CONNECTED)
+        # No data on mock_controller yet.
+        self.assertEqual(len(self.mock_controller.gcode), 0)
 
         # Send data to controller.
-        self.mockWidget.moveTo(x=10, y=20, f=100)
-        self.coordinator.updateComponents()  # Push event from mockWidget onto queue.
-        self.coordinator.updateComponents()  # Push event from queue to mockController.
-        self.mockWidget.moveTo(x=50, y=100, f=100)
-        self.coordinator.updateComponents()  # Push event from mockWidget onto queue.
-        self.coordinator.updateComponents()  # Push event from queue to mockController.
+        self.mock_widget.moveTo(x=10, y=20, f=100)
+        self.coordinator.updateComponents()  # Push event from mock_widget onto queue.
+        self.coordinator.updateComponents()  # Push event from queue to mock_controller.
+        self.mock_widget.moveTo(x=50, y=100, f=100)
+        self.coordinator.updateComponents()  # Push event from mock_widget onto queue.
+        self.coordinator.updateComponents()  # Push event from queue to mock_controller.
 
-        self.assertEqual(len(self.mockController.gcode), 2)
-        
+        self.assertEqual(len(self.mock_controller.gcode), 2)
+
         # Create new controller and make it active.
-        self.mockController2 = MockController("owl")
-        self.mockController2.connect()
-        self.mockController2.early_update()  # Move from CONNECTING to CONNECTED
-        self.coordinator.activateController(controller=self.mockController2)
+        self.mock_controller2 = MockController("owl")
+        self.mock_controller2.connect()
+        self.mock_controller2.early_update()  # Move from CONNECTING to CONNECTED
+        self.coordinator.activateController(controller=self.mock_controller2)
 
-        self.assertEqual(self.mockController2.connectionStatus, ConnectionState.CONNECTED)
+        self.assertEqual(self.mock_controller2.connectionStatus, ConnectionState.CONNECTED)
 
-        self.assertFalse(self.mockController.active)
-        self.assertTrue(self.mockController2.active)
-        self.assertIs(self.coordinator.activeController, self.mockController2)
+        self.assertFalse(self.mock_controller.active)
+        self.assertTrue(self.mock_controller2.active)
+        self.assertIs(self.coordinator.activeController, self.mock_controller2)
 
-        # No data on mockController2 yet.
-        self.assertEqual(len(self.mockController2.gcode), 0)
+        # No data on mock_controller2 yet.
+        self.assertEqual(len(self.mock_controller2.gcode), 0)
 
         # Push data to new controller.
-        self.mockWidget.moveTo(x=100, y=200, f=1000)
-        self.coordinator.updateComponents()  # Push event from mockWidget onto queue.
-        self.coordinator.updateComponents()  # Push event from queue to mockController.
+        self.mock_widget.moveTo(x=100, y=200, f=1000)
+        self.coordinator.updateComponents()  # Push event from mock_widget onto queue.
+        self.coordinator.updateComponents()  # Push event from queue to mock_controller.
 
         # Has not changed data on old (inactive) controller.
-        self.assertEqual(len(self.mockController.gcode), 2)
+        self.assertEqual(len(self.mock_controller.gcode), 2)
         # Has changed data on new (active) controller.
-        self.assertEqual(len(self.mockController2.gcode), 1)
+        self.assertEqual(len(self.mock_controller2.gcode), 1)
 
         # Back to original controller.
-        self.coordinator.activateController(controller=self.mockController)
+        self.coordinator.activateController(controller=self.mock_controller)
 
         # Push data to original controller.
-        self.mockWidget.moveTo(x=-1, y=-2, f=1)
-        self.coordinator.updateComponents()  # Push event from mockWidget onto queue.
-        self.coordinator.updateComponents()  # Push event from queue to mockController.
+        self.mock_widget.moveTo(x=-1, y=-2, f=1)
+        self.coordinator.updateComponents()  # Push event from mock_widget onto queue.
+        self.coordinator.updateComponents()  # Push event from queue to mock_controller.
 
         # New data on old (active) controller.
-        self.assertEqual(len(self.mockController.gcode), 3)
+        self.assertEqual(len(self.mock_controller.gcode), 3)
         # No change on new (inactive) controller.
-        self.assertEqual(len(self.mockController2.gcode), 1)
+        self.assertEqual(len(self.mock_controller2.gcode), 1)
 
-    def test_componentNamesMatch(self):
+    def test_component_names_match(self):
         """ Coordinator stores components keyed by their label. """
-        self.mockController1 = MockController("owl")
-        self.mockController2 = MockController("tiger")
-        self.coordinator = Coordinator([], [],
-                [self.mockController1, self.mockController2])
+        self.mock_controller1 = MockController("owl")
+        self.mock_controller2 = MockController("tiger")
+        self.coordinator = Coordinator(
+            [], [], [self.mock_controller1, self.mock_controller2])
 
-        self.assertIn(self.mockController1.label, self.coordinator.controllers)
+        self.assertIn(self.mock_controller1.label, self.coordinator.controllers)
 
 
 class TestEvents(unittest.TestCase):
@@ -408,113 +415,111 @@ class TestEvents(unittest.TestCase):
     world it would be used to clear the _eventQueue between iterations. """
 
     def setUp(self):
-        self.mockController = MockController()
-        self.mockWidget = MockWidget()
+        self.mock_controller = MockController()
+        self.mock_widget = MockWidget()
 
-        self.mockWidget._eventQueue.clear()
-        self.assertEqual(len(self.mockController._eventQueue), 0)
+        self.mock_widget._eventQueue.clear()
+        self.assertEqual(len(self.mock_controller._eventQueue), 0)
 
     def tearDown(self):
-        self.mockWidget._eventQueue.clear()
-        self.assertEqual(len(self.mockController._eventQueue), 0)
+        self.mock_widget._eventQueue.clear()
+        self.assertEqual(len(self.mock_controller._eventQueue), 0)
 
-    def test_publishEventBasic(self):
+    def test_publish_event_basic(self):
         """ Export some variables on one component, subscribe on another, then
         publish. """
 
         # Set up some dummy data to export on one component.
-        self.mockController.testToExport = {}
-        self.mockController.testToExport["bunny"] = "give me carrot"
-        self.mockController.testToExport["onion"] = ["layer1", "layer2"]
-        self.mockController.events_to_publish = {
-                "testToExport1": "testToExport",
-                "testToExport2": "testToExport.bunny",
-                "testToExport3": "testToExport.onion",
-                "testToExport4": "testToExport.onion.0",
-                # Exporting an invalid member would assert.
-                #"testToExport5": "testToExport.onion.invalidInt2",
-                }
-        
+        self.mock_controller.testToExport = {}
+        self.mock_controller.testToExport["bunny"] = "give me carrot"
+        self.mock_controller.testToExport["onion"] = ["layer1", "layer2"]
+        self.mock_controller.events_to_publish = {
+            "testToExport1": "testToExport",
+            "testToExport2": "testToExport.bunny",
+            "testToExport3": "testToExport.onion",
+            "testToExport4": "testToExport.onion.0",
+            # Exporting an invalid member would assert.
+            #"testToExport5": "testToExport.onion.invalidInt2",
+            }
+
         # Set up some subscriptions.
-        self.mockWidget.event_subscriptions = {
-                "testToExport1": None,
-                "testToExport2": None,
-                "testToExport3": None,
-                "testToExport4": None,
-                # Its fine to subscribe to things that don't arrive.
-                "missing": None,
-                }
+        self.mock_widget.event_subscriptions = {
+            "testToExport1": None,
+            "testToExport2": None,
+            "testToExport3": None,
+            "testToExport4": None,
+            # Its fine to subscribe to things that don't arrive.
+            "missing": None,
+            }
 
         # Now publish, populating the _eventQueue.
-        self.mockController.publish()
-        self.assertEqual(len(self.mockController.events_to_publish),
-                         len(self.mockController._eventQueue))
+        self.mock_controller.publish()
+        self.assertEqual(len(self.mock_controller.events_to_publish),
+                         len(self.mock_controller._eventQueue))
 
         # Now call the receive on the other component making it read the _eventQueue.
-        self.mockWidget.receive()
+        self.mock_widget.receive()
         # Nothing delivered to the sender.
-        self.assertEqual(0, len(self.mockController._delivered))
+        self.assertEqual(0, len(self.mock_controller._delivered))
         # Full set delivered to the receiver.
-        self.assertEqual(len(self.mockController.events_to_publish),
-                         len(self.mockWidget._delivered))
+        self.assertEqual(len(self.mock_controller.events_to_publish),
+                         len(self.mock_widget._delivered))
 
-    def test_publishEventInvalidExportDictArgs(self):
+    def test_publish_event_invalid_export_dict_args(self):
         """ Export some variables which are incorrectly named. """
 
         # Set up some dummy data to export on one component.
-        self.mockController.testToExport = {}
-        self.mockController.testToExport["bunny"] = "give me carrot"
-        self.mockController.events_to_publish = {
-                "testToExport1": "testToExport.doggie",
-                }
-        
+        self.mock_controller.testToExport = {}
+        self.mock_controller.testToExport["bunny"] = "give me carrot"
+        self.mock_controller.events_to_publish = {
+            "testToExport1": "testToExport.doggie",
+            }
+
         # Now publish, populating the _eventQueue.
         with self.assertRaises(AttributeError):
-            self.mockController.publish()
+            self.mock_controller.publish()
         # Nothing delivered anywhere.
-        self.assertEqual(0, len(self.mockController._delivered))
-        self.assertEqual(0, len(self.mockWidget._delivered))
+        self.assertEqual(0, len(self.mock_controller._delivered))
+        self.assertEqual(0, len(self.mock_widget._delivered))
 
-    def test_publishEventInvalidExportListArgs(self):
+    def test_publish_event_invalid_export_list_args(self):
         """ Export some variables which are incorrectly named. """
 
         # Set up some dummy data to export on one component.
-        self.mockController.testToExport = {}
-        self.mockController.testToExport["onion"] = ["layer1", "layer2"]
-        self.mockController.events_to_publish = {
-                "testToExport1": "testToExport.onion.1invalidInt",
-                }
-        
+        self.mock_controller.testToExport = {}
+        self.mock_controller.testToExport["onion"] = ["layer1", "layer2"]
+        self.mock_controller.events_to_publish = {
+            "testToExport1": "testToExport.onion.1invalidInt",
+            }
+
         # Now publish, populating the _eventQueue.
         with self.assertRaises(AttributeError):
-            self.mockController.publish()
+            self.mock_controller.publish()
         # Nothing delivered anywhere.
-        self.assertEqual(0, len(self.mockController._delivered))
-        self.assertEqual(0, len(self.mockWidget._delivered))
+        self.assertEqual(0, len(self.mock_controller._delivered))
+        self.assertEqual(0, len(self.mock_widget._delivered))
 
-    def test_publishEventMissingMemberVar(self):
+    def test_publish_event_missing_member_var(self):
         """ Export some variables which are incorrectly named. """
 
         # Set up some dummy data to export on one component.
-        self.mockController.testToExport = {}
-        self.mockController.events_to_publish = {
-                "testToExport1": "missingMember",
-                }
-        
+        self.mock_controller.testToExport = {}
+        self.mock_controller.events_to_publish = {
+            "testToExport1": "missingMember",
+            }
+
         # Now publish, populating the _eventQueue.
         with self.assertRaises(AttributeError):
-            self.mockController.publish()
+            self.mock_controller.publish()
         # Nothing delivered anywhere.
-        self.assertEqual(0, len(self.mockController._delivered))
-        self.assertEqual(0, len(self.mockWidget._delivered))
+        self.assertEqual(0, len(self.mock_controller._delivered))
+        self.assertEqual(0, len(self.mock_widget._delivered))
 
-    def test_explicitPublishByValue(self):
-        """ """
-        pass
+    def test_explicit_publish_by_value(self):
+        """ TODO """
 
-    def test_explicitPublishByName(self):
-        """ """
-        pass
+    def test_explicit_publish_by_name(self):
+        """ TODO """
 
 
 if __name__ == '__main__':

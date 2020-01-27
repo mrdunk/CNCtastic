@@ -8,7 +8,7 @@ from terminals.gui import sg      # type: ignore
 from interfaces._interfaceBase import _InterfaceBase  # type: ignore
 from definitions import FlagState
 
-className = "JogWidget"
+class_name = "JogWidget"
 
 def round1SF(number: float) -> float:
     return round(number, -int(floor(log10(abs(number)))))

@@ -1,9 +1,12 @@
 #!/usr/bin/env python3
 
-import sys, os
-testdir = os.path.dirname(__file__)
-srcdir = '../'
-sys.path.insert(0, os.path.abspath(os.path.join(testdir, srcdir)))
+#pylint: disable=protected-access
+
+import sys
+import os
+TESTDIR = os.path.dirname(__file__)
+SRCDIR = '../'
+sys.path.insert(0, os.path.abspath(os.path.join(TESTDIR, SRCDIR)))
 
 import unittest
 

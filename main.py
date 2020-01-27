@@ -15,9 +15,9 @@ from coordinator.coordinator import Coordinator
 def main() -> None:
     """ Main program loop. """
 
-    terminals = common.loadPlugins("terminals")
-    controllers = common.loadPlugins("controllers")
-    interfaces = common.loadPlugins("interfaces")
+    terminals = common.load_plugins("terminals")
+    controllers = common.load_plugins("controllers")
+    interfaces = common.load_plugins("interfaces")
 
     parser = argparse.ArgumentParser(description="A UI for CNC machines.")
 

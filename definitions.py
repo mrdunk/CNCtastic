@@ -1,3 +1,5 @@
+""" Definitions that are called from everywhere throughout the codebase. """
+
 from enum import Enum
 
 from pygcode import (GCodeLinearMove, GCodeRapidMove, GCodeArcMoveCW,

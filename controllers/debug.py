@@ -15,7 +15,7 @@ from definitions import ConnectionState
 CONNECT_DELAY =  4  # seconds
 PUSH_DELAY = 1      # seconds
 
-className = "DebugController"
+class_name = "DebugController"
 
 class DebugController(_ControllerBase):
 

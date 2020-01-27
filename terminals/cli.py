@@ -8,7 +8,7 @@ import curses
 
 from terminals._terminalBase import _TerminalBase
 
-className = "Cli"
+class_name = "Cli"
 
 class Cli(_TerminalBase):
     def __init__(self, layouts: List=[], label: str="cli") -> None:

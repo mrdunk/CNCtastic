@@ -6,7 +6,7 @@ import PySimpleGUIQt as sg
 
 from terminals._terminalBase import _TerminalBase, diffDicts
 
-className = "Gui"
+class_name = "Gui"
 
 class Gui(_TerminalBase):
     """ Display GUI interface.

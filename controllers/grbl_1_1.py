@@ -18,7 +18,7 @@ REPORT_INTERVAL = 1.0 # seconds
 SERIAL_INTERVAL = 0.02 # seconds
 RX_BUFFER_SIZE = 128
 
-className = "Grbl1p1Controller"
+class_name = "Grbl1p1Controller"
 
 class Grbl1p1Controller(_SerialControllerBase):
 
