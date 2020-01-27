@@ -21,7 +21,7 @@ def main() -> None:
 
     parser = argparse.ArgumentParser(description="A UI for CNC machines.")
 
-    parser.add_argument("-debugShowEvents",
+    parser.add_argument("-debug_show_events",
                         action="store_true",
                         help="Display events.")
 
@@ -42,10 +42,10 @@ def main() -> None:
 
     for terminal in terminals:
         terminal.active: bool = getattr(args, terminal.label)   # type: ignore
-        terminal.debugShowEvents: bool = args.debugShowEvents   # type: ignore
+        terminal.debug_show_events: bool = args.debug_show_events   # type: ignore
 
 
-    coordinator = Coordinator(terminals, interfaces, controllers, args.debugShowEvents)
+    coordinator = Coordinator(terminals, interfaces, controllers, args.debug_show_events)
 
 
     while True:

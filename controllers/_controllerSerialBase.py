@@ -140,7 +140,7 @@ class _SerialControllerBase(_ControllerBase):
             self.setConnectionStatus(ConnectionState.FAIL)
         return line
 
-    def earlyUpdate(self) -> None:
+    def early_update(self) -> None:
         """ Called early in the event loop, before events have been received. """
         if self.connectionStatus != self.desiredConnectionStatus:
             # Transition between connection states.

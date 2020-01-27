@@ -26,7 +26,7 @@ class MockController(DebugController):
                 return self.overideCallReturn[method]
         return expectedReturnVal
 
-    def earlyUpdate(self) -> None:
+    def early_update(self) -> None:
         if self.connectionStatus == ConnectionState.CONNECTING:
             self.connectionStatus = ConnectionState.CONNECTED
         elif self.connectionStatus == ConnectionState.DISCONNECTING:

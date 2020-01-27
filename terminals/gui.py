@@ -50,9 +50,9 @@ class Gui(_TerminalBase):
 
         # Subscribe to events matching GUI widget keys.
         for event in self.window.AllKeysDict:
-            self.eventSubscriptions[event] = None
+            self.event_subscriptions[event] = None
 
-    def earlyUpdate(self) -> bool:
+    def early_update(self) -> bool:
         """ To be called once per frame.
         Returns:
             bool: True: Continue execution.
@@ -72,17 +72,17 @@ class Gui(_TerminalBase):
         if not event == "__TIMEOUT__" and event not in self._diffValues:
             self._diffValues[event] = None
 
-        #if(not event == "__TIMEOUT__" or self._diffValues) and self.debugShowEvents:
+        #if(not event == "__TIMEOUT__" or self._diffValues) and self.debug_show_events:
         #    print(event, self._diffValues)
 
         return event not in (None, ) and not event.startswith("Exit")
 
     def publish(self) -> None:
-        """ Publish all events listed in the self.eventsToPublish collection. """
+        """ Publish all events listed in the self.events_to_publish collection. """
         for eventKey, value in self._diffValues.items():
             if isinstance(value, str):
                 value = value.strip()
-            self.publishOneByValue(eventKey, value)
+            self.publish_one_by_value(eventKey, value)
 
     def receive(self) -> None:
         """ Receive events this object is subscribed to. """

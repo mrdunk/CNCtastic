@@ -23,20 +23,20 @@ class TestController(unittest.TestCase):
         self.assertEqual(self.mockController.connectionStatus, ConnectionState.UNKNOWN)
         self.assertFalse(self.mockController.readyForData)
 
-        self.mockController.earlyUpdate()
+        self.mockController.early_update()
         self.assertEqual(self.mockController.connectionStatus, ConnectionState.UNKNOWN)
 
         self.mockController.connect()
         self.assertEqual(self.mockController.connectionStatus, ConnectionState.CONNECTING)
         self.assertFalse(self.mockController.readyForData)
 
-        self.mockController.earlyUpdate()
+        self.mockController.early_update()
         self.mockController.readyForData = True  # Will stay set while still connected.
         self.assertEqual(self.mockController.connectionStatus, ConnectionState.CONNECTED)
         self.assertTrue(self.mockController.readyForData)
 
         self.mockController.connect()
-        self.mockController.earlyUpdate()
+        self.mockController.early_update()
         self.assertEqual(self.mockController.connectionStatus, ConnectionState.CONNECTED)
         self.assertTrue(self.mockController.readyForData)
 
@@ -44,19 +44,19 @@ class TestController(unittest.TestCase):
         self.assertEqual(self.mockController.connectionStatus, ConnectionState.DISCONNECTING)
         self.assertFalse(self.mockController.readyForData)
 
-        self.mockController.earlyUpdate()
+        self.mockController.early_update()
         self.assertEqual(self.mockController.connectionStatus, ConnectionState.NOT_CONNECTED)
         self.assertFalse(self.mockController.readyForData)
 
         self.mockController.disconnect()
-        self.mockController.earlyUpdate()
+        self.mockController.early_update()
         self.assertEqual(self.mockController.connectionStatus, ConnectionState.NOT_CONNECTED)
 
         self.mockController.connect()
         self.assertEqual(self.mockController.connectionStatus, ConnectionState.CONNECTING)
         self.assertFalse(self.mockController.readyForData)
 
-        self.mockController.earlyUpdate()
+        self.mockController.early_update()
         self.assertEqual(self.mockController.connectionStatus, ConnectionState.CONNECTED)
 
     def test_validGcodeByString(self):
@@ -357,7 +357,7 @@ class TestCoordinator(unittest.TestCase):
         # Create new controller and make it active.
         self.mockController2 = MockController("owl")
         self.mockController2.connect()
-        self.mockController2.earlyUpdate()  # Move from CONNECTING to CONNECTED
+        self.mockController2.early_update()  # Move from CONNECTING to CONNECTED
         self.coordinator.activateController(controller=self.mockController2)
 
         self.assertEqual(self.mockController2.connectionStatus, ConnectionState.CONNECTED)
@@ -426,7 +426,7 @@ class TestEvents(unittest.TestCase):
         self.mockController.testToExport = {}
         self.mockController.testToExport["bunny"] = "give me carrot"
         self.mockController.testToExport["onion"] = ["layer1", "layer2"]
-        self.mockController.eventsToPublish = {
+        self.mockController.events_to_publish = {
                 "testToExport1": "testToExport",
                 "testToExport2": "testToExport.bunny",
                 "testToExport3": "testToExport.onion",
@@ -436,7 +436,7 @@ class TestEvents(unittest.TestCase):
                 }
         
         # Set up some subscriptions.
-        self.mockWidget.eventSubscriptions = {
+        self.mockWidget.event_subscriptions = {
                 "testToExport1": None,
                 "testToExport2": None,
                 "testToExport3": None,
@@ -447,7 +447,7 @@ class TestEvents(unittest.TestCase):
 
         # Now publish, populating the _eventQueue.
         self.mockController.publish()
-        self.assertEqual(len(self.mockController.eventsToPublish),
+        self.assertEqual(len(self.mockController.events_to_publish),
                          len(self.mockController._eventQueue))
 
         # Now call the receive on the other component making it read the _eventQueue.
@@ -455,7 +455,7 @@ class TestEvents(unittest.TestCase):
         # Nothing delivered to the sender.
         self.assertEqual(0, len(self.mockController._delivered))
         # Full set delivered to the receiver.
-        self.assertEqual(len(self.mockController.eventsToPublish),
+        self.assertEqual(len(self.mockController.events_to_publish),
                          len(self.mockWidget._delivered))
 
     def test_publishEventInvalidExportDictArgs(self):
@@ -464,7 +464,7 @@ class TestEvents(unittest.TestCase):
         # Set up some dummy data to export on one component.
         self.mockController.testToExport = {}
         self.mockController.testToExport["bunny"] = "give me carrot"
-        self.mockController.eventsToPublish = {
+        self.mockController.events_to_publish = {
                 "testToExport1": "testToExport.doggie",
                 }
         
@@ -481,7 +481,7 @@ class TestEvents(unittest.TestCase):
         # Set up some dummy data to export on one component.
         self.mockController.testToExport = {}
         self.mockController.testToExport["onion"] = ["layer1", "layer2"]
-        self.mockController.eventsToPublish = {
+        self.mockController.events_to_publish = {
                 "testToExport1": "testToExport.onion.1invalidInt",
                 }
         
@@ -497,7 +497,7 @@ class TestEvents(unittest.TestCase):
 
         # Set up some dummy data to export on one component.
         self.mockController.testToExport = {}
-        self.mockController.eventsToPublish = {
+        self.mockController.events_to_publish = {
                 "testToExport1": "missingMember",
                 }
         

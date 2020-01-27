@@ -29,10 +29,10 @@ class _ControllerBase(_ComponentBase):
 
         # Map incoming events to local member variables and callback methods.
         self.label = label
-        self.eventSubscriptions = {
-                self.keyGen("connect"):
+        self.event_subscriptions = {
+                self.key_gen("connect"):
                 ("setDesiredConnectionStatus", ConnectionState.CONNECTED),
-                self.keyGen("disconnect"):
+                self.key_gen("disconnect"):
                 ("setDesiredConnectionStatus", ConnectionState.NOT_CONNECTED),
                 "desiredState:newGcode": ("_newGcodeLine", None),
                 }
@@ -62,11 +62,11 @@ class _ControllerBase(_ComponentBase):
 
     def setDesiredConnectionStatus(self, connectionStatus: Literal[ConnectionState]) -> None:
         self.desiredConnectionStatus = connectionStatus
-        self.publishOneByValue(self.keyGen("desiredConnectionStatus"), connectionStatus)
+        self.publish_one_by_value(self.key_gen("desiredConnectionStatus"), connectionStatus)
 
     def setConnectionStatus(self, connectionStatus: Literal[ConnectionState]) -> None:
         self.connectionStatus = connectionStatus
-        self.publishOneByValue(self.keyGen("connectionStatus"), connectionStatus)
+        self.publish_one_by_value(self.key_gen("connectionStatus"), connectionStatus)
 
     def connect(self) -> Literal[ConnectionState]:
         raise NotImplementedError

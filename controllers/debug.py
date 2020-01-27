@@ -46,18 +46,18 @@ class DebugController(_ControllerBase):
     def guiLayout(self) -> List:
         layout = [
                 [sg.Text("Title:", size=(20,1)),
-                    sg.Text(self.label, key=self.keyGen("label"), size=(20,1)),
-                    sg.Checkbox("Active", default=self.active, key=self.keyGen("active"))],
+                    sg.Text(self.label, key=self.key_gen("label"), size=(20,1)),
+                    sg.Checkbox("Active", default=self.active, key=self.key_gen("active"))],
                 [sg.Text("Connection state:", size=(20,1)),
-                    sg.Text(size=(18,1), key=self.keyGen("connectionStatus"))],
+                    sg.Text(size=(18,1), key=self.key_gen("connectionStatus"))],
                 [sg.Text("Desired:", size=(20,1)),
-                    sg.Text(size=(18,1), key=self.keyGen("desiredConnectionStatus"))],
-                [sg.Multiline(default_text="gcode", size=(60, 10), key=self.keyGen("gcode"),
+                    sg.Text(size=(18,1), key=self.key_gen("desiredConnectionStatus"))],
+                [sg.Multiline(default_text="gcode", size=(60, 10), key=self.key_gen("gcode"),
                               autoscroll=True, disabled=True)],
                 [
-                    sg.Button('Connect', key=self.keyGen("connect"), size=(10, 1),
+                    sg.Button('Connect', key=self.key_gen("connect"), size=(10, 1),
                               pad=(2, 2)),
-                    sg.Button('Disconnect', key=self.keyGen("disconnect"),
+                    sg.Button('Disconnect', key=self.key_gen("disconnect"),
                               size=(10, 1), pad=(2, 2)),
                     sg.Exit(size=(10, 1), pad=(2, 2))
                     ],
@@ -88,7 +88,7 @@ class DebugController(_ControllerBase):
         
         return self.connectionStatus
     
-    def earlyUpdate(self) -> None:
+    def early_update(self) -> None:
         if self.connectionStatus != self.desiredConnectionStatus:
             if time.time() - self._connectTime >= CONNECT_DELAY:
                 if self.connectionStatus == ConnectionState.CONNECTING:
@@ -118,7 +118,7 @@ class DebugController(_ControllerBase):
             gcode = update.gcode
 
             self.gcode.append((jog, gcode))
-            if self.debugShowEvents:
+            if self.debug_show_events:
                 print("CONTROLLER: %s  RECEIVED: %s  BUFFER: %s" %
                         (self.label, gcode.gcodes, len(self.gcode)))
         
@@ -126,5 +126,5 @@ class DebugController(_ControllerBase):
             for jog, gc in self.gcode:
                 gcodeDebugOutput += "%s ; jog=%s ; supported=%s\n" % (
                         str(gc.gcodes), jog, self.isGcodeSupported(gc.gcodes))
-            self.publishOneByValue(self.keyGen("gcode"), gcodeDebugOutput)
+            self.publish_one_by_value(self.key_gen("gcode"), gcodeDebugOutput)
 

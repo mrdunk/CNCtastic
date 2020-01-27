@@ -22,29 +22,29 @@ class JogWidget(_InterfaceBase):
 
         self.label = label
         # Map incoming events to local member variables and callback methods.
-        self.eventSubscriptions = {
-                self.keyGen("xyMultiply"): ("_xyJogStepMultiply", 10),
-                self.keyGen("xyDivide"): ("_xyJogStepMultiply", 0.1),
-                self.keyGen("xyJogStep"): ("_xyJogStep", None),
-                self.keyGen("zMultiply"): ("_zJogStepMultiply", 10),
-                self.keyGen("zDivide"): ("_zJogStepMultiply", 0.1),
-                self.keyGen("zJogStep"): ("_zJogStep", None),
-                self.keyGen("ul"): ("_moveHandler", (-1, 1, 0)),
-                self.keyGen("uc"): ("_moveHandler", (0, 1, 0)),
-                self.keyGen("ur"): ("_moveHandler", (1, 1, 0)),
-                self.keyGen("cl"): ("_moveHandler", (-1, 0, 0)),
-                self.keyGen("cr"): ("_moveHandler", (1, 0, 0)),
-                self.keyGen("dl"): ("_moveHandler", (-1, -1, 0)),
-                self.keyGen("dc"): ("_moveHandler", (0, -1, 0)),
-                self.keyGen("dr"): ("_moveHandler", (1, -1, 0)),
-                self.keyGen("uz"): ("_moveHandler", (0, 0, 1)),
-                self.keyGen("dz"): ("_moveHandler", (0, 0, -1)),
+        self.event_subscriptions = {
+                self.key_gen("xyMultiply"): ("_xyJogStepMultiply", 10),
+                self.key_gen("xyDivide"): ("_xyJogStepMultiply", 0.1),
+                self.key_gen("xyJogStep"): ("_xyJogStep", None),
+                self.key_gen("zMultiply"): ("_zJogStepMultiply", 10),
+                self.key_gen("zDivide"): ("_zJogStepMultiply", 0.1),
+                self.key_gen("zJogStep"): ("_zJogStep", None),
+                self.key_gen("ul"): ("_moveHandler", (-1, 1, 0)),
+                self.key_gen("uc"): ("_moveHandler", (0, 1, 0)),
+                self.key_gen("ur"): ("_moveHandler", (1, 1, 0)),
+                self.key_gen("cl"): ("_moveHandler", (-1, 0, 0)),
+                self.key_gen("cr"): ("_moveHandler", (1, 0, 0)),
+                self.key_gen("dl"): ("_moveHandler", (-1, -1, 0)),
+                self.key_gen("dc"): ("_moveHandler", (0, -1, 0)),
+                self.key_gen("dr"): ("_moveHandler", (1, -1, 0)),
+                self.key_gen("uz"): ("_moveHandler", (0, 0, 1)),
+                self.key_gen("dz"): ("_moveHandler", (0, 0, -1)),
                 "activeController:workPos:x": ("_wPosHandlerX", None),
                 "activeController:workPos:y": ("_wPosHandlerY", None),
                 "activeController:workPos:z": ("_wPosHandlerZ", None),
-                self.keyGen("workPos:x"): ("_wPosHandlerXUpdate", None),
-                self.keyGen("workPos:y"): ("_wPosHandlerYUpdate", None),
-                self.keyGen("workPos:z"): ("_wPosHandlerZUpdate", None),
+                self.key_gen("workPos:x"): ("_wPosHandlerXUpdate", None),
+                self.key_gen("workPos:y"): ("_wPosHandlerYUpdate", None),
+                self.key_gen("workPos:z"): ("_wPosHandlerZUpdate", None),
                 }
 
         self._xyJogStep: float = 10
@@ -55,13 +55,13 @@ class JogWidget(_InterfaceBase):
         self._xyJogStep = round1SF(self._xyJogStep * multiplier)
         # Need to explicitly push this here as the GUI also sends an update with
         # the old value. This publish will take effect later.
-        self.publishOneByValue(self.keyGen("xyJogStep"), self._xyJogStep)
+        self.publish_one_by_value(self.key_gen("xyJogStep"), self._xyJogStep)
 
     def _zJogStepMultiply(self, multiplier: float) -> None:
         self._zJogStep = round1SF(self._zJogStep * multiplier)
         # Need to explicitly push this here as the GUI also sends an update with
         # the old value. This publish will take effect later.
-        self.publishOneByValue(self.keyGen("zJogStep"), self._zJogStep)
+        self.publish_one_by_value(self.key_gen("zJogStep"), self._zJogStep)
 
     def _moveHandler(self, values: List[int]) -> None:
         self.absoluteDistanceMode(False)
@@ -75,17 +75,17 @@ class JogWidget(_InterfaceBase):
     def _wPosHandlerX(self, value: float) -> None:
         """ Called in response to an activeController:workPos:x event. """
         self._wPos["x"] = value
-        self.publishOneByValue(self.keyGen("workPos:x"), value)
+        self.publish_one_by_value(self.key_gen("workPos:x"), value)
 
     def _wPosHandlerY(self, value: float) -> None:
         """ Called in response to an activeController:workPos:y event. """
         self._wPos["y"] = value
-        self.publishOneByValue(self.keyGen("workPos:y"), value)
+        self.publish_one_by_value(self.key_gen("workPos:y"), value)
 
     def _wPosHandlerZ(self, value: float) -> None:
         """ Called in response to an activeController:workPos:z event. """
         self._wPos["z"] = value
-        self.publishOneByValue(self.keyGen("workPos:z"), value)
+        self.publish_one_by_value(self.key_gen("workPos:z"), value)
 
     def _wPosHandlerXUpdate(self, value: float) -> None:
         """ Called in response to a local :workPos:x event. """
@@ -118,10 +118,10 @@ class JogWidget(_InterfaceBase):
             return t
 
         def but(label: str, key: str) -> sg.Button:
-            return sg.Button(label, key=self.keyGen(key), size=(butW, butH))
+            return sg.Button(label, key=self.key_gen(key), size=(butW, butH))
 
         def drp(key: str) -> sg.Drop:
-            drop = sg.Drop(key=self.keyGen(key),
+            drop = sg.Drop(key=self.key_gen(key),
                        #enable_events=False,
                        values=[0.001, 0.01, 0.1, 1, 10, 100, 1000],
                        default_value=self._xyJogStep, size=(butW, 1))
@@ -131,7 +131,7 @@ class JogWidget(_InterfaceBase):
         coordH : float= 1
         def wCoord(key: str) -> sg.InputText:
             return sg.InputText(key,
-                                key=self.keyGen(key),
+                                key=self.key_gen(key),
                                 size=(coordW, coordH),
                                 justification="right",
                                 pad=(0,0),

@@ -73,9 +73,9 @@ class _InterfaceBase(_ComponentBase):
         for flag in self._updatedData.flags:
             attr = getattr(self._updatedData, flag)
             if attr != FlagState.UNSET:
-                self.publishOneByValue("desiredState:%s" % flag, attr)
+                self.publish_one_by_value("desiredState:%s" % flag, attr)
         if self._updatedData.gcode is not None:
-            self.publishOneByValue("desiredState:newGcode", self._updatedData)
+            self.publish_one_by_value("desiredState:newGcode", self._updatedData)
 
         # Clear self._updatedData
         self._updatedData = UpdateState()

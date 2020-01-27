@@ -92,23 +92,23 @@ class Grbl1p1Controller(_SerialControllerBase):
         return False
 
     def publishFromHere(self, variableName: str, variableValue: Any) -> None:
-        self.publishOneByValue(self.keyGen(variableName), variableValue)
+        self.publish_one_by_value(self.key_gen(variableName), variableValue)
         
     def guiLayout(self) -> List:
         layout = [
                 [sg.Text("Title:", size=(20,1)),
-                    sg.Text("unknown", key=self.keyGen("label"), size=(20,1)),
-                    sg.Checkbox("Active", default=self.active, key=self.keyGen("active"))],
+                    sg.Text("unknown", key=self.key_gen("label"), size=(20,1)),
+                    sg.Checkbox("Active", default=self.active, key=self.key_gen("active"))],
                 [sg.Text("Connection state:", size=(20,1)),
-                    sg.Text(size=(18,1), key=self.keyGen("connectionStatus"))],
+                    sg.Text(size=(18,1), key=self.key_gen("connectionStatus"))],
                 [sg.Text("Desired:", size=(20,1)),
-                    sg.Text(size=(18,1), key=self.keyGen("desiredConnectionStatus"))],
+                    sg.Text(size=(18,1), key=self.key_gen("desiredConnectionStatus"))],
                 [sg.Multiline(default_text="Machine state", size=(60, 10),
-                              key=self.keyGen("state"),
+                              key=self.key_gen("state"),
                               autoscroll=True, disabled=True)],
                 [
-                    sg.Button('Connect', key=self.keyGen("connect"), size=(10, 1), pad=(2, 2)),
-                    sg.Button('Disconnect', key=self.keyGen("disconnect"),
+                    sg.Button('Connect', key=self.key_gen("connect"), size=(10, 1), pad=(2, 2)),
+                    sg.Button('Disconnect', key=self.key_gen("disconnect"),
                               size=(10, 1), pad=(2, 2)),
                     sg.Exit(size=(10, 1), pad=(2, 2))
                     ],
@@ -299,9 +299,9 @@ class Grbl1p1Controller(_SerialControllerBase):
                     self._commandStreaming.put(command.gcode)
 
 
-    def earlyUpdate(self) -> None:
+    def early_update(self) -> None:
         """ Called early in the event loop, before events have been received. """
-        super().earlyUpdate()
+        super().early_update()
 
         # Process data received over serial port.
         receivedLine = None
@@ -316,7 +316,7 @@ class Grbl1p1Controller(_SerialControllerBase):
         # Display debug info: Summary of machine state.
         if self.connectionStatus is ConnectionState.CONNECTED:
             if self.state.changesMade:
-                self.publishOneByValue(self.keyGen("state"), self.state)
+                self.publish_one_by_value(self.key_gen("state"), self.state)
                 self.state.changesMade = False
 
     def update(self) -> None:

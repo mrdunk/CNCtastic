@@ -80,7 +80,7 @@ class Cli(_TerminalBase):
             self.winMainout.refresh()
             self.winStdout.refresh()
     
-    def earlyUpdate(self) -> bool:
+    def early_update(self) -> bool:
         """ To be called once per frame.
         Returns:
             bool: True: Continue execution.

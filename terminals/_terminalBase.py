@@ -48,7 +48,7 @@ class _TerminalBase(_ComponentBase):
         self.activeByDefault = True
         self.active = False
 
-    def earlyUpdate(self) -> None:
+    def early_update(self) -> None:
         """ To be called once per frame.
         Returns:
             bool: True: Continue execution.
