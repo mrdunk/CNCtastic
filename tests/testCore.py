@@ -14,7 +14,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(TESTDIR, SRCDIR)))
 import unittest
 from coordinator.coordinator import Coordinator
 from controllers.mockController import MockController
-from interfaces.mockInterface import MockWidget
+from interfaces.jog import JogWidget
 from definitions import ConnectionState
 
 
@@ -80,7 +80,7 @@ class TestCoordinator(unittest.TestCase):
     """ Coordinator interaction with components. """
 
     def setUp(self):
-        self.mock_widget = MockWidget()
+        self.mock_widget = JogWidget()
         self.mock_controller = MockController()
         self.coordinator = Coordinator([], [self.mock_widget], [self.mock_controller])
         self.coordinator.activeController = self.mock_controller
@@ -416,7 +416,7 @@ class TestEvents(unittest.TestCase):
 
     def setUp(self):
         self.mock_controller = MockController()
-        self.mock_widget = MockWidget()
+        self.mock_widget = JogWidget()
 
         self.mock_widget._eventQueue.clear()
         self.assertEqual(len(self.mock_controller._eventQueue), 0)

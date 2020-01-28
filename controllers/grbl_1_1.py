@@ -94,7 +94,7 @@ class Grbl1p1Controller(_SerialControllerBase):
     def publishFromHere(self, variableName: str, variableValue: Any) -> None:
         self.publish_one_by_value(self.key_gen(variableName), variableValue)
         
-    def guiLayout(self) -> List:
+    def gui_layout(self) -> List:
         layout = [
                 [sg.Text("Title:", size=(20,1)),
                     sg.Text("unknown", key=self.key_gen("label"), size=(20,1)),
@@ -115,7 +115,7 @@ class Grbl1p1Controller(_SerialControllerBase):
                 ]
         return layout
     
-    def parseIncoming(self, incoming: Optional[bytes]) -> None:
+    def parse_incoming(self, incoming: Optional[bytes]) -> None:
         """ Process data received from serial port.
         Handles urgent updates here and puts the rest in _receivedData buffer for
         later processing. """
@@ -219,7 +219,7 @@ class Grbl1p1Controller(_SerialControllerBase):
             # Read
             read = self._serialRead()
             while read or (b"\r\n" in self._partialRead):
-                self.parseIncoming(read)
+                self.parse_incoming(read)
                 read = self._serialRead()
 
             #Write
@@ -311,13 +311,13 @@ class Grbl1p1Controller(_SerialControllerBase):
             pass
         if receivedLine is not None:
             #print("receivedLine:", receivedLine)
-            self.state.parseIncoming(receivedLine)
+            self.state.parse_incoming(receivedLine)
 
         # Display debug info: Summary of machine state.
         if self.connectionStatus is ConnectionState.CONNECTED:
-            if self.state.changesMade:
+            if self.state.changes_made:
                 self.publish_one_by_value(self.key_gen("state"), self.state)
-                self.state.changesMade = False
+                self.state.changes_made = False
 
     def update(self) -> None:
         """ Called by the coordinator after events have been delivered. """

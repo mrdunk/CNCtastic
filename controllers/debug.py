@@ -43,7 +43,7 @@ class DebugController(_ControllerBase):
         self._connectTime: float = 0;
         self._lastReceiveDataAt: float = 0;
 
-    def guiLayout(self) -> List:
+    def gui_layout(self) -> List:
         layout = [
                 [sg.Text("Title:", size=(20,1)),
                     sg.Text(self.label, key=self.key_gen("label"), size=(20,1)),

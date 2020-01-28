@@ -48,9 +48,9 @@ class Coordinator(_ComponentBase):
         layouts = {}
         for component in self.allComponents:
             try:
-                layouts[component.label] = component.guiLayout()   # type: ignore
+                layouts[component.label] = component.gui_layout()   # type: ignore
             except AttributeError:
-                # component does not have guiLayout property.
+                # component does not have gui_layout property.
                 pass
 
         # Activate terminals.

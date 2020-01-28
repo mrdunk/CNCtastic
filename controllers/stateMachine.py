@@ -1,9 +1,14 @@
+""" State machines reflecting the state of hardware controllers.
+Typically each hardware controller type will have it's own SM class inheriting
+from StateMachineBase. """
+
 from typing import Dict, List, Callable
 
 from definitions import MODAL_GROUPS, MODAL_COMMANDS
 
 
 class StateMachineBase:
+    """ Base class for State Machines reflecting the state of hardware controllers. """
     PAUSE_REASONS = {b"USER_SW": "User initiated pause from terminal.",
                      b"USER_HW": "User initiated pause via HW button.",
                      b"DOOR_OPEN": "Door currently open.",
@@ -19,629 +24,688 @@ class StateMachineBase:
                      b"UNKNOWN": "Unknown reason for reset."
                     }
 
-    machineProperties = [
-            "machinePos",
-            "machinePosMax",
-            "machinePosMin",
-            "workPos",
-            "workOffset",
-            "feedRate",
-            "feedRateMax",
-            "feedRateAccel",
-            #"feedOverride",
-            #"rapidOverride",
-            "spindleRate",
-            "spindleOverride",
-            "limitX",
-            "limitY",
-            "limitZ",
-            "limitA",
-            "limitB",
-            "probe",
-            "pause",
-            "parking",
-            "halt",
-            "door",
-            ]
+    machine_properties = [
+        "machine_pos",
+        "machine_pos_max",
+        "machine_pos_min",
+        "work_pos",
+        "work_offset",
+        "feed_rate",
+        "feed_rate_max",
+        "feed_rate_accel",
+        #"feed_override",
+        #"rapid_override",
+        "spindle_rate",
+        "spindle_override",
+        "limit_x",
+        "limit_y",
+        "limit_z",
+        "limit_a",
+        "limit_b",
+        "probe",
+        "pause",
+        "pause_park",        # Gracefully parking head after a pause event.
+        "parking",
+        "halt",
+        "door",
+        ]
 
-    def __init__(self, onUpdateCallback: Callable) -> None:
-        self.onUpdateCallback = onUpdateCallback
+    def __init__(self, on_update_callback: Callable) -> None:
+        self.on_update_callback = on_update_callback
 
-        self.__machinePos: Dict = {"x": 0, "y": 0, "z": 0, "a": 0, "b": 0}
-        self.__machinePosMax: Dict = {"x": 0, "y": 0, "z": 0, "a": 0, "b": 0}
-        self.__machinePosMin: Dict = {"x": 0, "y": 0, "z": 0, "a": 0, "b": 0}
-        self.__workPos: Dict = {"x": 0, "y": 0, "z": 0, "a": 0, "b": 0}
-        self.__workOffset: Dict = {"x": 0, "y": 0, "z": 0, "a": 0, "b": 0}
-        self.__feedRate: int = 0
-        self.__feedRateMax: Dict = {"x": 0, "y": 0, "z": 0, "a": 0, "b": 0}
-        self.__feedRateAccel: Dict = {"x": 0, "y": 0, "z": 0, "a": 0, "b": 0}
-        self.__feedOverride: int = 100
-        self.__rapidOverride: int = 100
-        self.__spindleRate: int = 0
-        self.__spindleOverride: int = 100
-        self.__limitX: float = False
-        self.__limitY: float = False
-        self.__limitZ: float = False
-        self.__limitA: float = False
-        self.__limitB: float = False
+        self.__machine_pos: Dict = {"x": 0, "y": 0, "z": 0, "a": 0, "b": 0}
+        self.__machine_pos_max: Dict = {"x": 0, "y": 0, "z": 0, "a": 0, "b": 0}
+        self.__machine_pos_min: Dict = {"x": 0, "y": 0, "z": 0, "a": 0, "b": 0}
+        self.__work_pos: Dict = {"x": 0, "y": 0, "z": 0, "a": 0, "b": 0}
+        self.__work_offset: Dict = {"x": 0, "y": 0, "z": 0, "a": 0, "b": 0}
+        self.__feed_rate: int = 0
+        self.__feed_rate_max: Dict = {"x": 0, "y": 0, "z": 0, "a": 0, "b": 0}
+        self.__feed_rate_accel: Dict = {"x": 0, "y": 0, "z": 0, "a": 0, "b": 0}
+        self.__feed_override: int = 100
+        self.__rapid_override: int = 100
+        self.__spindle_rate: int = 0
+        self.__spindle_override: int = 100
+        self.__limit_x: float = False
+        self.__limit_y: float = False
+        self.__limit_z: float = False
+        self.__limit_a: float = False
+        self.__limit_b: float = False
         self.__probe: bool = False
         self.__pause: bool = False
-        self.pauseReason: List = []
+        self.pause_reason: List = []
+        self.__pause_park: bool = False
         self.__parking: bool = False
         self.__halt: bool = False
-        self.haltReason: List = []
+        self.halt_reason: List = []
         self.__door: bool = False
         self.version: List[bytes] = []  # TODO Setter.
 
-        self.gcodeModal: Dict = {}
+        self.gcode_modal: Dict = {}
 
         self.version: List = []  # Up to the controller how this is populated.
-        self.machineIdentifier: List = []  # Up to the controller how this is populated.
+        self.machine_identifier: List = []  # Up to the controller how this is populated.
 
-        self.changesMade: bool = True
+        self.changes_made: bool = True
 
     def __str__(self) -> str:
         output = ("Pause: {self.pause}\tHalt: {self.halt}\n")
-        output += ("machinePos x: {self.machinePos[x]} y: {self.machinePos[y]} "
-                             "z: {self.machinePos[z]} a: {self.machinePos[a]} "
-                             "b: {self.machinePos[b]}\r\n")
-        if self.machinePos != self.workPos:
-            output += ("workPos x: {self.workPos[x]} y: {self.workPos[y]} "
-                               "z: {self.workPos[z]} a: {self.workPos[a]} "
-                               "b: {self.workPos[b]}\r\n")
-            output += ("workOffset x: {self.workOffset[x]} y: {self.workOffset[y]} "
-                                  "z: {self.workOffset[z]} a: {self.workOffset[a]} "
-                                  "b: {self.workOffset[b]}\r\n")
-        output += "feedRate: {self.feedRate}\r\n"
-        output += "gcodeModalGroups: {self.gcodeModal}\r\n"
+        output += ("machine_pos x: {self.machine_pos[x]} y: {self.machine_pos[y]} "
+                   "z: {self.machine_pos[z]} a: {self.machine_pos[a]} "
+                   "b: {self.machine_pos[b]}\r\n")
+        if self.machine_pos != self.work_pos:
+            output += ("work_pos x: {self.work_pos[x]} y: {self.work_pos[y]} "
+                       "z: {self.work_pos[z]} a: {self.work_pos[a]} "
+                       "b: {self.work_pos[b]}\r\n")
+            output += ("work_offset x: {self.work_offset[x]} y: {self.work_offset[y]} "
+                       "z: {self.work_offset[z]} a: {self.work_offset[a]} "
+                       "b: {self.work_offset[b]}\r\n")
+        output += "feed_rate: {self.feed_rate}\r\n"
+        output += "gcode_modalGroups: {self.gcode_modal}\r\n"
         return output.format(self=self)
 
     def sync(self) -> None:
         """ Publish all machine properties. """
-        for prop in self.machineProperties:
+        for prop in self.machine_properties:
             value = getattr(self, prop)
-            if type(prop) in ["number", "str"]:
-                self.onUpdateCallback(prop, value)
+            if isinstance(prop, (float, int, str)):
+                self.on_update_callback(prop, value)
             elif isinstance(value, dict):
-                for subProp, subValue in value.items():
-                    self.onUpdateCallback("%s:%s" % (prop, subProp), subValue)
+                for sub_prop, sub_value in value.items():
+                    self.on_update_callback("%s:%s" % (prop, sub_prop), sub_value)
 
     @property
-    def workOffset(self) -> Dict[str, float]:
-        return self.__workOffset
+    def work_offset(self) -> Dict[str, float]:
+        """ Getter. """
+        return self.__work_offset
 
-    @workOffset.setter
-    def workOffset(self, pos: Dict) -> None:
-        dataChanged = False
-        x = pos.get("x")
-        y = pos.get("y")
-        z = pos.get("z")
-        a = pos.get("a")
-        b = pos.get("b")
-        if x is not None:
-            if self.__workOffset["x"] != x:
-                dataChanged = True
-                self.__workOffset["x"] = x
-                self.workPos["x"] = self.machinePos["x"] - self.__workOffset.get("x", 0)
-        if y is not None:
-            if self.__workOffset["y"] != y:
-                dataChanged = True
-                self.__workOffset["y"] = y
-                self.workPos["y"] = self.machinePos["y"] - self.__workOffset.get("y", 0)
-        if z is not None:
-            if self.__workOffset["z"] != z:
-                dataChanged = True
-                self.__workOffset["z"] = z
-                self.workPos["z"] = self.machinePos["z"] - self.__workOffset.get("z", 0)
-        if a is not None:
-            if self.__workOffset["a"] != a:
-                dataChanged = True
-                self.__workOffset["a"] = a
-                self.workPos["a"] = self.machinePos["a"] - self.__workOffset.get("a", 0)
-        if b is not None:
-            if self.__workOffset["b"] != b:
-                dataChanged = True
-                self.__workOffset["b"] = b
-                self.workPos["b"] = self.machinePos["b"] - self.__workOffset.get("b", 0)
+    @work_offset.setter
+    def work_offset(self, pos: Dict) -> None:
+        """ Setter. """
+        data_changed = False
+        pos_x = pos.get("x")
+        pos_y = pos.get("y")
+        pos_z = pos.get("z")
+        pos_a = pos.get("a")
+        pos_b = pos.get("b")
+        if pos_x is not None:
+            if self.__work_offset["x"] != pos_x:
+                data_changed = True
+                self.__work_offset["x"] = pos_x
+                self.work_pos["x"] = self.machine_pos["x"] - self.__work_offset.get("x", 0)
+        if pos_y is not None:
+            if self.__work_offset["y"] != pos_y:
+                data_changed = True
+                self.__work_offset["y"] = pos_y
+                self.work_pos["y"] = self.machine_pos["y"] - self.__work_offset.get("y", 0)
+        if pos_z is not None:
+            if self.__work_offset["z"] != pos_z:
+                data_changed = True
+                self.__work_offset["z"] = pos_z
+                self.work_pos["z"] = self.machine_pos["z"] - self.__work_offset.get("z", 0)
+        if pos_a is not None:
+            if self.__work_offset["a"] != pos_a:
+                data_changed = True
+                self.__work_offset["a"] = pos_a
+                self.work_pos["a"] = self.machine_pos["a"] - self.__work_offset.get("a", 0)
+        if pos_b is not None:
+            if self.__work_offset["b"] != pos_b:
+                data_changed = True
+                self.__work_offset["b"] = pos_b
+                self.work_pos["b"] = self.machine_pos["b"] - self.__work_offset.get("b", 0)
 
-        if dataChanged:
-            self.onUpdateCallback("workOffset:x", self.workOffset["x"])
-            self.onUpdateCallback("workOffset:y", self.workOffset["y"])
-            self.onUpdateCallback("workOffset:z", self.workOffset["z"])
-            self.onUpdateCallback("workOffset:a", self.workOffset["a"])
-            self.onUpdateCallback("workOffset:b", self.workOffset["b"])
-            self.onUpdateCallback("workPos:x", self.workPos["x"])
-            self.onUpdateCallback("workPos:y", self.workPos["y"])
-            self.onUpdateCallback("workPos:z", self.workPos["z"])
-            self.onUpdateCallback("workPos:a", self.workPos["a"])
-            self.onUpdateCallback("workPos:b", self.workPos["b"])
-
-    @property
-    def machinePosMax(self) -> Dict[str, float]:
-        return self.__machinePosMax
-
-    @machinePosMax.setter
-    def machinePosMax(self, pos: Dict) -> None:
-        dataChanged = False
-        x = pos.get("x")
-        y = pos.get("y")
-        z = pos.get("z")
-        a = pos.get("a")
-        b = pos.get("b")
-        if x is not None:
-            if self.machinePosMax["x"] != x:
-                dataChanged = True
-                self.machinePosMax["x"] = x
-        if y is not None:
-            if self.machinePosMax["y"] != y:
-                dataChanged = True
-                self.machinePosMax["y"] = y
-        if z is not None:
-            if self.machinePosMax["z"] != z:
-                dataChanged = True
-                self.machinePosMax["z"] = z
-        if a is not None:
-            if self.machinePosMax["a"] != a:
-                dataChanged = True
-                self.machinePosMax["a"] = a
-        if b is not None:
-            if self.machinePosMax["b"] != b:
-                dataChanged = True
-                self.machinePosMax["b"] = b
-        
-        if dataChanged:
-            self.onUpdateCallback("machinePosMax:x", self.machinePosMax["x"])
-            self.onUpdateCallback("machinePosMax:y", self.machinePosMax["y"])
-            self.onUpdateCallback("machinePosMax:z", self.machinePosMax["z"])
-            self.onUpdateCallback("machinePosMax:a", self.machinePosMax["a"])
-            self.onUpdateCallback("machinePosMax:b", self.machinePosMax["b"])
+        if data_changed:
+            self.on_update_callback("work_offset:x", self.work_offset["x"])
+            self.on_update_callback("work_offset:y", self.work_offset["y"])
+            self.on_update_callback("work_offset:z", self.work_offset["z"])
+            self.on_update_callback("work_offset:a", self.work_offset["a"])
+            self.on_update_callback("work_offset:b", self.work_offset["b"])
+            self.on_update_callback("work_pos:x", self.work_pos["x"])
+            self.on_update_callback("work_pos:y", self.work_pos["y"])
+            self.on_update_callback("work_pos:z", self.work_pos["z"])
+            self.on_update_callback("work_pos:a", self.work_pos["a"])
+            self.on_update_callback("work_pos:b", self.work_pos["b"])
 
     @property
-    def machinePosMin(self) -> Dict[str, float]:
-        return self.__machinePosMin
+    def machine_pos_max(self) -> Dict[str, float]:
+        """ Getter. """
+        return self.__machine_pos_max
 
-    @machinePosMin.setter
-    def machinePosMin(self, pos: Dict) -> None:
-        dataChanged = False
-        x = pos.get("x")
-        y = pos.get("y")
-        z = pos.get("z")
-        a = pos.get("a")
-        b = pos.get("b")
-        if x is not None:
-            if self.machinePosMin["x"] != x:
-                dataChanged = True
-                self.machinePosMin["x"] = x
-        if y is not None:
-            if self.machinePosMin["y"] != y:
-                dataChanged = True
-                self.machinePosMin["y"] = y
-        if z is not None:
-            if self.machinePosMin["z"] != z:
-                dataChanged = True
-                self.machinePosMin["z"] = z
-        if a is not None:
-            if self.machinePosMin["a"] != a:
-                dataChanged = True
-                self.machinePosMin["a"] = a
-        if b is not None:
-            if self.machinePosMin["b"] != b:
-                dataChanged = True
-                self.machinePosMin["b"] = b
-        
-        if dataChanged:
-            self.onUpdateCallback("machinePosMin:x", self.machinePosMin["x"])
-            self.onUpdateCallback("machinePosMin:y", self.machinePosMin["y"])
-            self.onUpdateCallback("machinePosMin:z", self.machinePosMin["z"])
-            self.onUpdateCallback("machinePosMin:a", self.machinePosMin["a"])
-            self.onUpdateCallback("machinePosMin:b", self.machinePosMin["b"])
+    @machine_pos_max.setter
+    def machine_pos_max(self, pos: Dict) -> None:
+        """ Setter. """
+        data_changed = False
+        pos_x = pos.get("x")
+        pos_y = pos.get("y")
+        pos_z = pos.get("z")
+        pos_a = pos.get("a")
+        pos_b = pos.get("b")
+        if pos_x is not None:
+            if self.machine_pos_max["x"] != pos_x:
+                data_changed = True
+                self.machine_pos_max["x"] = pos_x
+        if pos_y is not None:
+            if self.machine_pos_max["y"] != pos_y:
+                data_changed = True
+                self.machine_pos_max["y"] = pos_y
+        if pos_z is not None:
+            if self.machine_pos_max["z"] != pos_z:
+                data_changed = True
+                self.machine_pos_max["z"] = pos_z
+        if pos_a is not None:
+            if self.machine_pos_max["a"] != pos_a:
+                data_changed = True
+                self.machine_pos_max["a"] = pos_a
+        if pos_b is not None:
+            if self.machine_pos_max["b"] != pos_b:
+                data_changed = True
+                self.machine_pos_max["b"] = pos_b
 
-    @property
-    def machinePos(self) -> Dict[str, float]:
-        return self.__machinePos
-
-    @machinePos.setter
-    def machinePos(self, pos: Dict) -> None:
-        dataChanged = False
-        x = pos.get("x")
-        y = pos.get("y")
-        z = pos.get("z")
-        a = pos.get("a")
-        b = pos.get("b")
-        if x is not None:
-            if self.machinePos["x"] != x:
-                dataChanged = True
-                self.machinePos["x"] = x
-                self.workPos["x"] = self.machinePos["x"] - self.workOffset.get("x", 0)
-        if y is not None:
-            if self.machinePos["y"] != y:
-                dataChanged = True
-                self.machinePos["y"] = y
-                self.workPos["y"] = self.machinePos["y"] - self.workOffset.get("y", 0)
-        if z is not None:
-            if self.machinePos["z"] != z:
-                dataChanged = True
-                self.machinePos["z"] = z
-                self.workPos["z"] = self.machinePos["z"] - self.workOffset.get("z", 0)
-        if a is not None:
-            if self.machinePos["a"] != a:
-                dataChanged = True
-                self.machinePos["a"] = a
-                self.workPos["a"] = self.machinePos["a"] - self.workOffset.get("a", 0)
-        if b is not None:
-            if self.machinePos["b"] != b:
-                dataChanged = True
-                self.machinePos["b"] = b
-                self.workPos["b"] = self.machinePos["b"] - self.workOffset.get("b", 0)
-        
-        if dataChanged:
-            self.onUpdateCallback("machinePos:x", self.machinePos["x"])
-            self.onUpdateCallback("machinePos:y", self.machinePos["y"])
-            self.onUpdateCallback("machinePos:z", self.machinePos["z"])
-            self.onUpdateCallback("machinePos:a", self.machinePos["a"])
-            self.onUpdateCallback("machinePos:b", self.machinePos["b"])
-            self.onUpdateCallback("workPos:x", self.workPos["x"])
-            self.onUpdateCallback("workPos:y", self.workPos["y"])
-            self.onUpdateCallback("workPos:z", self.workPos["z"])
-            self.onUpdateCallback("workPos:a", self.workPos["a"])
-            self.onUpdateCallback("workPos:b", self.workPos["b"])
+        if data_changed:
+            self.on_update_callback("machine_pos_max:x", self.machine_pos_max["x"])
+            self.on_update_callback("machine_pos_max:y", self.machine_pos_max["y"])
+            self.on_update_callback("machine_pos_max:z", self.machine_pos_max["z"])
+            self.on_update_callback("machine_pos_max:a", self.machine_pos_max["a"])
+            self.on_update_callback("machine_pos_max:b", self.machine_pos_max["b"])
 
     @property
-    def workPos(self) -> Dict[str, float]:
-        return self.__workPos
+    def machine_pos_min(self) -> Dict[str, float]:
+        """ Getter. """
+        return self.__machine_pos_min
 
-    @workPos.setter
-    def workPos(self, pos: Dict) -> None:
-        dataChanged = False
-        x = pos.get("x")
-        y = pos.get("y")
-        z = pos.get("z")
-        a = pos.get("a")
-        b = pos.get("b")
-        if x is not None:
-            if self.workPos["x"] != x:
-                dataChanged = True
-                self.workPos["x"] = x
-                self.machinePos["x"] = self.workPos["x"] + self.__workOffset.get("x", 0)
-        if y is not None:
-            if self.workPos["y"] != y:
-                dataChanged = True
-                self.workPos["y"] = y
-                self.machinePos["y"] = self.workPos["y"] + self.__workOffset.get("y", 0)
-        if z is not None:
-            if self.workPos["z"] != z:
-                dataChanged = True
-                self.workPos["z"] = z
-                self.machinePos["z"] = self.workPos["z"] + self.__workOffset.get("z", 0)
-        if a is not None:
-            if self.workPos["a"] != a:
-                dataChanged = True
-                self.workPos["a"] = a
-                self.machinePos["a"] = self.workPos["a"] + self.__workOffset.get("a", 0)
-        if b is not None:
-            if self.workPos["b"] != b:
-                dataChanged = True
-                self.workPos["b"] = b
-                self.machinePos["b"] = self.workPos["b"] + self.__workOffset.get("b", 0)
-        
-        if dataChanged:
-            self.onUpdateCallback("machinePos:x", self.machinePos["x"])
-            self.onUpdateCallback("machinePos:y", self.machinePos["y"])
-            self.onUpdateCallback("machinePos:z", self.machinePos["z"])
-            self.onUpdateCallback("machinePos:a", self.machinePos["a"])
-            self.onUpdateCallback("machinePos:b", self.machinePos["b"])
-            self.onUpdateCallback("workPos:x", self.workPos["x"])
-            self.onUpdateCallback("workPos:y", self.workPos["y"])
-            self.onUpdateCallback("workPos:z", self.workPos["z"])
-            self.onUpdateCallback("workPos:a", self.workPos["a"])
-            self.onUpdateCallback("workPos:b", self.workPos["b"])
+    @machine_pos_min.setter
+    def machine_pos_min(self, pos: Dict) -> None:
+        """ Setter. """
+        data_changed = False
+        pos_x = pos.get("x")
+        pos_y = pos.get("y")
+        pos_z = pos.get("z")
+        pos_a = pos.get("a")
+        pos_b = pos.get("b")
+        if pos_x is not None:
+            if self.machine_pos_min["x"] != pos_x:
+                data_changed = True
+                self.machine_pos_min["x"] = pos_x
+        if pos_y is not None:
+            if self.machine_pos_min["y"] != pos_y:
+                data_changed = True
+                self.machine_pos_min["y"] = pos_y
+        if pos_z is not None:
+            if self.machine_pos_min["z"] != pos_z:
+                data_changed = True
+                self.machine_pos_min["z"] = pos_z
+        if pos_a is not None:
+            if self.machine_pos_min["a"] != pos_a:
+                data_changed = True
+                self.machine_pos_min["a"] = pos_a
+        if pos_b is not None:
+            if self.machine_pos_min["b"] != pos_b:
+                data_changed = True
+                self.machine_pos_min["b"] = pos_b
+
+        if data_changed:
+            self.on_update_callback("machine_pos_min:x", self.machine_pos_min["x"])
+            self.on_update_callback("machine_pos_min:y", self.machine_pos_min["y"])
+            self.on_update_callback("machine_pos_min:z", self.machine_pos_min["z"])
+            self.on_update_callback("machine_pos_min:a", self.machine_pos_min["a"])
+            self.on_update_callback("machine_pos_min:b", self.machine_pos_min["b"])
 
     @property
-    def feedRate(self) -> float:
-        return self.__feedRate
+    def machine_pos(self) -> Dict[str, float]:
+        """ Getter. """
+        return self.__machine_pos
 
-    @feedRate.setter
-    def feedRate(self, feedRate: int) -> None:
-        if self.__feedRate != feedRate:
-            self.onUpdateCallback("feedRate", feedRate)
-        self.__feedRate = feedRate
+    @machine_pos.setter
+    def machine_pos(self, pos: Dict) -> None:
+        """ Setter. """
+        data_changed = False
+        pos_x = pos.get("x")
+        pos_y = pos.get("y")
+        pos_z = pos.get("z")
+        pos_a = pos.get("a")
+        pos_b = pos.get("b")
+        if pos_x is not None:
+            if self.machine_pos["x"] != pos_x:
+                data_changed = True
+                self.machine_pos["x"] = pos_x
+                self.work_pos["x"] = self.machine_pos["x"] - self.work_offset.get("x", 0)
+        if pos_y is not None:
+            if self.machine_pos["y"] != pos_y:
+                data_changed = True
+                self.machine_pos["y"] = pos_y
+                self.work_pos["y"] = self.machine_pos["y"] - self.work_offset.get("y", 0)
+        if pos_z is not None:
+            if self.machine_pos["z"] != pos_z:
+                data_changed = True
+                self.machine_pos["z"] = pos_z
+                self.work_pos["z"] = self.machine_pos["z"] - self.work_offset.get("z", 0)
+        if pos_a is not None:
+            if self.machine_pos["a"] != pos_a:
+                data_changed = True
+                self.machine_pos["a"] = pos_a
+                self.work_pos["a"] = self.machine_pos["a"] - self.work_offset.get("a", 0)
+        if pos_b is not None:
+            if self.machine_pos["b"] != pos_b:
+                data_changed = True
+                self.machine_pos["b"] = pos_b
+                self.work_pos["b"] = self.machine_pos["b"] - self.work_offset.get("b", 0)
 
-    @property
-    def feedRateMax(self) -> Dict[str, int]:
-        return self.__feedRateMax
-
-    @feedRateMax.setter
-    def feedRateMax(self, fr: Dict[str, int]) -> None:
-        dataChanged = False
-        x = fr.get("x")
-        y = fr.get("y")
-        z = fr.get("z")
-        a = fr.get("a")
-        b = fr.get("b")
-        if x is not None:
-            if self.feedRateMax["x"] != x:
-                dataChanged = True
-                self.feedRateMax["x"] = x
-        if y is not None:
-            if self.feedRateMax["y"] != y:
-                dataChanged = True
-                self.feedRateMax["y"] = y
-        if z is not None:
-            if self.feedRateMax["z"] != z:
-                dataChanged = True
-                self.feedRateMax["z"] = z
-        if a is not None:
-            if self.feedRateMax["a"] != a:
-                dataChanged = True
-                self.feedRateMax["a"] = a
-        if b is not None:
-            if self.feedRateMax["b"] != b:
-                dataChanged = True
-                self.feedRateMax["b"] = b
-        
-        if dataChanged:
-            self.onUpdateCallback("feedRateMax:x", self.feedRateMax["x"])
-            self.onUpdateCallback("feedRateMax:y", self.feedRateMax["y"])
-            self.onUpdateCallback("feedRateMax:z", self.feedRateMax["z"])
-            self.onUpdateCallback("feedRateMax:a", self.feedRateMax["a"])
-            self.onUpdateCallback("feedRateMax:b", self.feedRateMax["b"])
-
-    @property
-    def feedRateAccel(self) -> Dict[str, int]:
-        return self.__feedRateAccel
-
-    @feedRateAccel.setter
-    def feedRateAccel(self, fr: Dict[str, int]) -> None:
-        dataChanged = False
-        x = fr.get("x")
-        y = fr.get("y")
-        z = fr.get("z")
-        a = fr.get("a")
-        b = fr.get("b")
-        if x is not None and self.feedRateAccel["x"] != x:
-            dataChanged = True
-            self.feedRateAccel["x"] = x
-        if y is not None and self.feedRateAccel["y"] != y:
-            dataChanged = True
-            self.feedRateAccel["y"] = y
-        if z is not None and self.feedRateAccel["z"] != z:
-            dataChanged = True
-            self.feedRateAccel["z"] = z
-        if a is not None and self.feedRateAccel["a"] != a:
-            dataChanged = True
-            self.feedRateAccel["a"] = a
-        if b is not None and self.feedRateAccel["b"] != b:
-            dataChanged = True
-            self.feedRateAccel["b"] = b
-        
-        if dataChanged:
-            self.onUpdateCallback("feedRateAccel:x", self.feedRateAccel["x"])
-            self.onUpdateCallback("feedRateAccel:y", self.feedRateAccel["y"])
-            self.onUpdateCallback("feedRateAccel:z", self.feedRateAccel["z"])
-            self.onUpdateCallback("feedRateAccel:a", self.feedRateAccel["a"])
-            self.onUpdateCallback("feedRateAccel:b", self.feedRateAccel["b"])
+        if data_changed:
+            self.on_update_callback("machine_pos:x", self.machine_pos["x"])
+            self.on_update_callback("machine_pos:y", self.machine_pos["y"])
+            self.on_update_callback("machine_pos:z", self.machine_pos["z"])
+            self.on_update_callback("machine_pos:a", self.machine_pos["a"])
+            self.on_update_callback("machine_pos:b", self.machine_pos["b"])
+            self.on_update_callback("work_pos:x", self.work_pos["x"])
+            self.on_update_callback("work_pos:y", self.work_pos["y"])
+            self.on_update_callback("work_pos:z", self.work_pos["z"])
+            self.on_update_callback("work_pos:a", self.work_pos["a"])
+            self.on_update_callback("work_pos:b", self.work_pos["b"])
 
     @property
-    def feedOverride(self) -> float:
-        return self.__feedOverride
+    def work_pos(self) -> Dict[str, float]:
+        """ Getter. """
+        return self.__work_pos
 
-    @feedOverride.setter
-    def feedOverride(self, feedOverride: int) -> None:
-        if self.__feedOverride != feedOverride:
-            self.__feedOverride = feedOverride
-            self.onUpdateCallback("feedOverride", self.feedOverride)
+    @work_pos.setter
+    def work_pos(self, pos: Dict) -> None:
+        """ Setter. """
+        data_changed = False
+        pos_x = pos.get("x")
+        pos_y = pos.get("y")
+        pos_z = pos.get("z")
+        pos_a = pos.get("a")
+        pos_b = pos.get("b")
+        if pos_x is not None:
+            if self.work_pos["x"] != pos_x:
+                data_changed = True
+                self.work_pos["x"] = pos_x
+                self.machine_pos["x"] = self.work_pos["x"] + self.__work_offset.get("x", 0)
+        if pos_y is not None:
+            if self.work_pos["y"] != pos_y:
+                data_changed = True
+                self.work_pos["y"] = pos_y
+                self.machine_pos["y"] = self.work_pos["y"] + self.__work_offset.get("y", 0)
+        if pos_z is not None:
+            if self.work_pos["z"] != pos_z:
+                data_changed = True
+                self.work_pos["z"] = pos_z
+                self.machine_pos["z"] = self.work_pos["z"] + self.__work_offset.get("z", 0)
+        if pos_a is not None:
+            if self.work_pos["a"] != pos_a:
+                data_changed = True
+                self.work_pos["a"] = pos_a
+                self.machine_pos["a"] = self.work_pos["a"] + self.__work_offset.get("a", 0)
+        if pos_b is not None:
+            if self.work_pos["b"] != pos_b:
+                data_changed = True
+                self.work_pos["b"] = pos_b
+                self.machine_pos["b"] = self.work_pos["b"] + self.__work_offset.get("b", 0)
 
-    @property
-    def rapidOverride(self) -> float:
-        return self.__rapidOverride
-
-    @rapidOverride.setter
-    def rapidOverride(self, rapidOverride: int) -> None:
-        if self.__rapidOverride != rapidOverride:
-            self.__rapidOverride = rapidOverride
-            self.onUpdateCallback("rapidOverride", self.rapidOverride)
-
-    @property
-    def spindleRate(self) -> float:
-        return self.__spindleRate
-
-    @spindleRate.setter
-    def spindleRate(self, spindleRate: int) -> None:
-        if self.__spindleRate != spindleRate:
-            self.__spindleRate = spindleRate
-            self.onUpdateCallback("spindleRate", self.spindleRate)
-
-    @property
-    def spindleOverride(self) -> float:
-        return self.__spindleOverride
-
-    @spindleOverride.setter
-    def spindleOverride(self, spindleOverride: int) -> None:
-        if self.__spindleOverride != spindleOverride:
-            self.__spindleOverride = spindleOverride
-            self.onUpdateCallback("spindleOverride", self.spindleOverride)
-
-    @property
-    def limitX(self) -> float:
-        return self.__limitX
-
-    @limitX.setter
-    def limitX(self, limitX: float) -> None:
-        if self.__limitX != limitX:
-            self.__limitX = limitX
-            self.onUpdateCallback("limitX", self.limitX)
-
-    @property
-    def limitY(self) -> float:
-        return self.__limitY
-
-    @limitY.setter
-    def limitY(self, limitY: float) -> None:
-        if self.__limitY != limitY:
-            self.__limitY = limitY
-            self.onUpdateCallback("limitY", self.limitY)
+        if data_changed:
+            self.on_update_callback("machine_pos:x", self.machine_pos["x"])
+            self.on_update_callback("machine_pos:y", self.machine_pos["y"])
+            self.on_update_callback("machine_pos:z", self.machine_pos["z"])
+            self.on_update_callback("machine_pos:a", self.machine_pos["a"])
+            self.on_update_callback("machine_pos:b", self.machine_pos["b"])
+            self.on_update_callback("work_pos:x", self.work_pos["x"])
+            self.on_update_callback("work_pos:y", self.work_pos["y"])
+            self.on_update_callback("work_pos:z", self.work_pos["z"])
+            self.on_update_callback("work_pos:a", self.work_pos["a"])
+            self.on_update_callback("work_pos:b", self.work_pos["b"])
 
     @property
-    def limitZ(self) -> float:
-        return self.__limitZ
+    def feed_rate(self) -> float:
+        """ Getter. """
+        return self.__feed_rate
 
-    @limitZ.setter
-    def limitZ(self, limitZ: float) -> None:
-        if self.__limitZ != limitZ:
-            self.__limitZ = limitZ
-            self.onUpdateCallback("limitZ", self.limitZ)
-
-    @property
-    def limitA(self) -> float:
-        return self.__limitA
-
-    @limitA.setter
-    def limitA(self, limitA: float) -> None:
-        if self.__limitA != limitA:
-            self.__limitA = limitA
-            self.onUpdateCallback("limitA", self.limitA)
+    @feed_rate.setter
+    def feed_rate(self, feed_rate: int) -> None:
+        """ Setter. """
+        if self.__feed_rate != feed_rate:
+            self.on_update_callback("feed_rate", feed_rate)
+        self.__feed_rate = feed_rate
 
     @property
-    def limitB(self) -> float:
-        return self.__limitB
+    def feed_rate_max(self) -> Dict[str, int]:
+        """ Getter. """
+        return self.__feed_rate_max
 
-    @limitB.setter
-    def limitB(self, limitB: float) -> None:
-        if self.__limitB != limitB:
-            self.__limitB = limitB
-            self.onUpdateCallback("limitB", self.limitB)
+    @feed_rate_max.setter
+    def feed_rate_max(self, feedrate: Dict[str, int]) -> None:
+        """ Setter. """
+        data_changed = False
+        pos_x = feedrate.get("x")
+        pos_y = feedrate.get("y")
+        pos_z = feedrate.get("z")
+        pos_a = feedrate.get("a")
+        pos_b = feedrate.get("b")
+        if pos_x is not None:
+            if self.feed_rate_max["x"] != pos_x:
+                data_changed = True
+                self.feed_rate_max["x"] = pos_x
+        if pos_y is not None:
+            if self.feed_rate_max["y"] != pos_y:
+                data_changed = True
+                self.feed_rate_max["y"] = pos_y
+        if pos_z is not None:
+            if self.feed_rate_max["z"] != pos_z:
+                data_changed = True
+                self.feed_rate_max["z"] = pos_z
+        if pos_a is not None:
+            if self.feed_rate_max["a"] != pos_a:
+                data_changed = True
+                self.feed_rate_max["a"] = pos_a
+        if pos_b is not None:
+            if self.feed_rate_max["b"] != pos_b:
+                data_changed = True
+                self.feed_rate_max["b"] = pos_b
+
+        if data_changed:
+            self.on_update_callback("feed_rate_max:x", self.feed_rate_max["x"])
+            self.on_update_callback("feed_rate_max:y", self.feed_rate_max["y"])
+            self.on_update_callback("feed_rate_max:z", self.feed_rate_max["z"])
+            self.on_update_callback("feed_rate_max:a", self.feed_rate_max["a"])
+            self.on_update_callback("feed_rate_max:b", self.feed_rate_max["b"])
+
+    @property
+    def feed_rate_accel(self) -> Dict[str, int]:
+        """ Getter. """
+        return self.__feed_rate_accel
+
+    @feed_rate_accel.setter
+    def feed_rate_accel(self, feedrate: Dict[str, int]) -> None:
+        """ Setter. """
+        data_changed = False
+        pos_x = feedrate.get("x")
+        pos_y = feedrate.get("y")
+        pos_z = feedrate.get("z")
+        pos_a = feedrate.get("a")
+        pos_b = feedrate.get("b")
+        if pos_x is not None and self.feed_rate_accel["x"] != pos_x:
+            data_changed = True
+            self.feed_rate_accel["x"] = pos_x
+        if pos_y is not None and self.feed_rate_accel["y"] != pos_y:
+            data_changed = True
+            self.feed_rate_accel["y"] = pos_y
+        if pos_z is not None and self.feed_rate_accel["z"] != pos_z:
+            data_changed = True
+            self.feed_rate_accel["z"] = pos_z
+        if pos_a is not None and self.feed_rate_accel["a"] != pos_a:
+            data_changed = True
+            self.feed_rate_accel["a"] = pos_a
+        if pos_b is not None and self.feed_rate_accel["b"] != pos_b:
+            data_changed = True
+            self.feed_rate_accel["b"] = pos_b
+
+        if data_changed:
+            self.on_update_callback("feed_rate_accel:x", self.feed_rate_accel["x"])
+            self.on_update_callback("feed_rate_accel:y", self.feed_rate_accel["y"])
+            self.on_update_callback("feed_rate_accel:z", self.feed_rate_accel["z"])
+            self.on_update_callback("feed_rate_accel:a", self.feed_rate_accel["a"])
+            self.on_update_callback("feed_rate_accel:b", self.feed_rate_accel["b"])
+
+    @property
+    def feed_override(self) -> float:
+        """ Getter. """
+        return self.__feed_override
+
+    @feed_override.setter
+    def feed_override(self, feed_override: int) -> None:
+        """ Setter. """
+        if self.__feed_override != feed_override:
+            self.__feed_override = feed_override
+            self.on_update_callback("feed_override", self.feed_override)
+
+    @property
+    def rapid_override(self) -> float:
+        """ Getter. """
+        return self.__rapid_override
+
+    @rapid_override.setter
+    def rapid_override(self, rapid_override: int) -> None:
+        """ Setter. """
+        if self.__rapid_override != rapid_override:
+            self.__rapid_override = rapid_override
+            self.on_update_callback("rapid_override", self.rapid_override)
+
+    @property
+    def spindle_rate(self) -> float:
+        """ Getter. """
+        return self.__spindle_rate
+
+    @spindle_rate.setter
+    def spindle_rate(self, spindle_rate: int) -> None:
+        """ Setter. """
+        if self.__spindle_rate != spindle_rate:
+            self.__spindle_rate = spindle_rate
+            self.on_update_callback("spindle_rate", self.spindle_rate)
+
+    @property
+    def spindle_override(self) -> float:
+        """ Getter. """
+        return self.__spindle_override
+
+    @spindle_override.setter
+    def spindle_override(self, spindle_override: int) -> None:
+        """ Setter. """
+        if self.__spindle_override != spindle_override:
+            self.__spindle_override = spindle_override
+            self.on_update_callback("spindle_override", self.spindle_override)
+
+    @property
+    def limit_x(self) -> float:
+        """ Getter. """
+        return self.__limit_x
+
+    @limit_x.setter
+    def limit_x(self, limit_x: float) -> None:
+        """ Setter. """
+        if self.__limit_x != limit_x:
+            self.__limit_x = limit_x
+            self.on_update_callback("limit_x", self.limit_x)
+
+    @property
+    def limit_y(self) -> float:
+        """ Getter. """
+        return self.__limit_y
+
+    @limit_y.setter
+    def limit_y(self, limit_y: float) -> None:
+        """ Setter. """
+        if self.__limit_y != limit_y:
+            self.__limit_y = limit_y
+            self.on_update_callback("limit_y", self.limit_y)
+
+    @property
+    def limit_z(self) -> float:
+        """ Getter. """
+        return self.__limit_z
+
+    @limit_z.setter
+    def limit_z(self, limit_z: float) -> None:
+        """ Setter. """
+        if self.__limit_z != limit_z:
+            self.__limit_z = limit_z
+            self.on_update_callback("limit_z", self.limit_z)
+
+    @property
+    def limit_a(self) -> float:
+        """ Getter. """
+        return self.__limit_a
+
+    @limit_a.setter
+    def limit_a(self, limit_a: float) -> None:
+        """ Setter. """
+        if self.__limit_a != limit_a:
+            self.__limit_a = limit_a
+            self.on_update_callback("limit_a", self.limit_a)
+
+    @property
+    def limit_b(self) -> float:
+        """ Getter. """
+        return self.__limit_b
+
+    @limit_b.setter
+    def limit_b(self, limit_b: float) -> None:
+        """ Setter. """
+        if self.__limit_b != limit_b:
+            self.__limit_b = limit_b
+            self.on_update_callback("limit_b", self.limit_b)
 
     @property
     def probe(self) -> bool:
+        """ Getter. """
         return self.__probe
 
     @probe.setter
     def probe(self, probe: bool) -> None:
+        """ Setter. """
         if self.__probe != probe:
             self.__probe = probe
-            self.onUpdateCallback("probe", self.probe)
+            self.on_update_callback("probe", self.probe)
 
     @property
     def pause(self) -> bool:
+        """ Getter. """
         return self.__pause
 
     @pause.setter
     def pause(self, pause: bool) -> None:
+        """ Setter. """
         if self.__pause != pause:
             self.__pause = pause
-            self.onUpdateCallback("pause", self.pause)
-            if pause == False:
-                self.pauseReason.clear()
-                self.onUpdateCallback("pauseReason", self.pauseReason)
+            self.on_update_callback("pause", self.pause)
+            if not pause:
+                self.pause_reason.clear()
+                self.on_update_callback("pause_reason", self.pause_reason)
+
+    @property
+    def pause_park(self) -> bool:
+        """ Getter. """
+        return self.__pause_park
+
+    @pause_park.setter
+    def pause_park(self, pause_park: bool) -> None:
+        """ Setter. """
+        if self.__pause_park != pause_park:
+            self.__pause_park = pause_park
+            self.on_update_callback("pause_park", self.pause_park)
 
     @property
     def parking(self) -> bool:
+        """ Getter. """
         return self.__parking
 
     @parking.setter
     def parking(self, parking: bool) -> None:
+        """ Setter. """
         if self.__parking != parking:
             self.__parking = parking
-            self.onUpdateCallback("parking", self.parking)
+            self.on_update_callback("parking", self.parking)
 
     @property
     def halt(self) -> bool:
+        """ Getter. """
         return self.__halt
 
     @halt.setter
     def halt(self, halt: bool) -> None:
+        """ Setter. """
         if self.__halt != halt:
             self.__halt = halt
-            self.onUpdateCallback("halt", self.halt)
-            if halt == False:
-                self.haltReason.clear()
-                self.onUpdateCallback("haltReason", self.haltReason)
+            self.on_update_callback("halt", self.halt)
+            if not halt:
+                self.halt_reason.clear()
+                self.on_update_callback("halt_reason", self.halt_reason)
 
     @property
     def door(self) -> bool:
+        """ Getter. """
         return self.__door
 
     @door.setter
     def door(self, door: bool) -> None:
+        """ Setter. """
         if self.__door != door:
             self.__door = door
-            self.onUpdateCallback("door", self.door)
+            self.on_update_callback("door", self.door)
 
 
 
 class StateMachineGrbl(StateMachineBase):
-    
-    GRBL_STATUS_HEADERS = {b"MPos": "machinePos",
-                           b"WPos": "workPos",
-                           b"FS": "feedRate",    # Variable spindle.
-                           b"F": "feedRate",     # Non variable spindle.
+    """ State Machine reflecting the state of a Grbl hardware controller. """
+
+    GRBL_STATUS_HEADERS = {b"MPos": "machine_pos",
+                           b"WPos": "work_pos",
+                           b"FS": "feed_rate",    # Variable spindle.
+                           b"F": "feed_rate",     # Non variable spindle.
                            b"Pn": "inputPins",
                            b"WCO": "workCoordOffset",
                            b"Ov": "overrideValues",
                            b"Bf": "bufferState",
                            b"Ln": "lineNumber",
                            b"A": "accessoryState"
-                           } 
+                           }
 
     MACHINE_STATES = [
-            b"Idle", b"Run", b"Hold", b"Jog", b"Alarm", b"Door", b"Check", b"Home", b"Sleep"]
+        b"Idle", b"Run", b"Hold", b"Jog", b"Alarm", b"Door", b"Check", b"Home", b"Sleep"]
 
     # Cheaper than global lookups
     MODAL_GROUPS = MODAL_GROUPS
     MODAL_COMMANDS = MODAL_COMMANDS
 
-    def __init__(self, onUpdateCallback: Callable) -> None:
-        super().__init__(onUpdateCallback)
-
-    def parseIncoming(self, incoming: bytes) -> None:
+    def parse_incoming(self, incoming: bytes) -> None:
+        """ Parse incoming string from Grbl controller. """
         if incoming.startswith(b"error:"):
             print(b"ERROR:", incoming, b"TODO")
         elif incoming.startswith(b"ok"):
             assert False, "'ok' response should not have been passed to state machine."
         elif incoming.startswith(b"ALARM:"):
-            self._parseIncomingAlarm(incoming)
+            self._parse_incoming_alarm(incoming)
         elif incoming.startswith(b"<"):
-            self._parseIncomingStatus(incoming)
+            self._parse_incoming_status(incoming)
         elif incoming.startswith(b"["):
-            self._parseIncomingFeedback(incoming)
+            self._parse_incoming_feedback(incoming)
         elif incoming.startswith(b"$"):
-            self._parseSetting(incoming)
+            self._parse_setting(incoming)
         elif incoming.startswith(b">"):
-            self._parseStartup(incoming)
+            self._parse_startup(incoming)
         elif incoming.startswith(b"Grbl "):
-            self._parseStartup(incoming)
+            self._parse_startup(incoming)
         else:
             print("Input not parsed: %s" % incoming)
 
-    def _parseIncomingStatus(self, incoming: bytes) -> None:
+    def _parse_incoming_status(self, incoming: bytes) -> None:
+        """ "parse_incoming" determined a "status" message was received from the
+        Grbl controller. Parse the status message here. """
         assert incoming.startswith(b"<") and incoming.endswith(b">")
 
         incoming = incoming.strip(b"<>")
 
         fields = incoming.split(b"|")
-        
-        machineState = fields[0]
-        self._setState(machineState)
+
+        machine_state = fields[0]
+        self._set_state(machine_state)
 
         for field in fields[1:]:
             identifier, value = field.split(b":")
             assert identifier in self.GRBL_STATUS_HEADERS
             if identifier in [b"MPos", b"WPos", b"WCO"]:
-                self._setCoordinates(identifier, value)
+                self._set_coordinates(identifier, value)
             elif identifier == b"Ov":
-                self._setOverrides(value)
+                self._set_overrides(value)
             elif identifier == b"FS":
                 feed, spindle = value.split(b",")
-                self.feedRate = int(float(feed))
-                self.spindleRate = int(float(spindle))
+                self.feed_rate = int(float(feed))
+                self.spindle_rate = int(float(spindle))
             elif identifier == b"F":
-                self.feedRate = int(float(value))
+                self.feed_rate = int(float(value))
             else:
                 print("TODO. Unparsed status field: ", identifier, value)
 
-        self.changesMade = True
-    
-    def _parseIncomingFeedbackModal(self, msg: bytes) -> None:
+        self.changes_made = True
+
+    def _parse_incoming_feedback_modal(self, msg: bytes) -> None:
         """ Parse report on which modal option was last used for each group.
         Report comes fro one of 2 places:
         1. In response to a "$G" command, GRBL sends a G-code Parser State Message
@@ -651,63 +715,69 @@ class StateMachineGrbl(StateMachineBase):
            group (G0) and the Feed group (F2000).
         self.MODAL_COMMANDS maps these words to a group. eg: G0 is in the "motion" group.  """
         modals = msg.split(b" ")
-        updateUnits = False
+        update_units = False
         for modal in modals:
             if modal in self.MODAL_GROUPS["units"]:
-                modalGroup = self.MODAL_COMMANDS[modal]
-                if self.gcodeModal[modalGroup] != modal:
+                modal_group = self.MODAL_COMMANDS[modal]
+                if self.gcode_modal[modal_group] != modal:
                     # Grbl has changed from mm to inches or vice versa.
-                    updateUnits = True
+                    update_units = True
 
             if modal in self.MODAL_COMMANDS:
-                modalGroup = self.MODAL_COMMANDS[modal]
-                self.gcodeModal[modalGroup] = modal
+                modal_group = self.MODAL_COMMANDS[modal]
+                self.gcode_modal[modal_group] = modal
             elif chr(modal[0]).encode('utf-8') in self.MODAL_COMMANDS:
-                modalGroup = self.MODAL_COMMANDS[chr(modal[0]).encode('utf-8')]
-                self.gcodeModal[modalGroup] = modal
+                modal_group = self.MODAL_COMMANDS[chr(modal[0]).encode('utf-8')]
+                self.gcode_modal[modal_group] = modal
             else:
                 assert False, "Gcode word does not match any mmodal group: %s" % modal
-        self.onUpdateCallback("gcodeModal", self.gcodeModal)
+        self.on_update_callback("gcode_modal", self.gcode_modal)
 
-        assert not updateUnits, "TODO: Units have changed. Lots of things will need recalculated."
+        assert not update_units, "TODO: Units have changed. Lots of things will need recalculated."
 
-    def _parseIncomingFeedback(self, incoming: bytes) -> None:
+    def _parse_incoming_feedback(self, incoming: bytes) -> None:
+        """ "parse_incoming" determined a "feedback" message was received from the
+        Grbl controller. Parse the message here and store parsed data. """
         assert incoming.startswith(b"[") and incoming.endswith(b"]")
 
         incoming = incoming.strip(b"[]")
 
-        msgType, msg = incoming.split(b":")
+        msg_type, msg = incoming.split(b":")
 
-        if msgType == b"MSG":
-            print(msgType, incoming, "TODO")
-        elif msgType in [b"GC", b"sentGcode"]:
-            self._parseIncomingFeedbackModal(msg)
-        elif msgType == b"HLP":
+        if msg_type == b"MSG":
+            print(msg_type, incoming, "TODO")
+        elif msg_type in [b"GC", b"sentGcode"]:
+            self._parse_incoming_feedback_modal(msg)
+        elif msg_type == b"HLP":
             # Response to a "$" (print help) command. Only ever used by humans.
             pass
-        elif msgType in [b"G54", b"G55", b"G56", b"G57", b"G58", b"G59", b"G28",
-                         b"G30", b"G92", b"TLO", b"PRB"]:
+        elif msg_type in [b"G54", b"G55", b"G56", b"G57", b"G58", b"G59", b"G28",
+                          b"G30", b"G92", b"TLO", b"PRB"]:
             # Response to a "$#" command.
-            print(msgType, incoming, "TODO")
-        elif msgType == b"VER":
+            print(msg_type, incoming, "TODO")
+        elif msg_type == b"VER":
             if len(self.version) < 1:
                 self.version.append(b"")
             self.version[0] = incoming
-        elif msgType == b"OPT":
+        elif msg_type == b"OPT":
             while len(self.version) < 2:
                 self.version.append(b"")
             self.version[1] = incoming
-        elif msgType == b"echo":
+        elif msg_type == b"echo":
             # May be enabled when building GRBL as a debugging option.
             pass
         else:
-            assert False, "Unexpected feedback packet type: %s" % msgType
+            assert False, "Unexpected feedback packet type: %s" % msg_type
 
 
-    def _parseIncomingAlarm(self, incoming: bytes) -> None:
+    def _parse_incoming_alarm(self, incoming: bytes) -> None:
+        """ "parse_incoming" determined a "allarm" message was received from the
+        Grbl controller. Parse the alarm here. """
         print("ALARM:", incoming)
 
-    def _parseSetting(self, incoming: bytes) -> None:
+    def _parse_setting(self, incoming: bytes) -> None:
+        """ "parse_incoming" determined one of the EPROM registers is being displayed.
+        Parse and save the value here. """
         incoming = incoming.lstrip(b"$")
         setting, value = incoming.split(b"=")
 
@@ -788,28 +858,28 @@ class StateMachineGrbl(StateMachineBase):
             pass
         elif setting == b"110":
             # X Max rate, mm/min
-            valueInt = int(float(value))
-            self.feedRateMax = {"x": valueInt}
+            value_int = int(float(value))
+            self.feed_rate_max = {"x": value_int}
         elif setting == b"111":
             # Y Max rate, mm/min
-            valueInt = int(float(value))
-            self.feedRateMax = {"y": valueInt}
+            value_int = int(float(value))
+            self.feed_rate_max = {"y": value_int}
         elif setting == b"112":
             # Z Max rate, mm/min
-            valueInt = int(float(value))
-            self.feedRateMax = {"z": valueInt}
+            value_int = int(float(value))
+            self.feed_rate_max = {"z": value_int}
         elif setting == b"120":
             # X Acceleration, mm/sec^2
-            valueInt = int(float(value))
-            self.feedRateAccel = {"x": valueInt}
+            value_int = int(float(value))
+            self.feed_rate_accel = {"x": value_int}
         elif setting == b"121":
             # Y Acceleration, mm/sec^2
-            valueInt = int(float(value))
-            self.feedRateAccel = {"y": valueInt}
+            value_int = int(float(value))
+            self.feed_rate_accel = {"y": value_int}
         elif setting == b"122":
             # Z Acceleration, mm/sec^2
-            valueInt = int(float(value))
-            self.feedRateAccel = {"z": valueInt}
+            value_int = int(float(value))
+            self.feed_rate_accel = {"z": value_int}
         elif setting == b"130":
             # X Max travel, mm
             pass
@@ -822,84 +892,87 @@ class StateMachineGrbl(StateMachineBase):
         else:
             assert False, "Unexpected setting: %s %s" % (setting, value)
 
-    def _parseStartupLine(self, incoming: bytes) -> None:
+    def _parse_startup(self, incoming: bytes) -> None:
+        """ "parse_incoming" determined Grbl's startup message is being received..
+        Perform any tasks appropriate to a Grbl restart here. """
         print("Startup:", incoming)
         assert incoming.startswith(b">") and incoming.endswith(b":ok")
         # This implies no alarms are active.
         print("Startup successful. TODO: Clear Alarm states.")
 
-    def _parseStartup(self, incoming: bytes) -> None:
-        print("GRBL Startup:", incoming)
-    
-    def _setOverrides(self, value: bytes) -> None:
-        feedOverrride, rapidOverrride, spindleOverride = value.split(b",")
-        feedOverrrideInt = int(float(feedOverrride))
-        rapidOverrrideInt = int(float(rapidOverrride))
-        spindleOverrideInt = int(float(spindleOverride))
-        
-        if 10 <= feedOverrrideInt <= 200:
-            self.feedOverrride = feedOverrrideInt
-        if rapidOverrrideInt in [100, 50, 20]:
-            self.rapidOverrride = rapidOverrrideInt
-        if 10 <= spindleOverrideInt <= 200:
-            self.spindleOverride = spindleOverrideInt
+    def _set_overrides(self, value: bytes) -> None:
+        """ A message from Grbl reporting one of the overrides is being applied
+        has been received. Parse message and apply data here. """
+        feed_override, rapid_override, spindle_override = value.split(b",")
+        feed_override_int = int(float(feed_override))
+        rapid_override_int = int(float(rapid_override))
+        spindle_override_int = int(float(spindle_override))
 
-    def _setCoordinates(self, identifier: bytes, value: bytes) -> None:
+        if 10 <= feed_override_int <= 200:
+            self.feed_override = feed_override_int
+        if rapid_override_int in [100, 50, 20]:
+            self.rapid_override = rapid_override_int
+        if 10 <= spindle_override_int <= 200:
+            self.spindle_override = spindle_override_int
+
+    def _set_coordinates(self, identifier: bytes, value: bytes) -> None:
+        """ Set machine position according to message received from Grbl controller. """
         if identifier == b"MPos":
-            self.machinePos = self._parseCoordinates(value)
+            self.machine_pos = self._parse_coordinates(value)
         elif identifier == b"WPos":
-            self.workPos = self._parseCoordinates(value)
+            self.work_pos = self._parse_coordinates(value)
         elif identifier == b"WCO":
-            self.workOffset = self._parseCoordinates(value)
+            self.work_offset = self._parse_coordinates(value)
         else:
             print("Invalid format: %s  Expected one of [MPos, WPos, WCO]" % identifier)
 
-    def _parseCoordinates(self, string: bytes) -> Dict:
+    def _parse_coordinates(self, string: bytes) -> Dict:
+        """ Parse bytes for coordinate information. """
         parts = string.split(b",")
         if len(parts) < 3:
             print(string, parts)
-            assert False, "Malformed coordinates: %s" % string
+        assert len(parts) >= 3, "Malformed coordinates: %s" % string
+        assert len(parts) <= 4, "TODO: Handle more than 4 coordinates. %s" % string
         coordinates = {}
         coordinates["x"] = float(parts[0])
         coordinates["y"] = float(parts[1])
         coordinates["z"] = float(parts[2])
-        if len(coordinates) > 3:
+        if len(parts) > 3:
             coordinates["a"] = float(parts[3])
         return coordinates
 
-    def _setState(self, state: bytes) -> None:
+    def _set_state(self, state: bytes) -> None:
+        """ Apply State. State has been reported by Grbl controller. """
         states = state.split(b":")
-        assert len(states) <=2, "Invalid state: %s" % state
+        assert len(states) <= 2, "Invalid state: %s" % state
 
         if len(states) == 1:
             substate = None
         else:
             state, substate = states
-            
+
         assert state in self.MACHINE_STATES, "Invalid state: %s" % state
         if state in [b"Idle", b"Run", b"Jog", b"Home"]:
             self.pause = False
-            self.pausePark = False
+            self.pause_park = False
             self.halt = False
             self.door = False
         elif state == b"Hold":
-            # self.pausePark = False
+            # self.pause_park = False
             self.halt = False
             self.door = False
             self.pause = True
         elif state == b"Alarm":
             self.pause = False
-            self.pausePark = False
+            self.pause_park = False
             self.door = False
             self.halt = True
         elif state == b"Door":
             self.pause = False
-            self.pausePark = False
+            self.pause_park = False
             self.halt = False
             self.door = True
         elif state == b"Check":
             pass
         elif state == b"Sleep":
             pass
-
-

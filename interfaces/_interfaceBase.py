@@ -57,9 +57,9 @@ class _InterfaceBase(_ComponentBase):
     """ A base class for user input objects used for controlling the machine. """
 
     # Make a class reference to avoid expensive global lookup.
-    #modalGroups: Dict[str, object] = MODAL_GROUPS
-    #modalGroups: Dict[str, Dict[str, Callable]] = MODAL_GROUPS
-    modalGroups = cast(Dict[str, Dict[str, Callable]], MODAL_GROUPS)
+    #modal_groups: Dict[str, object] = MODAL_GROUPS
+    #modal_groups: Dict[str, Dict[str, Callable]] = MODAL_GROUPS
+    modal_groups = cast(Dict[str, Dict[str, Callable]], MODAL_GROUPS)
 
     def __init__(self, label: str = "") -> None:
         """ Args:
@@ -128,8 +128,8 @@ class _InterfaceBase(_ComponentBase):
                 # No usable input at all. Let's default to Absolute distance.
                 argkv["command"] = "G90"
         else:
-            if argkv["command"] not in self.modalGroups["distance"]:
-                # Add gcode definition to self.modalGroups.
+            if argkv["command"] not in self.modal_groups["distance"]:
+                # Add gcode definition to self.modal_groups.
                 raise ValueError("Expected bool or \"command='G90'\" "
                                  "or \"command='G91'\" as paramiter.")
 
@@ -139,13 +139,13 @@ class _InterfaceBase(_ComponentBase):
         command = cast(str, argkv["command"])
         del argkv["command"]
 
-        if command not in self.modalGroups[modal_group]:
-            # Add gcode definition to self.modalGroups.
+        if command not in self.modal_groups[modal_group]:
+            # Add gcode definition to self.modal_groups.
             raise ValueError(
                 "WARNING: gcode from modal group %s not supported: %s" %
                 (modal_group, command))
 
-        movetype = self.modalGroups[modal_group][command]
+        movetype = self.modal_groups[modal_group][command]
 
         if self._updated_data.gcode is None:
             self._updated_data.gcode = block.Block()
