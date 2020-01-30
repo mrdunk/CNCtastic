@@ -8,7 +8,7 @@ class _ComponentBase:
 
     Event = Tuple[str, Any]
     # Single shared instance for all components.
-    _eventQueue: Deque[Event] = deque()
+    _event_queue: Deque[Event] = deque()
     # Unique copy per instance.
     event_subscriptions: Dict[str, Any]
     events_to_publish: Dict[str, str]
@@ -90,15 +90,15 @@ class _ComponentBase:
                              event_name: str,
                              event_value: Any) -> None:
         """ Distribute an event to all subscribed components. """
-        self._eventQueue.append((event_name, event_value))
+        self._event_queue.append((event_name, event_value))
 
     def receive(self) -> None:
         """ Receive events this object is subscribed to. """
-        #print(self.label, "receive", self._eventQueue)
+        #print(self.label, "receive", self._event_queue)
         if not hasattr(self, "event_subscriptions"):
             return
 
-        for event, value in self._eventQueue:
+        for event, value in self._event_queue:
             if event in self.event_subscriptions:
                 self._delivered.append((event, value))
 

@@ -1,14 +1,18 @@
-from typing import List, Dict, Any, Tuple, Deque, Optional
+""" Coordinator handles interactions between components.
+Coordinator polls all components for published events and delivers them to
+subscribers. """
+
+
+from typing import List, Dict, Optional
 from collections import deque
 
 from component import _ComponentBase
-from definitions import FlagState, ConnectionState
 from controllers._controllerBase import _ControllerBase
 
 class Coordinator(_ComponentBase):
-    """ Contains all system data.
-    Handles polling all other components for new data and updating them as they
-    request data. """
+    """ Coordinator handles interactions between components.
+    Coordinator polls all components for published events and delivers them to
+    subscribers. """
 
     def __init__(self, terminals: List, interfaces: List, controllers: List,
                  debug_show_events: bool = False) -> None:
@@ -24,16 +28,16 @@ class Coordinator(_ComponentBase):
         self.controllers: Dict = {controller.label:controller for controller in controllers}
         self.debug_show_events = debug_show_events
 
-        self.activeController = None
+        self.active_controller = None
 
-        self.activateController()
-        
-        self.allComponents = ( 
-                [self] + 
-                list(terminals) + 
-                list(interfaces) + 
-                list(controllers))
-        self.terminalSpecificSetup()
+        self.activate_controller()
+
+        self.all_components = (
+            [self] +
+            list(terminals) +
+            list(interfaces) +
+            list(controllers))
+        self.terminal_specific_setup()
 
         self.running = True
 
@@ -41,12 +45,14 @@ class Coordinator(_ComponentBase):
         # Change which controller is active in response to event.
         for controller in self.controllers:
             self.event_subscriptions["%s:active" % controller] = (
-                    "_activeControllerOnEvent", controller)
+                "_active_controller_on_event", controller)
 
-    def terminalSpecificSetup(self) -> None:
+    def terminal_specific_setup(self) -> None:
+        """ Do configuration that was not possible before all other components
+        were instantiated. """
         # Gather GUI layouts from all components.
         layouts = {}
-        for component in self.allComponents:
+        for component in self.all_components:
             try:
                 layouts[component.label] = component.gui_layout()   # type: ignore
             except AttributeError:
@@ -66,20 +72,22 @@ class Coordinator(_ComponentBase):
                 terminal.setup()
 
 
-    def _clearEvents(self) -> None:
-        #if(self._eventQueue):
-        #    print("Clearing event queue: ", self._eventQueue)
-        self._eventQueue.clear()
+    def _clear_events(self) -> None:
+        """ Clear the event queue after all events have been delivered. """
+        #if(self._event_queue):
+        #    print("Clearing event queue: ", self._event_queue)
+        self._event_queue.clear()
 
-    def _debugDisplayEvents(self) -> None:
+    def _debug_display_events(self) -> None:
+        """ Display all events to console. """
         if not self.debug_show_events:
             return
-        for event in self._eventQueue:
+        for event in self._event_queue:
             print("*********", event)
 
-    def activateController(self,
-                           label: Optional[str]=None,
-                           controller: Optional[_ControllerBase]=None) -> None:
+    def activate_controller(self,
+                            label: Optional[str] = None,
+                            controller: Optional[_ControllerBase] = None) -> None:
         """ Set a specified controller as the active one.
         Args:
             label: If set, the active controller will be the one matching "label"
@@ -89,48 +97,50 @@ class Coordinator(_ComponentBase):
                    added as a candidate and activated.
         """
         def _activate(candidate: _ControllerBase) -> None:
-            if self.activeController:
-                self.activeController.active = False
-            self.activeController = candidate
+            """ Set specified controller as the active one. """
+            if self.active_controller:
+                self.active_controller.active = False
+            self.active_controller = candidate
 
-        def _onlyOneActive() -> None:
-            assert self.activeController, "No active controller set."
-            for controllerName, candidateController in self.controllers.items():
-                if candidateController is self.activeController:
-                    candidateController.active = True
+        def _only_one_active() -> None:
+            """ Set "active" flag on the active_controller. """
+            assert self.active_controller, "No active controller set."
+            for candidate_controller in self.controllers.values():
+                if candidate_controller is self.active_controller:
+                    candidate_controller.active = True
                 else:
-                    candidateController.active = False
+                    candidate_controller.active = False
 
-        for controllerName, candidateController in self.controllers.items():
-            if candidateController.label == "debug":
-                _activate(candidateController)
-                candidateController.active = False
-        for controllerName, candidateController in self.controllers.items():
-            if candidateController.active:
-                _activate(candidateController)
+        for candidate_controller in self.controllers.values():
+            if candidate_controller.label == "debug":
+                _activate(candidate_controller)
+                candidate_controller.active = False
+        for candidate_controller in self.controllers.values():
+            if candidate_controller.active:
+                _activate(candidate_controller)
                 break
-        for controllerName, candidateController in self.controllers.items():
-            if candidateController.label == label:
-                _activate(candidateController)
+        for candidate_controller in self.controllers.values():
+            if candidate_controller.label == label:
+                _activate(candidate_controller)
                 break
-        for controllerName, candidateController in self.controllers.items():
-            if candidateController is controller:
-                _activate(candidateController)
+        for candidate_controller in self.controllers.values():
+            if candidate_controller is controller:
+                _activate(candidate_controller)
                 break
-        if not self.activeController and not controller:
-            # Don't have an self.activeController yet.
+        if not self.active_controller and not controller:
+            # Don't have an self.active_controller yet.
             # Let's just take the first.
-            self.activeController = list(self.controllers.values())[0]
+            self.active_controller = list(self.controllers.values())[0]
 
-        if self.activeController and not controller:
-            _onlyOneActive()
+        if self.active_controller and not controller:
+            _only_one_active()
             return
-        if (self.activeController and controller and
-                self.activeController.label == controller.label):
-            _onlyOneActive()
+        if (self.active_controller and controller and
+                self.active_controller.label == controller.label):
+            _only_one_active()
             return
-        if self.activeController and self.activeController is controller:
-            _onlyOneActive()
+        if self.active_controller and self.active_controller is controller:
+            _only_one_active()
             return
 
         # Label was not specified as one of the input arguments.
@@ -139,61 +149,61 @@ class Coordinator(_ComponentBase):
 
         # This is a new controller.
         self.controllers[controller.label] = controller
-        self.allComponents.append(controller)
-        self.activeController = controller
-        _onlyOneActive()
+        self.all_components.append(controller)
+        self.active_controller = controller
+        _only_one_active()
 
-    def _activeControllerOnEvent(self, event_name: str, event_value: bool) -> None:
+    def _active_controller_on_event(self, event_name: str, event_value: bool) -> None:
         """ Make whichever controller has it's "active" property set the active
             one. """
 
-        eventControllerName, event_name = event_name.split(":", maxsplit=1)
+        event_controller_name, event_name = event_name.split(":", maxsplit=1)
         assert event_name == "active", "Unexpected event name: %s" % event_name
 
-        if self.controllers[eventControllerName].active == event_value:
+        if self.controllers[event_controller_name].active == event_value:
             # No change
             return
 
-        print("New active controller: %s is %s" % (eventControllerName, event_value))
+        print("New active controller: %s is %s" % (event_controller_name, event_value))
 
-        assert eventControllerName in self.controllers, \
+        assert event_controller_name in self.controllers, \
                 "Event received from invalid controller."
         if event_value:
             for controller in self.controllers.values():
                 controller.active = False
-        self.controllers[eventControllerName].active = event_value
+        self.controllers[event_controller_name].active = event_value
 
         # This will check only one controller has the active flag set
         # or assign the "debug" controller active if none are set.
-        self.activateController()
+        self.activate_controller()
 
-        for controllerName, controller in self.controllers.items():
-            self.publish_one_by_value("%s:active" % controllerName, controller.active)
+        for controller_name, controller in self.controllers.items():
+            self.publish_one_by_value("%s:active" % controller_name, controller.active)
 
-    def _copyActiveControllerEvents(self) -> None:
+    def _copy_active_controller_events(self) -> None:
         """ All controllers publish events under their own name. Subscribers
         are usually only interested in the active controller.
         Here we make copies of the active controller's events under the name
-        "activeController:xxxx" to save working this out on every consumer."""
-        assert self.activeController, "No active controller."
+        "active_controller:xxxx" to save working this out on every consumer."""
+        assert self.active_controller, "No active controller."
 
-        acLabel = self.activeController.label
-        tmpEventQueue = deque()
-        for event_name, event_value in self._eventQueue:
+        active = self.active_controller.label
+        tmp_event_queue = deque()
+        for event_name, event_value in self._event_queue:
             if not isinstance(event_name, str):
                 continue
             if event_name.find(":") < 0:
                 continue
             component, event = event_name.split(":", maxsplit=1)
-            if component != acLabel:
+            if component != active:
                 continue
-            tmpEventQueue.append(("activeController:%s" % event, event_value))
+            tmp_event_queue.append(("active_controller:%s" % event, event_value))
 
-        self._eventQueue.extend(tmpEventQueue)
+        self._event_queue.extend(tmp_event_queue)
 
-    def updateComponents(self) -> bool:
+    def update_components(self) -> bool:
         """ Iterate through all components, delivering and acting upon events. """
-        for terminalName, terminal in self.terminals.items():
+        for terminal in self.terminals.values():
             if terminal.active:
                 self.running = self.running and terminal.early_update()
 
@@ -205,22 +215,22 @@ class Coordinator(_ComponentBase):
 
         # Publish all events.
         self.publish()
-        for component in self.allComponents:
+        for component in self.all_components:
             component.publish()
 
-        self._copyActiveControllerEvents()
+        self._copy_active_controller_events()
 
         # Deliver all events to consumers.
         self.receive()
-        for component in self.allComponents:
+        for component in self.all_components:
             component.receive()
-        
-        self._debugDisplayEvents()
-        self._clearEvents()
+
+        self._debug_display_events()
+        self._clear_events()
 
         self._update()
         self._delivered.clear()
-        for component in self.allComponents:
+        for component in self.all_components:
             #if component._delivered:
             #    print(component.label, component._delivered)
             #else:
@@ -233,8 +243,8 @@ class Coordinator(_ComponentBase):
         return self.running
 
     def close(self) -> None:
+        """ Cleanup components on shutdown. """
         for controller in self.controllers.values():
             controller.disconnect()
         for terminal in self.terminals.values():
             terminal.close()
-

@@ -49,7 +49,7 @@ def main() -> None:
 
 
     while True:
-        if not coordinator.updateComponents():
+        if not coordinator.update_components():
             break
 
     coordinator.close()

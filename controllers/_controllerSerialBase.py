@@ -1,10 +1,12 @@
+""" Base class for hardware controllers that use a serial port to connect. """
+
 try:
     from typing import Literal              # type: ignore
-except:
+except ImportError:
     from typing_extensions import Literal   # type: ignore
 
-import serial    # type: ignore
 import threading
+import serial    # type: ignore
 
 
 from controllers._controllerBase import _ControllerBase
@@ -14,168 +16,168 @@ SERIAL_INTERVAL = 0.02 # seconds
 
 
 class _SerialControllerBase(_ControllerBase):
-    def __init__(self, label: str="serialController") -> None:
+    """ Base class for hardware controllers that use a serial port to connect. """
+
+    def __init__(self, label: str = "serialController") -> None:
         super().__init__(label)
-        #self.serialDevName = "spy:///tmp/ttyFAKE?file=/tmp/serialspy.txt"
-        self.serialDevName = "/tmp/ttyFAKE"
-        self.serialBaud = 115200
+        #self.serial_dev_name = "spy:///tmp/ttyFAKE?file=/tmp/serialspy.txt"
+        self.serial_dev_name = "/tmp/ttyFAKE"
+        self.serial_baud = 115200
         self._serial = None
-        self.testing: bool = False  # Prevent _periodicIO() from blocking during tests.
-    
+        self.testing: bool = False  # Prevent _periodic_io() from blocking during tests.
+        self._serial_thread: threading.Thread = None
+
     def connect(self) -> Literal[ConnectionState]:
-        """ Try to open serial port. Set connectionStatus to CONNECTING. """
+        """ Try to open serial port. Set connection_status to CONNECTING. """
         print("connect")
-        if self.connectionStatus in [
+        if self.connection_status in [
                 ConnectionState.CONNECTING,
                 ConnectionState.CONNECTED,
                 ConnectionState.MISSING_RESOURCE]:
-            return self.connectionStatus
+            return self.connection_status
 
-        self.setConnectionStatus(ConnectionState.CONNECTING)
-        
+        self.set_connection_status(ConnectionState.CONNECTING)
+
         try:
             self._serial = serial.serial_for_url(
-                    self.serialDevName, self.serialBaud, timeout=0)
+                self.serial_dev_name, self.serial_baud, timeout=0)
         except AttributeError:
             try:
                 self._serial = serial.Serial(
-                        self.serialDevName, self.serialBaud, timeout=0)
+                    self.serial_dev_name, self.serial_baud, timeout=0)
             except serial.serialutil.SerialException:
-                self.setConnectionStatus(ConnectionState.MISSING_RESOURCE)
+                self.set_connection_status(ConnectionState.MISSING_RESOURCE)
         except serial.serialutil.SerialException:
-            self.setConnectionStatus(ConnectionState.MISSING_RESOURCE)
+            self.set_connection_status(ConnectionState.MISSING_RESOURCE)
 
-        return self.connectionStatus
+        return self.connection_status
 
     def disconnect(self) -> Literal[ConnectionState]:
         """ Close serial port, shut down serial port thread, etc.
-        Set connectionStatus to DISCONNECTING.. """
-        if self.connectionStatus in [
+        Set connection_status to DISCONNECTING.. """
+        if self.connection_status in [
                 ConnectionState.DISCONNECTING,
                 ConnectionState.NOT_CONNECTED]:
-            return self.connectionStatus
-        if self.connectionStatus in [
+            return self.connection_status
+        if self.connection_status in [
                 ConnectionState.CONNECTED,
                 ConnectionState.CONNECTING]:
-            print("Disconnecting %s %s" % (self.label, self.serialDevName))
+            print("Disconnecting %s %s" % (self.label, self.serial_dev_name))
 
         if self._serial is None:
-            self.setConnectionStatus(ConnectionState.NOT_CONNECTED)
+            self.set_connection_status(ConnectionState.NOT_CONNECTED)
         else:
-            self.setConnectionStatus(ConnectionState.DISCONNECTING)
+            self.set_connection_status(ConnectionState.DISCONNECTING)
 
-            self._serialThread.join()
+            self._serial_thread.join()
             self._serial.close()
 
-        self.readyForData = False
-        
-        return self.connectionStatus
+        self.ready_for_data = False
 
-    def onConnected(self) -> None:
+        return self.connection_status
+
+    def on_connected(self) -> None:
         """ Executed when serial port first comes up.
         Check serial port is open then start serial port thread.
-        Set connectionStatus to CONNECTED. """
+        Set connection_status to CONNECTED. """
         if self._serial is None:
-            self.setConnectionStatus(ConnectionState.FAIL)
+            self.set_connection_status(ConnectionState.FAIL)
             return
 
         if not self._serial.is_open:
             return
 
-        print("Connected %s %s" % (self.label, self.serialDevName))
-        self.setConnectionStatus(ConnectionState.CONNECTED)
+        print("Connected %s %s" % (self.label, self.serial_dev_name))
+        self.set_connection_status(ConnectionState.CONNECTED)
 
         # Drain the buffer of any noise.
         self._serial.flush()
         while self._serial.readline():
             pass
 
-        self._serialThread = threading.Thread(target=self._periodicIO)
-        self._serialThread.daemon = True
-        self._serialThread.start()
+        self._serial_thread = threading.Thread(target=self._periodic_io)
+        self._serial_thread.daemon = True
+        self._serial_thread.start()
 
-    def onDisconnected(self) -> None:
+    def on_disconnected(self) -> None:
         """ Executed when serial port is confirmed closed.
-        Check serial port was closed then set connectionStatus to NOT_CONNECTED. """
+        Check serial port was closed then set connection_status to NOT_CONNECTED. """
         if self._serial is None:
-            self.setConnectionStatus(ConnectionState.FAIL)
+            self.set_connection_status(ConnectionState.FAIL)
             return
 
         if self._serial.is_open:
             return
 
         print("Serial disconnected.")
-        self.setConnectionStatus(ConnectionState.NOT_CONNECTED)
+        self.set_connection_status(ConnectionState.NOT_CONNECTED)
         self._serial = None
 
-    def _serialWrite(self, data: bytes) -> bool:
+    def _serial_write(self, data: bytes) -> bool:
         """ Send data to serial port. """
         if self._serial is None:
-            self.setConnectionStatus(ConnectionState.FAIL)
+            self.set_connection_status(ConnectionState.FAIL)
             return False
 
         try:
             self._serial.write(data)
         except serial.serialutil.SerialException:
-            self.setConnectionStatus(ConnectionState.FAIL)
+            self.set_connection_status(ConnectionState.FAIL)
             return False
         return True
 
-    def _serialRead(self) -> bytes:
+    def _serial_read(self) -> bytes:
         """ Read data from serial port. """
         if self._serial is None:
-            self.setConnectionStatus(ConnectionState.FAIL)
+            self.set_connection_status(ConnectionState.FAIL)
             return b""
 
         try:
             if not self._serial.inWaiting():
                 return b""
         except OSError:
-            self.setConnectionStatus(ConnectionState.FAIL)
+            self.set_connection_status(ConnectionState.FAIL)
 
         line = None
         try:
             line = self._serial.readline()
         except serial.serialutil.SerialException:
-            self.setConnectionStatus(ConnectionState.FAIL)
+            self.set_connection_status(ConnectionState.FAIL)
         return line
 
     def early_update(self) -> None:
         """ Called early in the event loop, before events have been received. """
-        if self.connectionStatus != self.desiredConnectionStatus:
+        if self.connection_status != self.desired_connection_status:
             # Transition between connection states.
-            if self.connectionStatus is ConnectionState.CONNECTING:
+            if self.connection_status is ConnectionState.CONNECTING:
                 # Connection process already started.
-                self.onConnected()
+                self.on_connected()
 
-            elif self.connectionStatus is ConnectionState.DISCONNECTING:
+            elif self.connection_status is ConnectionState.DISCONNECTING:
                 # Trying to diconnect.
-                self.onDisconnected()
+                self.on_disconnected()
 
-            elif self.connectionStatus in [
+            elif self.connection_status in [
                     ConnectionState.FAIL, ConnectionState.MISSING_RESOURCE]:
                 # A serial port error occurred either # while opening a serial port or
                 # on an already open port.
-                self.setDesiredConnectionStatus(ConnectionState.NOT_CONNECTED)
-                self.setConnectionStatus(ConnectionState.CLEANUP)
+                self.set_desired_connection_status(ConnectionState.NOT_CONNECTED)
+                self.set_connection_status(ConnectionState.CLEANUP)
 
-            elif self.desiredConnectionStatus is ConnectionState.CONNECTED:
+            elif self.desired_connection_status is ConnectionState.CONNECTED:
                 # Start connection process.
                 self.connect()
 
-            elif self.desiredConnectionStatus is ConnectionState.NOT_CONNECTED:
+            elif self.desired_connection_status is ConnectionState.NOT_CONNECTED:
                 # Start disconnection.
                 self.disconnect()
-        
-    def _periodicIO(self) -> None:
+
+    def _periodic_io(self) -> None:
         """ Read from and write to serial port.
             Called from a separate thread.
             Blocks while serial port remains connected. """
-        while self.connectionStatus is ConnectionState.CONNECTED:
-            print("do read and write here.")
-
-            self._time.sleep(SERIAL_INTERVAL)
-
-            if self.testing:
-                break
-
+        # while self.connection_status is ConnectionState.CONNECTED:
+        #     print("do read and write here.")
+        #     self._time.sleep(SERIAL_INTERVAL)
+        #     if self.testing:
+        #         break

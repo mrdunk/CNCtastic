@@ -44,9 +44,9 @@ class JogWidget(_InterfaceBase):
             self.key_gen("dr"): ("_move_handler", (1, -1, 0)),
             self.key_gen("uz"): ("_move_handler", (0, 0, 1)),
             self.key_gen("dz"): ("_move_handler", (0, 0, -1)),
-            "activeController:work_pos:x": ("_wpos_handler_x", None),
-            "activeController:work_pos:y": ("_wpos_handler_y", None),
-            "activeController:work_pos:z": ("_wpos_handler_z", None),
+            "active_controller:work_pos:x": ("_wpos_handler_x", None),
+            "active_controller:work_pos:y": ("_wpos_handler_y", None),
+            "active_controller:work_pos:z": ("_wpos_handler_z", None),
             self.key_gen("work_pos:x"): ("_wpos_handler_x_update", None),
             self.key_gen("work_pos:y"): ("_wpos_handler_y_update", None),
             self.key_gen("work_pos:z"): ("_wpos_handler_z_update", None),
@@ -78,17 +78,17 @@ class JogWidget(_InterfaceBase):
                      )
 
     def _wpos_handler_x(self, value: float) -> None:
-        """ Called in response to an activeController:work_pos:x event. """
+        """ Called in response to an active_controller:work_pos:x event. """
         self._w_pos["x"] = value
         self.publish_one_by_value(self.key_gen("work_pos:x"), value)
 
     def _wpos_handler_y(self, value: float) -> None:
-        """ Called in response to an activeController:work_pos:y event. """
+        """ Called in response to an active_controller:work_pos:y event. """
         self._w_pos["y"] = value
         self.publish_one_by_value(self.key_gen("work_pos:y"), value)
 
     def _wpos_handler_z(self, value: float) -> None:
-        """ Called in response to an activeController:work_pos:z event. """
+        """ Called in response to an active_controller:work_pos:z event. """
         self._w_pos["z"] = value
         self.publish_one_by_value(self.key_gen("work_pos:z"), value)
 
@@ -114,7 +114,7 @@ class JogWidget(_InterfaceBase):
         self._updated_data.work_pos = self._w_pos
 
     def gui_layout(self) -> List:
-        """ Layout information for the terminal.gui.Gui plugin. """
+        """ Layout information for the PySimpleGUI interface. """
         but_w = 5
         but_h = 1.5
         def txt(label: str, but_w: float = but_w, but_h: float = but_h) -> sg.Frame:
@@ -151,7 +151,7 @@ class JogWidget(_InterfaceBase):
         def m_coord(key: str) -> sg.InputText:
             """ Text field for machine coordinate positions. (Not updatable) """
             return sg.InputText(key,
-                                key="activeController:%s" % key,
+                                key="active_controller:%s" % key,
                                 size=(coord_w, coord_h),
                                 justification="right",
                                 pad=(0, 0),
@@ -162,7 +162,7 @@ class JogWidget(_InterfaceBase):
         def f_coord(key: str) -> sg.InputText:
             """ Text field for feed rate coordinate values. (Not updatable) """
             return sg.InputText(key,
-                                key="activeController:%s" % key,
+                                key="active_controller:%s" % key,
                                 size=(coord_w / 2, coord_h),
                                 justification="right",
                                 pad=(0, 0),

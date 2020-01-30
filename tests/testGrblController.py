@@ -61,131 +61,131 @@ class TestControllerReceiveDataFromSerial(unittest.TestCase):
         self.controller = Grbl1p1Controller()
         self.controller._serial = MockSerial()
         self.controller._time = MockTime()
-        self.controller.connectionStatus = ConnectionState.CONNECTED
-        self.controller.desiredConnectionStatus = ConnectionState.CONNECTED
+        self.controller.connection_status = ConnectionState.CONNECTED
+        self.controller.desired_connection_status = ConnectionState.CONNECTED
         self.controller.state.changes_made = False
         self.controller.testing = True
 
-        self.assertTrue(self.controller._commandImmediate.empty())
-        self.assertTrue(self.controller._commandStreaming.empty())
-        self.assertTrue(self.controller._receivedData.empty())
-        self.assertEqual(self.controller._errorCount, 0)
-        self.assertEqual(self.controller._okCount, 0)
+        self.assertTrue(self.controller._command_immediate.empty())
+        self.assertTrue(self.controller._command_streaming.empty())
+        self.assertTrue(self.controller._received_data.empty())
+        self.assertEqual(self.controller._error_count, 0)
+        self.assertEqual(self.controller._ok_count, 0)
 
     def test_basic(self):
         """ Basic input as would be seen when everything is going perfectly. """
         self.controller._serial.dummy_data = [b"test\r\n", b"test2\r\n"]
-        self.controller._periodicIO()
-        self.assertEqual(self.controller._receivedData.qsize(), 2)
+        self.controller._periodic_io()
+        self.assertEqual(self.controller._received_data.qsize(), 2)
 
-        self.assertEqual(self.controller._receivedData.get(), b"test")
-        self.assertEqual(self.controller._receivedData.get(), b"test2")
+        self.assertEqual(self.controller._received_data.get(), b"test")
+        self.assertEqual(self.controller._received_data.get(), b"test2")
 
     def test_two_in_one(self):
         """ 2 input lines are received in a single cycle. """
         self.controller._serial.dummy_data = [b"test\r\ntest2\r\n", b"test3\r\n"]
-        self.controller._periodicIO()
-        self.assertEqual(self.controller._receivedData.qsize(), 3)
+        self.controller._periodic_io()
+        self.assertEqual(self.controller._received_data.qsize(), 3)
 
-        self.assertEqual(self.controller._receivedData.get(), b"test")
-        self.assertEqual(self.controller._receivedData.get(), b"test2")
-        self.assertEqual(self.controller._receivedData.get(), b"test3")
+        self.assertEqual(self.controller._received_data.get(), b"test")
+        self.assertEqual(self.controller._received_data.get(), b"test2")
+        self.assertEqual(self.controller._received_data.get(), b"test3")
 
     def test_split_line(self):
         """ A line is split over 2 reads. """
         self.controller._serial.dummy_data = [b"te", b"st\r\n"]
-        self.controller._periodicIO()
-        self.assertEqual(self.controller._receivedData.qsize(), 1)
+        self.controller._periodic_io()
+        self.assertEqual(self.controller._received_data.qsize(), 1)
 
-        self.assertEqual(self.controller._receivedData.get(), b"test")
+        self.assertEqual(self.controller._received_data.get(), b"test")
 
     def test_split_line_before_eol(self):
         """ A line is split over 2 reads between content and EOL. """
         self.controller._serial.dummy_data = [b"test", b"\r\ntest2\r\n"]
-        self.controller._periodicIO()
-        self.assertEqual(self.controller._receivedData.qsize(), 2)
+        self.controller._periodic_io()
+        self.assertEqual(self.controller._received_data.qsize(), 2)
 
-        self.assertEqual(self.controller._receivedData.get(), b"test")
-        self.assertEqual(self.controller._receivedData.get(), b"test2")
+        self.assertEqual(self.controller._received_data.get(), b"test")
+        self.assertEqual(self.controller._received_data.get(), b"test2")
 
     def test_split_line_mid_eol(self):
         """ A line is split over 2 reads between EOL chars. """
         self.controller._serial.dummy_data = [b"test\r", b"\ntest2\r\n"]
-        self.controller._periodicIO()
-        self.assertEqual(self.controller._receivedData.qsize(), 2)
+        self.controller._periodic_io()
+        self.assertEqual(self.controller._received_data.qsize(), 2)
 
-        self.assertEqual(self.controller._receivedData.get(), b"test")
-        self.assertEqual(self.controller._receivedData.get(), b"test2")
+        self.assertEqual(self.controller._received_data.get(), b"test")
+        self.assertEqual(self.controller._received_data.get(), b"test2")
 
     def test_delayed_input(self):
         """ A line is split over 2 reads with empty read in between. """
         self.controller._serial.dummy_data = [b"te", None, b"st\r\n", None, b"test2\r\n"]
-        self.controller._periodicIO()
-        self.controller._periodicIO()  # "None" in data stopped read loop.
-        self.controller._periodicIO()  # "None" in data stopped read loop.
-        self.assertEqual(self.controller._receivedData.qsize(), 2)
+        self.controller._periodic_io()
+        self.controller._periodic_io()  # "None" in data stopped read loop.
+        self.controller._periodic_io()  # "None" in data stopped read loop.
+        self.assertEqual(self.controller._received_data.qsize(), 2)
 
-        self.assertEqual(self.controller._receivedData.get(), b"test")
-        self.assertEqual(self.controller._receivedData.get(), b"test2")
+        self.assertEqual(self.controller._received_data.get(), b"test")
+        self.assertEqual(self.controller._received_data.get(), b"test2")
 
     def test_empty_line(self):
         """ Empty line are ignored. """
         self.controller._serial.dummy_data = [b"\r\n", b"\r\n"]
-        self.controller._periodicIO()
-        self.assertEqual(self.controller._receivedData.qsize(), 0)
+        self.controller._periodic_io()
+        self.assertEqual(self.controller._received_data.qsize(), 0)
 
         self.controller._serial.dummy_data = [b"\r\n", b"\r\n", b"test\r\n", b"\r\n"]
-        self.controller._periodicIO()
-        self.assertEqual(self.controller._receivedData.qsize(), 1)
+        self.controller._periodic_io()
+        self.assertEqual(self.controller._received_data.qsize(), 1)
 
         self.controller._serial.dummy_data = []
-        self.controller._periodicIO()
-        self.assertEqual(self.controller._receivedData.qsize(), 1)
+        self.controller._periodic_io()
+        self.assertEqual(self.controller._received_data.qsize(), 1)
 
-        self.assertEqual(self.controller._receivedData.get(), b"test")
+        self.assertEqual(self.controller._received_data.get(), b"test")
 
     def test_receive_ok(self):
         """ Lines starting with "ok" are handled in the local thread.
         They change counters relating to current buffer state; As "ok" arrives,
         we know a buffer entry has been consumed. """
         self.controller._serial.dummy_data = [b"test\r\n", b"ok\r\n", b"test2\r\n", b"ok\r\n"]
-        self.controller._sendBufLens.append(5)
-        self.controller._sendBufActns.append(("dummy", None))
-        self.controller._sendBufLens.append(10)
-        self.controller._sendBufActns.append(("dummy", None))
-        self.controller._sendBufLens.append(20)
-        self.controller._sendBufActns.append(("dummy", None))
+        self.controller._send_buf_lens.append(5)
+        self.controller._send_buf_actns.append(("dummy", None))
+        self.controller._send_buf_lens.append(10)
+        self.controller._send_buf_actns.append(("dummy", None))
+        self.controller._send_buf_lens.append(20)
+        self.controller._send_buf_actns.append(("dummy", None))
 
-        self.controller._periodicIO()
+        self.controller._periodic_io()
         # 1 "ok" processed. Entry removed from _bufferLengths.
-        self.assertEqual(len(self.controller._sendBufLens), 1)
-        self.assertEqual(self.controller._okCount, 2)
+        self.assertEqual(len(self.controller._send_buf_lens), 1)
+        self.assertEqual(self.controller._ok_count, 2)
         # 2 other messages.
-        self.assertEqual(self.controller._receivedData.qsize(), 2)
+        self.assertEqual(self.controller._received_data.qsize(), 2)
 
-        self.assertEqual(self.controller._receivedData.get(), b"test")
-        self.assertEqual(self.controller._receivedData.get(), b"test2")
+        self.assertEqual(self.controller._received_data.get(), b"test")
+        self.assertEqual(self.controller._received_data.get(), b"test2")
 
     def test_receive_error(self):
         """ Lines starting with "error:" are handled in the local thread.
         Errors should halt execution imidiately. ("!" halts the machine in GRBL."""
         self.controller._serial.dummy_data = [
             b"test\r\n", b"error:12\r\n", b"test2\r\n", b"error:42\r\n"]
-        self.controller._sendBufLens.append(5)
-        self.controller._sendBufActns.append(("dummy", None))
-        self.controller._sendBufLens.append(10)
-        self.controller._sendBufActns.append(("dummy", None))
+        self.controller._send_buf_lens.append(5)
+        self.controller._send_buf_actns.append(("dummy", None))
+        self.controller._send_buf_lens.append(10)
+        self.controller._send_buf_actns.append(("dummy", None))
 
-        self.controller._periodicIO()
-        self.assertEqual(self.controller._errorCount, 2)
+        self.controller._periodic_io()
+        self.assertEqual(self.controller._error_count, 2)
         # Errors are passed to the parent thread as well as being dealt with here.
-        self.assertEqual(self.controller._receivedData.qsize(), 4)
+        self.assertEqual(self.controller._received_data.qsize(), 4)
 
         self.assertEqual(self.controller._serial.received_data[-1], b"!")
-        self.assertEqual(self.controller._receivedData.get(), b"test")
-        self.assertEqual(self.controller._receivedData.get(), b"error:12")
-        self.assertEqual(self.controller._receivedData.get(), b"test2")
-        self.assertEqual(self.controller._receivedData.get(), b"error:42")
+        self.assertEqual(self.controller._received_data.get(), b"test")
+        self.assertEqual(self.controller._received_data.get(), b"error:12")
+        self.assertEqual(self.controller._received_data.get(), b"test2")
+        self.assertEqual(self.controller._received_data.get(), b"error:42")
 
     def test_whitespace(self):
         """ Whitespace should be stripped from ends of lines but not middle. """
@@ -198,13 +198,13 @@ class TestControllerReceiveDataFromSerial(unittest.TestCase):
                                               b"test\t3\r\n",
                                               b"\ntest\n4\n\r\n",
                                               ]
-        self.controller._periodicIO()
-        self.assertEqual(self.controller._receivedData.qsize(), 4)
+        self.controller._periodic_io()
+        self.assertEqual(self.controller._received_data.qsize(), 4)
 
-        self.assertEqual(self.controller._receivedData.get(), b"test")
-        self.assertEqual(self.controller._receivedData.get(), b"test 2")
-        self.assertEqual(self.controller._receivedData.get(), b"test\t3")
-        self.assertEqual(self.controller._receivedData.get(), b"test\n4")
+        self.assertEqual(self.controller._received_data.get(), b"test")
+        self.assertEqual(self.controller._received_data.get(), b"test 2")
+        self.assertEqual(self.controller._received_data.get(), b"test\t3")
+        self.assertEqual(self.controller._received_data.get(), b"test\n4")
 
 
 class TestControllerSendDataToSerial(unittest.TestCase):
@@ -214,23 +214,23 @@ class TestControllerSendDataToSerial(unittest.TestCase):
         self.controller = Grbl1p1Controller()
         self.controller._serial = MockSerial()
         self.controller._time = MockTime()
-        self.controller.connectionStatus = ConnectionState.CONNECTED
-        self.controller.desiredConnectionStatus = ConnectionState.CONNECTED
+        self.controller.connection_status = ConnectionState.CONNECTED
+        self.controller.desired_connection_status = ConnectionState.CONNECTED
         self.controller.state.changes_made = False
         self.controller.testing = True
 
-        self.assertTrue(self.controller._commandImmediate.empty())
-        self.assertTrue(self.controller._commandStreaming.empty())
-        self.assertTrue(self.controller._receivedData.empty())
-        self.assertEqual(self.controller._errorCount, 0)
-        self.assertEqual(self.controller._okCount, 0)
+        self.assertTrue(self.controller._command_immediate.empty())
+        self.assertTrue(self.controller._command_streaming.empty())
+        self.assertTrue(self.controller._received_data.empty())
+        self.assertEqual(self.controller._error_count, 0)
+        self.assertEqual(self.controller._ok_count, 0)
 
     def test_basic(self):
         """ Basic input as would be seen when everything is going perfectly. """
         self.controller._serial.dummy_data = []
         # toSend = [b"G0 F100 X10 Y-10", b"!"]
 
-        self.controller._periodicIO()
+        self.controller._periodic_io()
         # TODO
 
 

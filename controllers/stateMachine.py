@@ -107,7 +107,7 @@ class StateMachineBase:
         """ Publish all machine properties. """
         for prop in self.machine_properties:
             value = getattr(self, prop)
-            if isinstance(prop, (float, int, str)):
+            if isinstance(value, (float, int, str)):
                 self.on_update_callback(prop, value)
             elif isinstance(value, dict):
                 for sub_prop, sub_value in value.items():
