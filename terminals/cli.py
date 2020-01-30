@@ -1,6 +1,8 @@
+# pylint: disable=E1101  # Module 'curses' has no 'XXXX' member (no-member)
+
 """ Plugin to provide command line IO using curses library. """
 
-from typing import List, Optional, Any, Union
+from typing import Optional, Any, Union
 
 import atexit
 from io import StringIO
@@ -29,9 +31,9 @@ class Cli(_TerminalBase):
 
         # Replace default stdout (terminal) with a stream so it doesn't mess with
         # curses.
-        self.tempStdout = StringIO()
-        sys.stdout = self.tempStdout
-        self.tempStdoutPos = 0
+        self.temp_stdout = StringIO()
+        sys.stdout = self.temp_stdout
+        self.temp_stdout_pos = 0
 
         # Undo curses stuff in the event of a crash.
         atexit.register(self.close)
@@ -50,17 +52,17 @@ class Cli(_TerminalBase):
         begin_y = 0
         height = curses.LINES
         width = int(curses.COLS / 2)
-        self.winMainBorder = self.stdscr.subwin(height, width, begin_y, begin_x)
-        self.winMainBorder.border()
-        self.winMainout = curses.newwin(height - 2, width - 2, begin_y + 1, begin_x + 1)
-        self.winMainout.scrollok(True)
+        self.win_main_border = self.stdscr.subwin(height, width, begin_y, begin_x)
+        self.win_main_border.border()
+        self.win_mainout = curses.newwin(height - 2, width - 2, begin_y + 1, begin_x + 1)
+        self.win_mainout.scrollok(True)
 
         begin_x = int(curses.COLS / 2)
         begin_y = 0
-        self.winStdoutBorder = self.stdscr.subwin(height, width, begin_y, begin_x)
-        self.winStdoutBorder.border()
-        self.winStdout = curses.newwin(height - 2, width - 2, begin_y + 1, begin_x + 1)
-        self.winStdout.scrollok(True)
+        self.win_stdout_border = self.stdscr.subwin(height, width, begin_y, begin_x)
+        self.win_stdout_border.border()
+        self.win_stdout = curses.newwin(height - 2, width - 2, begin_y + 1, begin_x + 1)
+        self.win_stdout.scrollok(True)
 
         #self.stdscr.addstr(2,2,"hello")
         #self.stdscr.addstr(10,10,"world", curses.A_REVERSE)
@@ -68,7 +70,7 @@ class Cli(_TerminalBase):
         #    self.stdscr.addstr(3,3,"Pretty text", curses.color_pair(1))
 
         self.stdscr.refresh()
-        self.winYesNo: Optional[Any] = None
+        self.win_yes_no: Optional[Any] = None
 
     def yesno(self, message: str = "") -> None:
         """ Display confirmation window. """
@@ -77,20 +79,20 @@ class Cli(_TerminalBase):
             begin_y = int(curses.LINES / 2 - 3)
             height = 6
             width = 20
-            self.winYesNo = curses.newwin(height, width, begin_y, begin_x)
-            self.winYesNo.clear()
-            self.winYesNo.border()
-            self.winYesNo.addstr(2, 2, message)
-            self.winYesNo.refresh()
+            self.win_yes_no = curses.newwin(height, width, begin_y, begin_x)
+            self.win_yes_no.clear()
+            self.win_yes_no.border()
+            self.win_yes_no.addstr(2, 2, message)
+            self.win_yes_no.refresh()
         else:
-            del self.winYesNo
-            self.winYesNo = None
-            self.winMainout.touchwin()
-            self.winStdout.touchwin()
-            self.winMainBorder.refresh()
-            self.winStdoutBorder.refresh()
-            self.winMainout.refresh()
-            self.winStdout.refresh()
+            del self.win_yes_no
+            self.win_yes_no = None
+            self.win_mainout.touchwin()
+            self.win_stdout.touchwin()
+            self.win_main_border.refresh()
+            self.win_stdout_border.refresh()
+            self.win_mainout.refresh()
+            self.win_stdout.refresh()
 
     def early_update(self) -> bool:
         """ To be called once per frame.
@@ -101,24 +103,23 @@ class Cli(_TerminalBase):
             return True
 
         character: Union[str, bytes, int, None] = None
-        try:
-            #character = self.stdscr.getkey()   # read a keypress
-            character = self.stdscr.getch()   # read a keypress
-        except:
-            pass
+            
+        #character = self.stdscr.getkey()   # read a keypress
+        character = self.stdscr.getch()   # read a keypress
+
         if character is not None and isinstance(character, int) and character > -1:
-            self.winMainout.addstr("%s %s\n" % (character, curses.keyname(character)))
-            self.winMainout.refresh()
+            self.win_mainout.addstr("%s %s\n" % (character, curses.keyname(character)))
+            self.win_mainout.refresh()
 
-        if self.tempStdout.tell() > self.tempStdoutPos:
-            self.tempStdout.seek(self.tempStdoutPos)
-            val = self.tempStdout.read()
-            self.tempStdoutPos = self.tempStdout.tell()
+        if self.temp_stdout.tell() > self.temp_stdout_pos:
+            self.temp_stdout.seek(self.temp_stdout_pos)
+            val = self.temp_stdout.read()
+            self.temp_stdout_pos = self.temp_stdout.tell()
 
-            self.winStdout.addstr(val)
-            self.winStdout.refresh()
+            self.win_stdout.addstr(val)
+            self.win_stdout.refresh()
 
-        if self.winYesNo:
+        if self.win_yes_no:
             if character == 27:   # Esc
                 # Cancel yesno.
                 self.yesno()
@@ -144,6 +145,6 @@ class Cli(_TerminalBase):
 
         # Replace stdout
         sys.stdout = sys.__stdout__
-        #sys.stdout.write(self.tempStdout.getvalue())
+        #sys.stdout.write(self.temp_stdout.getvalue())
 
         self._setup_done = False

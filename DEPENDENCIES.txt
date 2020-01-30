@@ -2,3 +2,5 @@ pip3 install pygcode
 pip3 install pyserial
 pip3 install PySimpleGUIQt
 pip3 install PySide2
+pip3 install pylint
+pip3 install pylint_enums
