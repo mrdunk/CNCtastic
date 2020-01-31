@@ -12,16 +12,19 @@ import curses
 
 from terminals._terminalBase import _TerminalBase
 
-class_name = "Cli"
-
 class Cli(_TerminalBase):
     """ Plugin to provide command line IO using curses library. """
+
+    # Not active unless enabled with flag at runtime.
+    active_by_default = False
+    
+    # Set this True for any derived class that is to be used as a plugin.
+    is_valid_plugin = True
 
     # pylint: disable=W0613
     def __init__(self, label: str = "cli") -> None:
         super().__init__(label)
         self._setup_done: bool = False
-        self.active_by_default = False
         self.description = "CLI interface for console operation."
 
     def setup(self) -> None:

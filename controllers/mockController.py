@@ -6,6 +6,9 @@ from definitions import ConnectionState
 class MockController(DebugController):
     """ Mock controller for use in unit-tests. """
 
+    # Set False as we don't want it to be used as a plugin.
+    is_valid_plugin = False
+
     def early_update(self) -> None:
         """ Called early in the event loop, before events have been received. """
         if self.connection_status == ConnectionState.CONNECTING:

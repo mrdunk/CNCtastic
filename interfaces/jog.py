@@ -12,8 +12,6 @@ import PySimpleGUIQt as sg       # type: ignore
 from interfaces._interfaceBase import _InterfaceBase  # type: ignore
 from definitions import FlagState
 
-class_name = "JogWidget"
-
 def round_1_sf(number: float) -> float:
     """ Round a float to 1 significant figure. """
     return round(number, -int(floor(log10(abs(number)))))
@@ -21,6 +19,9 @@ def round_1_sf(number: float) -> float:
 class JogWidget(_InterfaceBase):
     """ Allows user to directly control various machine settings. eg: Jog the
     head to given coordinates. """
+
+    # Set this True for any derived class that is to be used as a plugin.
+    is_valid_plugin = True
 
     def __init__(self, label: str = "jogWidget") -> None:
         super().__init__(label)

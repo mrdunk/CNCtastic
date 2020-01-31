@@ -8,12 +8,16 @@ import PySimpleGUIQt as sg
 
 from terminals._terminalBase import _TerminalBase, diff_dicts
 
-class_name = "Gui"
-
 class Gui(_TerminalBase):
     """ Display GUI interface.
     Will display the widgets in any other component loaded as a plugin's "layout"
     property. See the "JogWidget" component as an example. """
+
+    # Active unless disabled with flag at runtime.
+    active_by_default = True
+    
+    # Set this True for any derived class that is to be used as a plugin.
+    is_valid_plugin = True
 
     def __init__(self, label: str = "gui") -> None:
         super().__init__(label)

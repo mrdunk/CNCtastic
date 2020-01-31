@@ -9,10 +9,14 @@ class _ComponentBase:
     Event = Tuple[str, Any]
     # Single shared instance for all components.
     _event_queue: Deque[Event] = deque()
+
     # Unique copy per instance.
     event_subscriptions: Dict[str, Any]
     events_to_publish: Dict[str, str]
     _delivered: Deque[Any]
+
+    # Set this True for any derived class that is to be used as a plugin.
+    is_valid_plugin = False
 
     def __init__(self, label: str) -> None:
         self.label: str = label
@@ -36,6 +40,10 @@ class _ComponentBase:
         self._delivered = deque()
 
         self.debug_show_events = False
+
+    @classmethod
+    def get_classname(cls):
+        return cls.__name__
 
     def key_gen(self, tag: str) -> str:
         """ Return an event name prepended with the component name.

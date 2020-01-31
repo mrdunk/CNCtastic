@@ -20,10 +20,11 @@ from definitions import ConnectionState
 CONNECT_DELAY = 4   # seconds
 PUSH_DELAY = 1      # seconds
 
-class_name = "DebugController"
-
 class DebugController(_ControllerBase):
     """ A controller for use when testing which mimics an actual hardware controller. """
+
+    # Set this True for any derived class that is to be used as a plugin.
+    is_valid_plugin = True
 
     # Mimic GRBL compatibility in this controller.
     # https://github.com/gnea/grbl/wiki/Grbl-v1.1-Commands

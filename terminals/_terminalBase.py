@@ -46,9 +46,13 @@ def diff_dicts(original: Dict, new: Dict) -> Dict:
 
 
 class _TerminalBase(_ComponentBase):
+    
+    active_by_default = True
+
+    plugin_type = "terminal"
+
     def __init__(self, label: str = "_guiBase") -> None:
         super().__init__(label)
-        self.active_by_default = True
         self.active = False
 
     def early_update(self) -> None:

@@ -22,10 +22,11 @@ REPORT_INTERVAL = 1.0 # seconds
 SERIAL_INTERVAL = 0.02 # seconds
 RX_BUFFER_SIZE = 128
 
-class_name = "Grbl1p1Controller"
-
 class Grbl1p1Controller(_SerialControllerBase):
     """ A plugin to support Grbl 1.1 controller hardware. """
+
+    # Set this True for any derived class that is to be used as a plugin.
+    is_valid_plugin = True
 
     # GRBL1.1 only supports the following subset of gcode.
     # https://github.com/gnea/grbl/wiki/Grbl-v1.1-Commands

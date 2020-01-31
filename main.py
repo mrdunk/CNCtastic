@@ -6,52 +6,69 @@ Uses plugins for different hardware controller types. (Eg, Grbl, etc.)
 Uses plugins for different operating modes. (Eg. Jog, run GCode file, etc.)
 """
 
+from typing import List
 import argparse
 
 import common
 from coordinator.coordinator import Coordinator
+from terminals._terminalBase import _TerminalBase
+from controllers._controllerBase import _ControllerBase
+from interfaces._interfaceBase import _InterfaceBase
 
 
 def main() -> None:
     """ Main program loop. """
 
-    terminals = common.load_plugins("terminals")
-    controllers = common.load_plugins("controllers")
-    interfaces = common.load_plugins("interfaces")
+    # Component plugin classes.
+    class_terminals = common.load_plugins("terminals")
+    class_controllers = common.load_plugins("controllers")
+    class_interfaces = common.load_plugins("interfaces")
 
+    # Component plugin instances.
+    terminals: List[_TerminalBase] = \
+        []
+    controllers: List[_ControllerBase] = \
+        [controller() for active, controller in class_controllers if active]
+    interfaces: List[_InterfaceBase] = \
+        [interface() for active, interface in class_interfaces if active]
+
+    # Command line arguments.
     parser = argparse.ArgumentParser(description="A UI for CNC machines.")
 
     parser.add_argument("-debug_show_events",
                         action="store_true",
                         help="Display events.")
 
-    for terminal in terminals:
-        if terminal.active_by_default:
-            parser.add_argument("-no_%s" % terminal.label,
-                                dest=terminal.label,
+    for active_by_default, terminal in class_terminals:
+        if active_by_default:
+            parser.add_argument("-no_%s" % terminal.get_classname(),
+                                dest=terminal.get_classname(),
                                 action="store_false",
-                                help=terminal.description)
+                                help="terminal.description")
         else:
-            parser.add_argument("-%s" % terminal.label,
-                                dest=terminal.label,
+            parser.add_argument("-%s" % terminal.get_classname(),
+                                dest=terminal.get_classname(),
                                 action="store_true",
-                                help=terminal.description)
+                                help="terminal.description")
 
     args = parser.parse_args()
     print(args)
 
-    for terminal in terminals:
-        terminal.active: bool = getattr(args, terminal.label)   # type: ignore
-        terminal.debug_show_events: bool = args.debug_show_events   # type: ignore
+    # Instantiate terminals according to command line flags.
+    for _, terminal in class_terminals:
+        if getattr(args, terminal.get_classname()):
+            terminal_instance = terminal()
+            terminal_instance.debug_show_events = args.debug_show_events
+            terminals.append(terminal_instance)
 
-
+    # Populate and start the coordinator.
     coordinator = Coordinator(terminals, interfaces, controllers, args.debug_show_events)
-
 
     while True:
         if not coordinator.update_components():
             break
 
+    # Cleanup and exit.
     coordinator.close()
     print("done")
 

@@ -18,6 +18,9 @@ class _ControllerBase(_ComponentBase):
     # Strings of the gcode commands this controller supports.
     SUPPORTED_GCODE: Set = set()
 
+    # Type of component. Used by the plugin loader.
+    plugin_type = "controller"
+
     def __init__(self, label: str) -> None:
         super().__init__(label)
 

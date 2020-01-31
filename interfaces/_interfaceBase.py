@@ -56,6 +56,9 @@ class UpdateState:
 class _InterfaceBase(_ComponentBase):
     """ A base class for user input objects used for controlling the machine. """
 
+    # Type of component. Used by the plugin loader.
+    plugin_type = "interface"
+
     # Make a class reference to avoid expensive global lookup.
     #modal_groups: Dict[str, object] = MODAL_GROUPS
     #modal_groups: Dict[str, Dict[str, Callable]] = MODAL_GROUPS

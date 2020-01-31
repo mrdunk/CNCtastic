@@ -1,36 +1,58 @@
 """ Misc library methods. """
 
-from typing import List, Any
+from typing import List, Any, Set
 import pkgutil
+import importlib
 import os
 import sys
 
 #from controllers import debug
+from component import _ComponentBase
 
 BASEDIR = os.path.dirname(sys.argv[0])
+
+def get_component_from_module(module) -> _ComponentBase:
+    """ Yields plugin classes when provided with """
+    for thing_name in dir(module):
+        thing = getattr(module, thing_name)
+
+        is_valid_plugin = False
+        try:
+            is_valid_plugin = getattr(thing, "is_valid_plugin")
+        except AttributeError:
+            pass
+        else:
+            if is_valid_plugin:
+                yield thing
 
 def load_plugins(directory: str) -> List[Any]:
     """ Load plugins.
     Plugins whose filename starts with "_" will be ignored.
-    Each file to be exported should contain a "class_name" variable with the name
-    of the class to be exported.
     Args:
         directory: Directory relative to main.py.
     Returns:
-        A dictionary of name: module pairs. """
-    plugins: List[Any] = []
+        A Set of plugins. """
+
+    print("Loading %s plugins:" % directory)
+    plugins: Set[Any] = set([])
+
     full_dir = os.path.join(BASEDIR, directory)
-    for _, name, _ in pkgutil.iter_modules([full_dir]):
-        if name[0] == "_":
-            continue
-        plugin = getattr(__import__("%s.%s" % (directory, name)), name)
-        # TODO: Can we do away with the class_name requirement?
-        if "class_name" in dir(plugin):
-            class_name = getattr(plugin, "class_name")
 
-            plugin = getattr(plugin, class_name)()
-            plugins.append(plugin)
+    discovered_plugins = [
+        importlib.import_module(directory + "." + name)
+        for finder, name, ispkg in pkgutil.iter_modules([full_dir])
+        if not name.startswith('_')
+        ]
 
-            print("Plugin: %s.py %s as %s" % (name, class_name, plugin.label))
+    for module in discovered_plugins:
+        for thing in get_component_from_module(module):
+            if directory.startswith(thing.plugin_type):
+                active_by_default: bool = True
+                if "active_by_default" in dir(thing):
+                    active_by_default = getattr(thing, "active_by_default")
+
+                print("  type: %s\tname: %s\tactive_by_default: %s\t" %
+                      (thing.plugin_type, thing.get_classname(), active_by_default))
+                plugins.add((active_by_default, thing))
 
     return plugins
