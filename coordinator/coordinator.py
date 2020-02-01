@@ -7,7 +7,7 @@ from typing import List, Dict, Optional
 from collections import deque
 
 from component import _ComponentBase
-from controllers._controllerBase import _ControllerBase
+from controllers._controller_base import _ControllerBase
 
 class Coordinator(_ComponentBase):
     """ Coordinator handles interactions between components.

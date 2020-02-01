@@ -55,6 +55,10 @@ class _TerminalBase(_ComponentBase):
         super().__init__(label)
         self.active = False
 
+    def setup(self) -> None:
+        """ Any configuration to be done after __init__ once other components
+        are active. """
+
     def early_update(self) -> None:
         """ To be called once per frame.
         Returns:

@@ -10,26 +10,22 @@ import sys
 import os
 import curses
 
-from terminals._terminalBase import _TerminalBase
+from terminals._terminal_base import _TerminalBase
 
 class Cli(_TerminalBase):
     """ Plugin to provide command line IO using curses library. """
 
     # Not active unless enabled with flag at runtime.
     active_by_default = False
-    
+
     # Set this True for any derived class that is to be used as a plugin.
     is_valid_plugin = True
 
     # pylint: disable=W0613
     def __init__(self, label: str = "cli") -> None:
         super().__init__(label)
-        self._setup_done: bool = False
         self.description = "CLI interface for console operation."
 
-    def setup(self) -> None:
-        """ Configuration to be done after class instantiation. """
-        self._setup_done = True
         os.environ.setdefault('ESCDELAY', '25')
 
         # Replace default stdout (terminal) with a stream so it doesn't mess with
@@ -102,11 +98,8 @@ class Cli(_TerminalBase):
         Returns:
             bool: True: Continue execution.
                   False: An "Exit" or empty event occurred. Stop execution. """
-        if not self._setup_done:
-            return True
-
         character: Union[str, bytes, int, None] = None
-            
+
         #character = self.stdscr.getkey()   # read a keypress
         character = self.stdscr.getch()   # read a keypress
 
@@ -137,9 +130,6 @@ class Cli(_TerminalBase):
 
     def close(self) -> None:
         """ Close curses session, restore shell settings. """
-        if not self._setup_done:
-            return
-
         curses.nocbreak()
         self.stdscr.keypad(False)
         curses.echo()
@@ -149,5 +139,3 @@ class Cli(_TerminalBase):
         # Replace stdout
         sys.stdout = sys.__stdout__
         #sys.stdout.write(self.temp_stdout.getvalue())
-
-        self._setup_done = False

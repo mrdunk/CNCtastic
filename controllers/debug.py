@@ -14,7 +14,7 @@ from collections import deque
 #import PySimpleGUIQt as sg
 from terminals.gui import sg
 
-from controllers._controllerBase import _ControllerBase
+from controllers._controller_base import _ControllerBase
 from definitions import ConnectionState
 
 CONNECT_DELAY = 4   # seconds

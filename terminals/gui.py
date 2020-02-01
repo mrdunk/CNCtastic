@@ -6,7 +6,7 @@ from enum import Enum
 import PySimpleGUIQt as sg
 #import PySimpleGUIWeb as sg
 
-from terminals._terminalBase import _TerminalBase, diff_dicts
+from terminals._terminal_base import _TerminalBase, diff_dicts
 
 class Gui(_TerminalBase):
     """ Display GUI interface.
@@ -15,7 +15,7 @@ class Gui(_TerminalBase):
 
     # Active unless disabled with flag at runtime.
     active_by_default = True
-    
+
     # Set this True for any derived class that is to be used as a plugin.
     is_valid_plugin = True
 

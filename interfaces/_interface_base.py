@@ -12,7 +12,7 @@ class UpdateState:
     """ Data container representing changes to be made to the state of the system. """
     def __init__(self,
                  gcode: Optional[block.Block] = None,
-                 wPos: Optional[Dict] = None,
+                 w_pos: Optional[Dict] = None,
                  halt: FlagState = FlagState.UNSET,
                  pause: FlagState = FlagState.UNSET,
                  jog: FlagState = FlagState.UNSET,
@@ -26,7 +26,7 @@ class UpdateState:
             TODO: reset flag. Others?
         """
         self.gcode: Optional[block.Block] = gcode
-        self.wPos: Optional[Dict[str, int]] = wPos
+        self.w_pos: Optional[Dict[str, int]] = w_pos
         self.halt: FlagState = halt
         self.pause: FlagState = pause
         self.jog: FlagState = jog
@@ -41,10 +41,10 @@ class UpdateState:
         else:
             output += "gcode: {self.gcode.gcodes}\t"
 
-        if self.wPos is None:
-            output += "wPos: None\t"
+        if self.w_pos is None:
+            output += "w_pos: None\t"
         else:
-            output += "wPos: {self.wPos}\t"
+            output += "w_pos: {self.w_pos}\t"
 
         output += "halt: {self.halt.name}\t"
         output += "pause: {self.pause.name}\t"

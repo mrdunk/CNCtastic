@@ -11,9 +11,9 @@ import argparse
 
 import common
 from coordinator.coordinator import Coordinator
-from terminals._terminalBase import _TerminalBase
-from controllers._controllerBase import _ControllerBase
-from interfaces._interfaceBase import _InterfaceBase
+from terminals._terminal_base import _TerminalBase
+from controllers._controller_base import _ControllerBase
+from interfaces._interface_base import _InterfaceBase
 
 
 def main() -> None:

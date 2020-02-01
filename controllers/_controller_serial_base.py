@@ -9,7 +9,7 @@ import threading
 import serial    # type: ignore
 
 
-from controllers._controllerBase import _ControllerBase
+from controllers._controller_base import _ControllerBase
 from definitions import ConnectionState
 
 SERIAL_INTERVAL = 0.02 # seconds

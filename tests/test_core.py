@@ -13,7 +13,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(TESTDIR, SRCDIR)))
 
 import unittest
 from coordinator.coordinator import Coordinator
-from controllers.mockController import MockController
+from controllers.mock_controller import MockController
 from interfaces.jog import JogWidget
 from definitions import ConnectionState
 

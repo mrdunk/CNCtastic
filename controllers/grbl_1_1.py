@@ -14,9 +14,9 @@ from pygcode import GCode, Block
 from terminals.gui import sg
 
 from definitions import ConnectionState, FlagState
-from interfaces._interfaceBase import UpdateState
-from controllers._controllerSerialBase import _SerialControllerBase
-from controllers.stateMachine import StateMachineGrbl as State
+from interfaces._interface_base import UpdateState
+from controllers._controller_serial_base import _SerialControllerBase
+from controllers.state_machine import StateMachineGrbl as State
 
 REPORT_INTERVAL = 1.0 # seconds
 SERIAL_INTERVAL = 0.02 # seconds

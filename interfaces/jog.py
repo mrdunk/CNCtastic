@@ -9,7 +9,7 @@ from math import log10, floor
 import PySimpleGUIQt as sg       # type: ignore
 #from terminals.gui import sg      # type: ignore
 
-from interfaces._interfaceBase import _InterfaceBase  # type: ignore
+from interfaces._interface_base import _InterfaceBase  # type: ignore
 from definitions import FlagState
 
 def round_1_sf(number: float) -> float:
