@@ -3,7 +3,7 @@
 
 """ A controller for use when testing which mimics an actual hardware controller. """
 
-from typing import List
+from typing import List, Callable
 try:
     from typing import Literal              # type: ignore
 except ImportError:
@@ -14,8 +14,11 @@ from collections import deque
 #import PySimpleGUIQt as sg
 from terminals.gui import sg
 
+from pygcode import Machine, GCodeCoordSystemOffset
+
 from controllers._controller_base import _ControllerBase
 from definitions import ConnectionState
+from controllers.state_machine import StateMachineBase
 
 CONNECT_DELAY = 4   # seconds
 PUSH_DELAY = 1      # seconds
@@ -26,10 +29,11 @@ class DebugController(_ControllerBase):
     # Set this True for any derived class that is to be used as a plugin.
     is_valid_plugin = True
 
-    # Mimic GRBL compatibility in this controller.
-    # https://github.com/gnea/grbl/wiki/Grbl-v1.1-Commands
+    # Limited by pygcode's virtual machine:
+    # https://github.com/fragmuffin/pygcode/wiki/Supported-gcodes
+    # TODO: Prune this list back to only those supported.
     SUPPORTED_GCODE = set((
-        "G00", "G01", "G02", "G03", "G38.2", "G38.3", "G38.4", "G38.5", "G80",
+        "G00", "G01", "G02", "G03",
         "G54", "G55", "G56", "G57", "G58", "G59",
         "G17", "G18", "G19",
         "G90", "G91",
@@ -46,9 +50,15 @@ class DebugController(_ControllerBase):
 
     def __init__(self, label: str = "debug") -> None:
         super().__init__(label)
+
+        # A record of all gcode ever sent to this controller.
         self.gcode: deque = deque()
+
         self._connect_time: float = 0
         self._last_receive_data_at: float = 0
+        
+        # State machine reflecting _virtual_cnc state.
+        self.state = StateMachinePygcode(self.publish_from_here)
 
     def gui_layout(self) -> List:
         """ Layout information for the PySimpleGUI interface. """
@@ -131,4 +141,48 @@ class DebugController(_ControllerBase):
             for jog, gcode_ in self.gcode:
                 gcode_debug_output += "%s ; jog=%s ; supported=%s\n" % (
                     str(gcode_.gcodes), jog, self.is_gcode_supported(gcode_.gcodes))
+            
+            self.handle_gcode(gcode)
+
             self.publish_one_by_value(self.key_gen("gcode"), gcode_debug_output)
+            self.state.update()
+
+    def handle_gcode(self, gcode_block) -> None:
+        """ Update the virtual machine with incoming gcode. """
+        for gcode in gcode_block.gcodes:
+            if isinstance(gcode, GCodeCoordSystemOffset):
+                for key, value in gcode.get_param_dict().items():
+                    self.state.work_offset[key.lower()] = \
+                        self.state.machine_pos[key.lower()] - value
+                # TODO Check for more gcode in same block.
+                return
+        self.state._virtual_cnc.process_block(gcode_block)
+
+class StateMachinePygcode(StateMachineBase):
+    """ State Machine reflecting the state of a pygcode virtual machine.
+        https://github.com/fragmuffin/pygcode/wiki/Interpreting-gcode """
+    
+    def __init__(self, on_update_callback: Callable) -> None:
+        super().__init__(on_update_callback)
+        self._virtual_cnc = Machine()
+
+    def update(self) -> None:
+        """ Populate this state machine values from self._virtual_cnc. """
+        self._parse_modal()
+        # TODO: Test around the difference between mPos and wPos.
+        self.machine_pos = self._virtual_cnc.pos.values
+        self.feed_rate = self._virtual_cnc.mode.feed_rate.word.value
+
+    def _parse_modal(self) -> None:
+        """ Update current modal group values. """
+        for modal in self._virtual_cnc.mode.gcodes:
+            modal_bytes = str(modal).encode('utf-8')
+            if modal_bytes in self.MODAL_COMMANDS:
+                modal_group = self.MODAL_COMMANDS[modal_bytes]
+                self.gcode_modal[modal_group] = modal_bytes
+            elif chr(modal_bytes[0]).encode('utf-8') in self.MODAL_COMMANDS:
+                modal_group = self.MODAL_COMMANDS[chr(modal_bytes[0]).encode('utf-8')]
+                self.gcode_modal[modal_group] = modal_bytes
+            else:
+                print("TODO: ", modal)
+        print(self.gcode_modal)

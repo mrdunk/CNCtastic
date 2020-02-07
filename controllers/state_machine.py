@@ -7,6 +7,9 @@ from typing import Dict, List, Callable
 from definitions import MODAL_GROUPS, MODAL_COMMANDS
 
 
+def keys_to_lower(dict_) -> Dict:
+    return {k.lower(): v for k, v in dict_.items()}
+
 class StateMachineBase:
     """ Base class for State Machines reflecting the state of hardware controllers. """
     PAUSE_REASONS = {b"USER_SW": "User initiated pause from terminal.",
@@ -49,6 +52,10 @@ class StateMachineBase:
         "halt",
         "door",
         ]
+
+    # Cheaper than global lookups
+    MODAL_GROUPS = MODAL_GROUPS
+    MODAL_COMMANDS = MODAL_COMMANDS
 
     def __init__(self, on_update_callback: Callable) -> None:
         self.on_update_callback = on_update_callback
@@ -121,6 +128,7 @@ class StateMachineBase:
     @work_offset.setter
     def work_offset(self, pos: Dict) -> None:
         """ Setter. """
+        pos = keys_to_lower(pos)
         data_changed = False
         pos_x = pos.get("x")
         pos_y = pos.get("y")
@@ -131,27 +139,27 @@ class StateMachineBase:
             if self.__work_offset["x"] != pos_x:
                 data_changed = True
                 self.__work_offset["x"] = pos_x
-                self.work_pos["x"] = self.machine_pos["x"] - self.__work_offset.get("x", 0)
+                self.__work_pos["x"] = self.machine_pos["x"] - pos_x
         if pos_y is not None:
             if self.__work_offset["y"] != pos_y:
                 data_changed = True
                 self.__work_offset["y"] = pos_y
-                self.work_pos["y"] = self.machine_pos["y"] - self.__work_offset.get("y", 0)
+                self.__work_pos["y"] = self.machine_pos["y"] - pos_y
         if pos_z is not None:
             if self.__work_offset["z"] != pos_z:
                 data_changed = True
                 self.__work_offset["z"] = pos_z
-                self.work_pos["z"] = self.machine_pos["z"] - self.__work_offset.get("z", 0)
+                self.__work_pos["z"] = self.machine_pos["z"] - pos_z
         if pos_a is not None:
             if self.__work_offset["a"] != pos_a:
                 data_changed = True
                 self.__work_offset["a"] = pos_a
-                self.work_pos["a"] = self.machine_pos["a"] - self.__work_offset.get("a", 0)
+                self.__work_pos["a"] = self.machine_pos["a"] - pos_a
         if pos_b is not None:
             if self.__work_offset["b"] != pos_b:
                 data_changed = True
                 self.__work_offset["b"] = pos_b
-                self.work_pos["b"] = self.machine_pos["b"] - self.__work_offset.get("b", 0)
+                self.__work_pos["b"] = self.machine_pos["b"] - pos_b
 
         if data_changed:
             self.on_update_callback("work_offset:x", self.work_offset["x"])
@@ -173,6 +181,7 @@ class StateMachineBase:
     @machine_pos_max.setter
     def machine_pos_max(self, pos: Dict) -> None:
         """ Setter. """
+        pos = keys_to_lower(pos)
         data_changed = False
         pos_x = pos.get("x")
         pos_y = pos.get("y")
@@ -215,6 +224,7 @@ class StateMachineBase:
     @machine_pos_min.setter
     def machine_pos_min(self, pos: Dict) -> None:
         """ Setter. """
+        pos = keys_to_lower(pos)
         data_changed = False
         pos_x = pos.get("x")
         pos_y = pos.get("y")
@@ -257,6 +267,7 @@ class StateMachineBase:
     @machine_pos.setter
     def machine_pos(self, pos: Dict) -> None:
         """ Setter. """
+        pos = keys_to_lower(pos)
         data_changed = False
         pos_x = pos.get("x")
         pos_y = pos.get("y")
@@ -267,27 +278,27 @@ class StateMachineBase:
             if self.machine_pos["x"] != pos_x:
                 data_changed = True
                 self.machine_pos["x"] = pos_x
-                self.work_pos["x"] = self.machine_pos["x"] - self.work_offset.get("x", 0)
+                self.work_pos["x"] = pos_x - self.work_offset.get("x", 0)
         if pos_y is not None:
             if self.machine_pos["y"] != pos_y:
                 data_changed = True
                 self.machine_pos["y"] = pos_y
-                self.work_pos["y"] = self.machine_pos["y"] - self.work_offset.get("y", 0)
+                self.work_pos["y"] = pos_y - self.work_offset.get("y", 0)
         if pos_z is not None:
             if self.machine_pos["z"] != pos_z:
                 data_changed = True
                 self.machine_pos["z"] = pos_z
-                self.work_pos["z"] = self.machine_pos["z"] - self.work_offset.get("z", 0)
+                self.work_pos["z"] = pos_z - self.work_offset.get("z", 0)
         if pos_a is not None:
             if self.machine_pos["a"] != pos_a:
                 data_changed = True
                 self.machine_pos["a"] = pos_a
-                self.work_pos["a"] = self.machine_pos["a"] - self.work_offset.get("a", 0)
+                self.work_pos["a"] = pos_a - self.work_offset.get("a", 0)
         if pos_b is not None:
             if self.machine_pos["b"] != pos_b:
                 data_changed = True
                 self.machine_pos["b"] = pos_b
-                self.work_pos["b"] = self.machine_pos["b"] - self.work_offset.get("b", 0)
+                self.work_pos["b"] = pos_b - self.work_offset.get("b", 0)
 
         if data_changed:
             self.on_update_callback("machine_pos:x", self.machine_pos["x"])
@@ -309,6 +320,7 @@ class StateMachineBase:
     @work_pos.setter
     def work_pos(self, pos: Dict) -> None:
         """ Setter. """
+        pos = keys_to_lower(pos)
         data_changed = False
         pos_x = pos.get("x")
         pos_y = pos.get("y")
@@ -319,27 +331,27 @@ class StateMachineBase:
             if self.work_pos["x"] != pos_x:
                 data_changed = True
                 self.work_pos["x"] = pos_x
-                self.machine_pos["x"] = self.work_pos["x"] + self.__work_offset.get("x", 0)
+                self.machine_pos["x"] = pos_x + self.__work_offset.get("x", 0)
         if pos_y is not None:
             if self.work_pos["y"] != pos_y:
                 data_changed = True
                 self.work_pos["y"] = pos_y
-                self.machine_pos["y"] = self.work_pos["y"] + self.__work_offset.get("y", 0)
+                self.machine_pos["y"] = pos_y + self.__work_offset.get("y", 0)
         if pos_z is not None:
             if self.work_pos["z"] != pos_z:
                 data_changed = True
                 self.work_pos["z"] = pos_z
-                self.machine_pos["z"] = self.work_pos["z"] + self.__work_offset.get("z", 0)
+                self.machine_pos["z"] = pos_z + self.__work_offset.get("z", 0)
         if pos_a is not None:
             if self.work_pos["a"] != pos_a:
                 data_changed = True
                 self.work_pos["a"] = pos_a
-                self.machine_pos["a"] = self.work_pos["a"] + self.__work_offset.get("a", 0)
+                self.machine_pos["a"] = pos_a + self.__work_offset.get("a", 0)
         if pos_b is not None:
             if self.work_pos["b"] != pos_b:
                 data_changed = True
                 self.work_pos["b"] = pos_b
-                self.machine_pos["b"] = self.work_pos["b"] + self.__work_offset.get("b", 0)
+                self.machine_pos["b"] = pos_b + self.__work_offset.get("b", 0)
 
         if data_changed:
             self.on_update_callback("machine_pos:x", self.machine_pos["x"])
@@ -650,10 +662,6 @@ class StateMachineGrbl(StateMachineBase):
     MACHINE_STATES = [
         b"Idle", b"Run", b"Hold", b"Jog", b"Alarm", b"Door", b"Check", b"Home", b"Sleep"]
 
-    # Cheaper than global lookups
-    MODAL_GROUPS = MODAL_GROUPS
-    MODAL_COMMANDS = MODAL_COMMANDS
-
     def parse_incoming(self, incoming: bytes) -> None:
         """ Parse incoming string from Grbl controller. """
         if incoming.startswith(b"error:"):
@@ -771,7 +779,7 @@ class StateMachineGrbl(StateMachineBase):
 
 
     def _parse_incoming_alarm(self, incoming: bytes) -> None:
-        """ "parse_incoming" determined a "allarm" message was received from the
+        """ "parse_incoming" determined a "alarm" message was received from the
         Grbl controller. Parse the alarm here. """
         print("ALARM:", incoming)
 
@@ -892,7 +900,8 @@ class StateMachineGrbl(StateMachineBase):
         else:
             assert False, "Unexpected setting: %s %s" % (setting, value)
 
-    def _parse_startup(self, incoming: bytes) -> None:
+    @staticmethod
+    def _parse_startup(incoming: bytes) -> None:
         """ "parse_incoming" determined Grbl's startup message is being received..
         Perform any tasks appropriate to a Grbl restart here. """
         print("Startup:", incoming)
@@ -926,7 +935,8 @@ class StateMachineGrbl(StateMachineBase):
         else:
             print("Invalid format: %s  Expected one of [MPos, WPos, WCO]" % identifier)
 
-    def _parse_coordinates(self, string: bytes) -> Dict:
+    @staticmethod
+    def _parse_coordinates(string: bytes) -> Dict:
         """ Parse bytes for coordinate information. """
         parts = string.split(b",")
         if len(parts) < 3:

@@ -2,7 +2,8 @@
 
 from typing import Dict, Optional, Union, Callable, cast
 
-from pygcode import block, GCodeFeedRate     # type: ignore
+from pygcode import block, GCodeFeedRate, Line     # type: ignore
+from pygcode.exceptions import GCodeParameterError
 
 from component import _ComponentBase
 from definitions import FlagState, MODAL_GROUPS
@@ -10,28 +11,13 @@ from definitions import FlagState, MODAL_GROUPS
 
 class UpdateState:
     """ Data container representing changes to be made to the state of the system. """
-    def __init__(self,
-                 gcode: Optional[block.Block] = None,
-                 w_pos: Optional[Dict] = None,
-                 halt: FlagState = FlagState.UNSET,
-                 pause: FlagState = FlagState.UNSET,
-                 jog: FlagState = FlagState.UNSET,
-                 home: FlagState = FlagState.UNSET,
-                 door: FlagState = FlagState.UNSET) -> None:
-        """
-        Args:
-            gcode: A pygcode Block object containing a single gcode line.
-            halt: A boolean flag requesting all current tasks should stop.
-            pause: A boolean flag requesting all current tasks should pause.
-            TODO: reset flag. Others?
-        """
-        self.gcode: Optional[block.Block] = gcode
-        self.w_pos: Optional[Dict[str, int]] = w_pos
-        self.halt: FlagState = halt
-        self.pause: FlagState = pause
-        self.jog: FlagState = jog
-        self.home: FlagState = home
-        self.door: FlagState = door
+    def __init__(self) -> None:
+        self.gcode: Optional[block.Block] = None
+        self.halt: FlagState = FlagState.UNSET
+        self.pause: FlagState = FlagState.UNSET
+        self.jog: FlagState = FlagState.UNSET
+        self.home: FlagState = FlagState.UNSET
+        self.door: FlagState = FlagState.UNSET
         self.flags = ["halt", "pause", "jog", "home", "door"]
 
     def __str__(self) -> str:
@@ -40,11 +26,6 @@ class UpdateState:
             output += "gcode: None\t"
         else:
             output += "gcode: {self.gcode.gcodes}\t"
-
-        if self.w_pos is None:
-            output += "w_pos: None\t"
-        else:
-            output += "w_pos: {self.w_pos}\t"
 
         output += "halt: {self.halt.name}\t"
         output += "pause: {self.pause.name}\t"
@@ -60,16 +41,11 @@ class _InterfaceBase(_ComponentBase):
     plugin_type = "interface"
 
     # Make a class reference to avoid expensive global lookup.
-    #modal_groups: Dict[str, object] = MODAL_GROUPS
-    #modal_groups: Dict[str, Dict[str, Callable]] = MODAL_GROUPS
     modal_groups = cast(Dict[str, Dict[str, Callable]], MODAL_GROUPS)
 
     def __init__(self, label: str = "") -> None:
         """ Args:
-                label: A string identifying this object.
-                status: The current state of this object. eg: Is it ready for use?
-                state: A reference to the Coordinator's state object. Do not modify it here.
-                _updated_data: Store desired changes to state here to be pulled later. """
+                label: A string identifying this object. """
         super().__init__(label)
         self._updated_data: UpdateState = UpdateState()
 
@@ -114,6 +90,17 @@ class _InterfaceBase(_ComponentBase):
         if feed is not None:
             self._updated_data.gcode.gcodes.append(GCodeFeedRate(feed))
 
+    def g92_offsets(self, **argkv: Union[str, float]) -> None:
+        """ Set work position offset.
+        http://linuxcnc.org/docs/2.6/html/gcode/coordinates.html#cha:coordinate-system
+        """
+        argkv["command"] = "G92"
+
+        self._gcode_command("non_modal", **argkv)
+
+        assert self._updated_data.gcode is not None, "self._updated_data.gcode not set yet."
+
+
     def absolute_distance_mode(self, *argv: bool, **argkv: Union[str, float]) -> None:
         """ Switch between "G90" and "G91" distance modes. """
         if "command" not in argkv:
@@ -148,8 +135,9 @@ class _InterfaceBase(_ComponentBase):
                 "WARNING: gcode from modal group %s not supported: %s" %
                 (modal_group, command))
 
-        movetype = self.modal_groups[modal_group][command]
+        gcode_word = self.modal_groups[modal_group][command]
 
         if self._updated_data.gcode is None:
             self._updated_data.gcode = block.Block()
-        self._updated_data.gcode.gcodes.append(movetype(**argkv))
+        self._updated_data.gcode.gcodes.append(gcode_word(**argkv))
+        print("###", self._updated_data.gcode.gcodes)

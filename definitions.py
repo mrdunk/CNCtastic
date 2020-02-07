@@ -5,7 +5,9 @@ from enum import Enum
 from pygcode import (GCodeLinearMove, GCodeRapidMove, GCodeArcMoveCW,
                      GCodeArcMoveCCW, GCodeStraightProbe, GCodeCancelCannedCycle,
                      GCodeIncrementalDistanceMode, GCodeAbsoluteDistanceMode,
-                     GCodeUseMillimeters, GCodeUseInches)   # type: ignore
+                     GCodeUseMillimeters, GCodeUseInches,
+                     GCodeCoordSystemOffset, GCodeResetCoordSystemOffset,
+                     GCodeRestoreCoordSystemOffset)   # type: ignore
 
 class FlagState(Enum):
     """ Flag state used in place of a boolean when we may need to infer the value
@@ -80,6 +82,14 @@ MODAL_GROUPS = {
         },
     "user_defined": {
         },
+
+    # Other
+    "non_modal": {
+        "G92": GCodeCoordSystemOffset,
+        "G92.1": GCodeResetCoordSystemOffset,
+        "G92.2": GCodeResetCoordSystemOffset,
+        "G92.3": GCodeRestoreCoordSystemOffset,
+        }
     }
 
 # Map individual gcode commands to the modal groups they belong to.

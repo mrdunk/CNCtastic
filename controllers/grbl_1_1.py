@@ -97,10 +97,6 @@ class Grbl1p1Controller(_SerialControllerBase):
                 return True
         return False
 
-    def publish_from_here(self, variable_name: str, variable_value: Any) -> None:
-        """ A method wrapper to pass on the StateMachine so it can publish events. """
-        self.publish_one_by_value(self.key_gen(variable_name), variable_value)
-
     def gui_layout(self) -> List:
         """ Layout information for the PySimpleGUI interface. """
         layout = [
@@ -203,12 +199,12 @@ class Grbl1p1Controller(_SerialControllerBase):
         except Empty:
             return False
 
-        if self._complete_before_continue(task):
-            self.flush_before_continue = True
-
         task_string = task
         if isinstance(task, Block):
             task_string = str(task).encode("utf-8")
+
+        if self._complete_before_continue(task_string):
+            self.flush_before_continue = True
 
         #print("_write_streaming", task_string)
         if self._serial_write(task_string + b"\n"):
@@ -267,44 +263,46 @@ class Grbl1p1Controller(_SerialControllerBase):
                 # GRBL Cycle Start / Resume
                 self._command_immediate.put(b"~")
 
-        if command.gcode is not None:
-            if command.jog is FlagState.TRUE:
-                valid_gcode = True
-                jog_command_string = b"$J="
-                for gcode in sorted(command.gcode.gcodes):
-                    modal = str(gcode.modal_copy()).encode("utf-8")
-                    modal_first = bytes([modal[0]])
-                    if (modal in self.SUPPORTED_JOG_GCODE or
-                            modal_first in self.SUPPORTED_JOG_GCODE):
-                        jog_command_string += str(gcode).encode("utf-8")
-                    elif modal in [b"G00", b"G0", b"G01", b"G1"]:
-                        for param, value in gcode.get_param_dict().items():
-                            jog_command_string += param.encode("utf-8")
-                            jog_command_string += str(value).encode("utf-8")
-                    else:
-                        # Unsupported gcode.
-                        # TODO: Need a way of raising an error.
-                        print("Unsupported gcode: %s" % gcode, modal, modal_first)
-                        self._command_immediate.put(b"!")
-                        valid_gcode = False
-                if valid_gcode:
-                    self._command_streaming.put(jog_command_string)
-            else:
-                valid_gcode = True
-                # TODO: Use self.isGcodeSupported()
-                for gcode in sorted(command.gcode.gcodes):
-                    modal = str(gcode.modal_copy()).encode("utf-8")
-                    modal_first = bytes([modal[0]])
-                    if (modal not in self.SUPPORTED_GCODE and
-                            modal_first not in self.SUPPORTED_GCODE):
-                        # Unsupported gcode.
-                        # TODO: Need a way of raising an error.
-                        print("Unsupported gcode: %s" % gcode, modal, modal_first)
-                        self._command_immediate.put(b"!")
-                        valid_gcode = False
-                if valid_gcode:
-                    self._command_streaming.put(command.gcode)
+        if command.gcode is None:
+            return
 
+        # Gcode
+        if command.jog is FlagState.TRUE:
+            valid_gcode = True
+            jog_command_string = b"$J="
+            for gcode in sorted(command.gcode.gcodes):
+                modal = str(gcode.modal_copy()).encode("utf-8")
+                modal_first = bytes([modal[0]])
+                if (modal in self.SUPPORTED_JOG_GCODE or
+                        modal_first in self.SUPPORTED_JOG_GCODE):
+                    jog_command_string += str(gcode).encode("utf-8")
+                elif modal in [b"G00", b"G0", b"G01", b"G1"]:
+                    for param, value in gcode.get_param_dict().items():
+                        jog_command_string += param.encode("utf-8")
+                        jog_command_string += str(value).encode("utf-8")
+                else:
+                    # Unsupported gcode.
+                    # TODO: Need a way of raising an error.
+                    print("Unsupported gcode: %s" % gcode, modal, modal_first)
+                    self._command_immediate.put(b"!")
+                    valid_gcode = False
+            if valid_gcode:
+                self._command_streaming.put(jog_command_string)
+        else:
+            valid_gcode = True
+            # TODO: Use self.isGcodeSupported()
+            for gcode in sorted(command.gcode.gcodes):
+                modal = str(gcode.modal_copy()).encode("utf-8")
+                modal_first = bytes([modal[0]])
+                if (modal not in self.SUPPORTED_GCODE and
+                        modal_first not in self.SUPPORTED_GCODE):
+                    # Unsupported gcode.
+                    # TODO: Need a way of raising an error.
+                    print("Unsupported gcode: %s" % gcode, modal, modal_first)
+                    self._command_immediate.put(b"!")
+                    valid_gcode = False
+            if valid_gcode:
+                self._command_streaming.put(command.gcode)
 
     def early_update(self) -> None:
         """ Called early in the event loop, before events have been received. """

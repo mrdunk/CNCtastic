@@ -43,6 +43,7 @@ class _ComponentBase:
 
     @classmethod
     def get_classname(cls):
+        """ Return class name. """
         return cls.__name__
 
     def key_gen(self, tag: str) -> str:

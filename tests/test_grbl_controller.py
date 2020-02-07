@@ -4,14 +4,8 @@
 
 #pylint: disable=protected-access
 
-import sys
-import os
-TESTDIR = os.path.dirname(__file__)
-SRCDIR = '../'
-sys.path.insert(0, os.path.abspath(os.path.join(TESTDIR, SRCDIR)))
-
 import unittest
-
+import loader  # pylint: disable=E0401,W0611
 from definitions import ConnectionState
 from controllers.grbl_1_1 import Grbl1p1Controller
 

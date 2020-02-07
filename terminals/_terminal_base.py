@@ -46,7 +46,7 @@ def diff_dicts(original: Dict, new: Dict) -> Dict:
 
 
 class _TerminalBase(_ComponentBase):
-    
+
     active_by_default = True
 
     plugin_type = "terminal"

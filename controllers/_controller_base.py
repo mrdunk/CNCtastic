@@ -44,6 +44,11 @@ class _ControllerBase(_ComponentBase):
         self.set_connection_status(ConnectionState.UNKNOWN)
         self.set_desired_connection_status(ConnectionState.NOT_CONNECTED)
 
+    def publish_from_here(self, variable_name: str, variable_value: Any) -> None:
+        """ A method wrapper to pass on to the StateMachineBase so it can
+        publish events. """
+        self.publish_one_by_value(self.key_gen(variable_name), variable_value)
+
     @property
     def active(self) -> bool:
         """ Setter. """

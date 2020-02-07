@@ -95,24 +95,42 @@ class JogWidget(_InterfaceBase):
 
     def _wpos_handler_x_update(self, value: float) -> None:
         """ Called in response to a local :work_pos:x event. """
+        try:
+            float(value)
+        except ValueError:
+            return
+
         if "x" in self._w_pos and value == self._w_pos["x"]:
             # Nothing to do.
             return
-        self._updated_data.work_pos = self._w_pos
+        self._w_pos["x"] = value
+        self.g92_offsets(**self._w_pos)
 
     def _wpos_handler_y_update(self, value: float) -> None:
         """ Called in response to a local :work_pos:y event. """
+        try:
+            float(value)
+        except ValueError:
+            return
+
         if "y" in self._w_pos and value == self._w_pos["y"]:
             # Nothing to do.
             return
-        self._updated_data.work_pos = self._w_pos
+        self._w_pos["y"] = value
+        self.g92_offsets(**self._w_pos)
 
     def _wpos_handler_z_update(self, value: float) -> None:
         """ Called in response to a local :work_pos:z event. """
+        try:
+            float(value)
+        except ValueError:
+            return
+
         if "z" in self._w_pos and value == self._w_pos["z"]:
             # Nothing to do.
             return
-        self._updated_data.work_pos = self._w_pos
+        self._w_pos["z"] = value
+        self.g92_offsets(**self._w_pos)
 
     def gui_layout(self) -> List:
         """ Layout information for the PySimpleGUI interface. """
