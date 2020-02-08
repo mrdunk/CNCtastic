@@ -48,6 +48,7 @@ class MockTime:
         """ Do nothing for sleep method. """
         return
 
+
 class TestControllerReceiveDataFromSerial(unittest.TestCase):
     """ Parsing data received over serial port. """
 

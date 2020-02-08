@@ -51,12 +51,12 @@ class _ControllerBase(_ComponentBase):
 
     @property
     def active(self) -> bool:
-        """ Setter. """
+        """ Getter. """
         return self.__active
 
     @active.setter
     def active(self, value: bool) -> None:
-        """ Getter. """
+        """ Setter. """
         self.__active = value
         if value:
             self.on_activate()

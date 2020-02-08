@@ -18,6 +18,9 @@ class _ComponentBase:
     # Set this True for any derived class that is to be used as a plugin.
     is_valid_plugin = False
 
+    # Overridden in base classes to be one of "controller", "interface" or "terminal".
+    plugin_type: Optional[str] = None
+
     def __init__(self, label: str) -> None:
         self.label: str = label
 
@@ -42,7 +45,7 @@ class _ComponentBase:
         self.debug_show_events = False
 
     @classmethod
-    def get_classname(cls):
+    def get_classname(cls) -> str:
         """ Return class name. """
         return cls.__name__
 

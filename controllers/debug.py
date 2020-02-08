@@ -3,7 +3,7 @@
 
 """ A controller for use when testing which mimics an actual hardware controller. """
 
-from typing import List, Callable
+from typing import List, Callable, Any
 try:
     from typing import Literal              # type: ignore
 except ImportError:
@@ -11,13 +11,14 @@ except ImportError:
 import time
 from collections import deque
 
+from pygcode import Machine, GCodeCoordSystemOffset, \
+                    GCodeResetCoordSystemOffset, Block
+
 #import PySimpleGUIQt as sg
 from terminals.gui import sg
 
-from pygcode import Machine, GCodeCoordSystemOffset
-
-from controllers._controller_base import _ControllerBase
 from definitions import ConnectionState
+from controllers._controller_base import _ControllerBase
 from controllers.state_machine import StateMachineBase
 
 CONNECT_DELAY = 4   # seconds
@@ -56,9 +57,12 @@ class DebugController(_ControllerBase):
 
         self._connect_time: float = 0
         self._last_receive_data_at: float = 0
-        
+
         # State machine reflecting _virtual_cnc state.
         self.state = StateMachinePygcode(self.publish_from_here)
+
+        # Allow replacing with a mock version when testing.
+        self._time: Any = time
 
     def gui_layout(self) -> List:
         """ Layout information for the PySimpleGUI interface. """
@@ -87,7 +91,7 @@ class DebugController(_ControllerBase):
             return self.connection_status
 
         self.set_connection_status(ConnectionState.CONNECTING)
-        self._connect_time = time.time()
+        self._connect_time = self._time.time()
         return self.connection_status
 
     def disconnect(self) -> Literal[ConnectionState]:
@@ -97,7 +101,7 @@ class DebugController(_ControllerBase):
             return self.connection_status
 
         self.set_connection_status(ConnectionState.DISCONNECTING)
-        self._connect_time = time.time()
+        self._connect_time = self._time.time()
 
         self.ready_for_data = False
 
@@ -105,7 +109,7 @@ class DebugController(_ControllerBase):
 
     def early_update(self) -> None:
         if self.connection_status != self.desired_connection_status:
-            if time.time() - self._connect_time >= CONNECT_DELAY:
+            if self._time.time() - self._connect_time >= CONNECT_DELAY:
                 if self.connection_status == ConnectionState.CONNECTING:
                     self.set_connection_status(ConnectionState.CONNECTED)
                 elif self.connection_status == ConnectionState.DISCONNECTING:
@@ -117,7 +121,7 @@ class DebugController(_ControllerBase):
                 self.disconnect()
 
         if self.connection_status == ConnectionState.CONNECTED:
-            if time.time() - self._last_receive_data_at >= PUSH_DELAY:
+            if self._time.time() - self._last_receive_data_at >= PUSH_DELAY:
                 self.ready_for_data = True
         else:
             self.ready_for_data = False
@@ -127,7 +131,7 @@ class DebugController(_ControllerBase):
 
         if self.ready_for_data and self._queued_updates:
             # Process local buffer.
-            self._last_receive_data_at = time.time()
+            self._last_receive_data_at = self._time.time()
             update = self._queued_updates.popleft()
             jog = update.jog.name
             gcode = update.gcode
@@ -141,27 +145,36 @@ class DebugController(_ControllerBase):
             for jog, gcode_ in self.gcode:
                 gcode_debug_output += "%s ; jog=%s ; supported=%s\n" % (
                     str(gcode_.gcodes), jog, self.is_gcode_supported(gcode_.gcodes))
-            
-            self.handle_gcode(gcode)
+
+            self._handle_gcode(gcode)
 
             self.publish_one_by_value(self.key_gen("gcode"), gcode_debug_output)
             self.state.update()
 
-    def handle_gcode(self, gcode_block) -> None:
+    def _handle_gcode(self, gcode_block: Block) -> None:
         """ Update the virtual machine with incoming gcode. """
+
+        # Gcode which deals with work offsets is not handled correctly by _virtual_cnc.
+        # Track and update self.state offsets here instead.
         for gcode in gcode_block.gcodes:
             if isinstance(gcode, GCodeCoordSystemOffset):
+                work_offset = {}
                 for key, value in gcode.get_param_dict().items():
-                    self.state.work_offset[key.lower()] = \
-                        self.state.machine_pos[key.lower()] - value
-                # TODO Check for more gcode in same block.
+                    work_offset[key.lower()] = self.state.machine_pos[key.lower()] - value
+                self.state.work_offset = work_offset
                 return
-        self.state._virtual_cnc.process_block(gcode_block)
+            if isinstance(gcode, GCodeResetCoordSystemOffset):
+                self.state.work_offset = {"x": 0, "y": 0, "z": 0, "a": 0, "b": 0}
+                return
+            # TODO Check for more gcode in same block.
+
+        # _virtual_cnc can handle all other gcode.
+        self.state.proces_gcode(gcode_block)
 
 class StateMachinePygcode(StateMachineBase):
     """ State Machine reflecting the state of a pygcode virtual machine.
         https://github.com/fragmuffin/pygcode/wiki/Interpreting-gcode """
-    
+
     def __init__(self, on_update_callback: Callable) -> None:
         super().__init__(on_update_callback)
         self._virtual_cnc = Machine()
@@ -169,7 +182,6 @@ class StateMachinePygcode(StateMachineBase):
     def update(self) -> None:
         """ Populate this state machine values from self._virtual_cnc. """
         self._parse_modal()
-        # TODO: Test around the difference between mPos and wPos.
         self.machine_pos = self._virtual_cnc.pos.values
         self.feed_rate = self._virtual_cnc.mode.feed_rate.word.value
 
@@ -185,4 +197,8 @@ class StateMachinePygcode(StateMachineBase):
                 self.gcode_modal[modal_group] = modal_bytes
             else:
                 print("TODO: ", modal)
-        print(self.gcode_modal)
+        # print(self.gcode_modal)
+
+    def proces_gcode(self, gcode_block: Block) -> None:
+        """ Have the pygcode VM parse incoming gcode. """
+        self._virtual_cnc.process_block(gcode_block)

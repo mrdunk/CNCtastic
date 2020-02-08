@@ -2,8 +2,7 @@
 
 from typing import Dict, Optional, Union, Callable, cast
 
-from pygcode import block, GCodeFeedRate, Line     # type: ignore
-from pygcode.exceptions import GCodeParameterError
+from pygcode import block, GCodeFeedRate     # type: ignore
 
 from component import _ComponentBase
 from definitions import FlagState, MODAL_GROUPS

@@ -8,6 +8,7 @@ from definitions import MODAL_GROUPS, MODAL_COMMANDS
 
 
 def keys_to_lower(dict_) -> Dict:
+    """ Translate a dict's keys to lower case. """
     return {k.lower(): v for k, v in dict_.items()}
 
 class StateMachineBase:
