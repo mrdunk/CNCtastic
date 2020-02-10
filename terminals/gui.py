@@ -58,6 +58,8 @@ class Gui(_TerminalBase):
         for event in self.window.AllKeysDict:
             self.event_subscriptions[event] = None
 
+        #print(self.window.FindElement('canvas').TKCanvas)
+
     def early_update(self) -> bool:
         """ To be called once per frame.
         Returns:
@@ -100,6 +102,8 @@ class Gui(_TerminalBase):
         # that in turn sends an event.
         while self._delivered:
             event, value = self._delivered.popleft()
+            if not hasattr(self.window[event], "update"):
+                continue
             if isinstance(value, Enum):
                 self.window[event].update(value.name)
             elif isinstance(value, float):
@@ -107,7 +111,13 @@ class Gui(_TerminalBase):
                     value = int(value)
                 self.window[event].update(value)
             else:
-                self.window[event].update(value)
+                try:
+                    self.window[event].update(value)
+                except AttributeError:
+                    # Some PySimpleGUI element types can't be updates until they
+                    # have been populated with data. eg: the "Graph" element in
+                    # PySimpleGUIQt.
+                    pass
 
     def close(self) -> None:
         """ Close GUI window. """

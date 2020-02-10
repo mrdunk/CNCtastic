@@ -6,8 +6,8 @@
 from typing import Dict, List, Union
 from math import log10, floor
 
-import PySimpleGUIQt as sg       # type: ignore
-#from terminals.gui import sg      # type: ignore
+#import PySimpleGUIQt as sg       # type: ignore
+from terminals.gui import sg      # type: ignore
 
 from interfaces._interface_base import _InterfaceBase  # type: ignore
 from definitions import FlagState
