@@ -115,9 +115,12 @@ class StateMachineBase:
         """ Publish all machine properties. """
         for prop in self.machine_properties:
             value = getattr(self, prop)
-            if isinstance(value, (float, int, str)):
-                self.on_update_callback(prop, value)
-            elif isinstance(value, dict):
+
+            # Publish whole property.
+            self.on_update_callback(prop, value)
+
+            # Also publish component parts if property is a dict.
+            if isinstance(value, dict):
                 for sub_prop, sub_value in value.items():
                     self.on_update_callback("%s:%s" % (prop, sub_prop), sub_value)
 
@@ -168,11 +171,13 @@ class StateMachineBase:
             self.on_update_callback("work_offset:z", self.work_offset["z"])
             self.on_update_callback("work_offset:a", self.work_offset["a"])
             self.on_update_callback("work_offset:b", self.work_offset["b"])
+            self.on_update_callback("work_offset", self.work_offset)
             self.on_update_callback("work_pos:x", self.work_pos["x"])
             self.on_update_callback("work_pos:y", self.work_pos["y"])
             self.on_update_callback("work_pos:z", self.work_pos["z"])
             self.on_update_callback("work_pos:a", self.work_pos["a"])
             self.on_update_callback("work_pos:b", self.work_pos["b"])
+            self.on_update_callback("work_pos", self.work_pos)
 
     @property
     def machine_pos_max(self) -> Dict[str, float]:
@@ -216,6 +221,7 @@ class StateMachineBase:
             self.on_update_callback("machine_pos_max:z", self.machine_pos_max["z"])
             self.on_update_callback("machine_pos_max:a", self.machine_pos_max["a"])
             self.on_update_callback("machine_pos_max:b", self.machine_pos_max["b"])
+            self.on_update_callback("machine_pos_max", self.machine_pos_max)
 
     @property
     def machine_pos_min(self) -> Dict[str, float]:
@@ -259,6 +265,7 @@ class StateMachineBase:
             self.on_update_callback("machine_pos_min:z", self.machine_pos_min["z"])
             self.on_update_callback("machine_pos_min:a", self.machine_pos_min["a"])
             self.on_update_callback("machine_pos_min:b", self.machine_pos_min["b"])
+            self.on_update_callback("machine_pos_min", self.machine_pos_min)
 
     @property
     def machine_pos(self) -> Dict[str, float]:
@@ -307,11 +314,13 @@ class StateMachineBase:
             self.on_update_callback("machine_pos:z", self.machine_pos["z"])
             self.on_update_callback("machine_pos:a", self.machine_pos["a"])
             self.on_update_callback("machine_pos:b", self.machine_pos["b"])
+            self.on_update_callback("machine_pos", self.machine_pos)
             self.on_update_callback("work_pos:x", self.work_pos["x"])
             self.on_update_callback("work_pos:y", self.work_pos["y"])
             self.on_update_callback("work_pos:z", self.work_pos["z"])
             self.on_update_callback("work_pos:a", self.work_pos["a"])
             self.on_update_callback("work_pos:b", self.work_pos["b"])
+            self.on_update_callback("work_pos", self.work_pos)
 
     @property
     def work_pos(self) -> Dict[str, float]:
@@ -360,11 +369,13 @@ class StateMachineBase:
             self.on_update_callback("machine_pos:z", self.machine_pos["z"])
             self.on_update_callback("machine_pos:a", self.machine_pos["a"])
             self.on_update_callback("machine_pos:b", self.machine_pos["b"])
+            self.on_update_callback("machine_pos", self.machine_pos)
             self.on_update_callback("work_pos:x", self.work_pos["x"])
             self.on_update_callback("work_pos:y", self.work_pos["y"])
             self.on_update_callback("work_pos:z", self.work_pos["z"])
             self.on_update_callback("work_pos:a", self.work_pos["a"])
             self.on_update_callback("work_pos:b", self.work_pos["b"])
+            self.on_update_callback("work_pos", self.work_pos)
 
     @property
     def feed_rate(self) -> float:
@@ -419,6 +430,7 @@ class StateMachineBase:
             self.on_update_callback("feed_rate_max:z", self.feed_rate_max["z"])
             self.on_update_callback("feed_rate_max:a", self.feed_rate_max["a"])
             self.on_update_callback("feed_rate_max:b", self.feed_rate_max["b"])
+            self.on_update_callback("feed_rate_max", self.feed_rate_max)
 
     @property
     def feed_rate_accel(self) -> Dict[str, int]:
@@ -456,6 +468,7 @@ class StateMachineBase:
             self.on_update_callback("feed_rate_accel:z", self.feed_rate_accel["z"])
             self.on_update_callback("feed_rate_accel:a", self.feed_rate_accel["a"])
             self.on_update_callback("feed_rate_accel:b", self.feed_rate_accel["b"])
+            self.on_update_callback("feed_rate_accel", self.feed_rate_accel)
 
     @property
     def feed_override(self) -> float:
@@ -642,7 +655,6 @@ class StateMachineBase:
         if self.__door != door:
             self.__door = door
             self.on_update_callback("door", self.door)
-
 
 
 class StateMachineGrbl(StateMachineBase):

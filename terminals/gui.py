@@ -77,11 +77,18 @@ class Gui(_TerminalBase):
         self._lastvalues = values
 
         # Combine events with the values. Put the event key in there with empty value.
-        if not event == "__TIMEOUT__" and event not in self._diffvalues:
-            self._diffvalues[event] = None
+        if not event == "__TIMEOUT__":
+            key_value = None
+            if len(event) == 1 or event.startswith("special "):
+                # This is a key-press of a regular "qwerty" key.
+                key_value = event
+                event = "gui:keypress"
 
-        #if(not event == "__TIMEOUT__" or self._diffvalues) and self.debug_show_events:
-        #    print(event, self._diffvalues)
+            if event not in self._diffvalues:
+                self._diffvalues[event] = key_value or None
+
+        if(not event == "__TIMEOUT__" or self._diffvalues) and self.debug_show_events:
+            print(event, self._diffvalues)
 
         return event not in (None, ) and not event.startswith("Exit")
 
