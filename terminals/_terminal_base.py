@@ -1,12 +1,12 @@
 """ Terminals are the plugins used for providing input and receiving output.
     This contains code common to all terminals. """
 
-from typing import Dict
+from typing import Dict, Any
 
 from component import _ComponentBase
 
 
-def diff_dicts(original: Dict, new: Dict) -> Dict:
+def diff_dicts(original: Dict[str, Any], new: Dict[str, Any]) -> Dict[str, Any]:
     """ Compare 2 Dicts, returning any values that differ.
     It is presumed that the new Dict will contain all keys that are in the
     original Dict. The new Dict may have some keys that were not in the original.

@@ -1,34 +1,40 @@
-from typing import List, Tuple
+from typing import List, Tuple, Dict, Union, Optional
 
 import random
 
 import numpy as np
-#import PySimpleGUIQt as sg       # type: ignore
-from terminals.gui import sg      # type: ignore
+#import PySimpleGUIQt as sg
+from terminals.gui import sg
 
-from interfaces._interface_base import _InterfaceBase  # type: ignore
+from interfaces._interface_base import _InterfaceBase
 
 NODE_SIZE = 3
 
-class Structure:
-    def __init__(self, graph_elem) -> None:
+class Geometry:
+    """ A collection of nodes and edges that make up some geometry in 3d space. """
+
+    def __init__(self, graph_elem: sg.Graph) -> None:
         self.graph_elem = graph_elem
         self.nodes = np.zeros((0, 4))
         self.display_nodes = np.zeros((0, 4))
-        self.edges: List[Tuple[int, int]]= []
+        self.edges: List[Tuple[int, int, Optional[str]]]= []
         self.update_edges_from: int = 0
+        self.calculate_center_include = True
 
         self.node_circle_offset = (-NODE_SIZE / 2, NODE_SIZE / 2, 0, 0)
 
-    def calculate_nodes_center(self):
+    def calculate_nodes_center(self) -> Tuple[float, float, float]:
+        """ Return the center of all the nodes. """
         extremities = self.calculate_nodes_extremities()
         return (-(extremities[0][0] + extremities[1][0]) / 2,
                 -(extremities[0][1] + extremities[1][1]) / 2,
                 -(extremities[0][2] + extremities[1][2]) / 2)
 
-    def calculate_nodes_extremities(self):
+    def calculate_nodes_extremities(self) -> \
+            Tuple[Tuple[float, float, float], Tuple[float, float, float]]:
+        """ Return the maximum and minimum values for each axis. """
         if not len(self.nodes):
-            return (1, 1, 1)
+            return ((0, 0, 0), (1, 1, 1))
         max_x = self.nodes[0][0]
         min_x = self.nodes[0][0]
         max_y = self.nodes[0][1]
@@ -51,13 +57,18 @@ class Structure:
 
         return ((min_x, min_y, min_z), (max_x, max_y, max_z))
 
-    def redraw(self):
+    def redraw(self) -> None:
         """ Reset display_nodes so they get recalculated. """
         self.display_nodes = np.zeros((0, 4))
         self.update_edges_from = 0
         self.graph_elem.Erase()
 
-    def transform(self, nodes, scale, rotate, center):
+    def transform(self,
+                  nodes: np.array,
+                  scale: float,
+                  rotate: Tuple[float, float, float],
+                  center: Tuple[float, float, float]
+                  ) -> np.array:
         """ Apply a transformation defined by a center of points, desired scale
             and desired viewing angle. """
         canvas_size = self.graph_elem.CanvasSize
@@ -74,7 +85,7 @@ class Structure:
 
         return return_nodes
 
-    def translation_matrix(self, dx=0, dy=0, dz=0):
+    def translation_matrix(self, dx: float = 0, dy: float = 0, dz: float = 0) -> np.array:
         """ Return matrix for translation along vector (dx, dy, dz). """
 
         return np.array([[1, 0, 0, 0],
@@ -82,7 +93,7 @@ class Structure:
                          [0, 0, 1, 0],
                          [dx, dy, dz, 1]])
 
-    def scale_matrix(self, sx=0, sy=0, sz=0):
+    def scale_matrix(self, sx: float = 0, sy: float = 0, sz: float = 0) -> np.array:
         """ Return matrix for scaling equally along all axes. """
 
         return np.array([[sx, 0,  0,  0],
@@ -90,7 +101,7 @@ class Structure:
                          [0,  0,  sz, 0],
                          [0,  0,  0,  1]])
 
-    def rotate_x_matrix(self, radians):
+    def rotate_x_matrix(self, radians: float) -> np.array:
         """ Return matrix for rotating about the x-axis by 'radians' radians """
 
         c = np.cos(radians)
@@ -100,7 +111,7 @@ class Structure:
             [0, s, c, 0],
             [0, 0, 0, 1]])
 
-    def rotate_y_matrix(self, radians):
+    def rotate_y_matrix(self, radians: float) -> np.array:
         """ Return matrix for rotating about the y-axis by 'radians' radians """
 
         c = np.cos(radians)
@@ -110,7 +121,7 @@ class Structure:
             [-s, 0, c, 0],
             [ 0, 0, 0, 1]])
 
-    def rotate_z_matrix(self, radians):
+    def rotate_z_matrix(self, radians: float) -> np.array:
         """ Return matrix for rotating about the z-axis by 'radians' radians """
 
         c = np.cos(radians)
@@ -120,15 +131,21 @@ class Structure:
             [0, 0, 1, 0],
             [0, 0, 0, 1]])
 
-    def add_nodes(self, nodes) -> None:
+    def add_nodes(self, nodes: np.array) -> None:
         ones_column = np.ones((len(nodes), 1))
         ones_added = np.hstack((nodes, ones_column))
         self.nodes = np.vstack((self.nodes, ones_added))
 
-    def addEdges(self, edgeList):
+    def addEdges(self, edgeList: List[Tuple[int, int, Optional[str]]]) -> None:
         self.edges += edgeList
 
-    def update(self, scale, rotate, center) -> None:
+    def update(self,
+               scale: float,
+               rotate: Tuple[float, float, float],
+               center: Tuple[float, float, float]
+               ) -> None:
+        """ Draw/redraw any nodes and edges that hab=ve been added since last update. """
+        color: Optional[str]
         if len(self.nodes) > len(self.display_nodes):
             update_nodes_from = len(self.display_nodes)
             new_nodes = self.transform(
@@ -151,23 +168,29 @@ class Structure:
             self.update_edges_from = len(self.edges)
 
 
-class TestCube(Structure):
-    def __init__(self, graph_elem) -> None:
+class TestCube(Geometry):
+    """ A Geometry object with some sample data added. """
+
+    def __init__(self, graph_elem: sg.Graph) -> None:
         super().__init__(graph_elem)
 
         self.add_nodes([(x, y, z) for x in (0, 1) for y in (0, 1) for z in (0, 1)])
         self.addEdges([(0, 4, "red")])
-        self.addEdges([(n, n + 4) for n in range(1, 4)])
-        self.addEdges([(n, n + 1) for n in range(0, 8, 2)])
-        self.addEdges([(n, n + 2) for n in (0, 1, 4, 5)])
+        self.addEdges([(n, n + 4, None) for n in range(1, 4)])
+        self.addEdges([(n, n + 1, None) for n in range(0, 8, 2)])
+        self.addEdges([(n, n + 2, None) for n in (0, 1, 4, 5)])
 
 
-class Axis(Structure):
-    def __init__(self, graph_elem) -> None:
+class Axis(Geometry):
+    """ Geometry object displaying X, Y & Z axis. """
+
+    def __init__(self, graph_elem: sg.Graph) -> None:
         super().__init__(graph_elem)
 
         self.add_nodes([(0, 0, 0), (10, 0, 0), (0, 10, 0), (0, 0, 10)])
         self.addEdges([(0, 1, "red"), (0, 2, "green"), (0, 3, "blue")])
+
+        self.calculate_center_include = False
 
 
 class CanvasWidget(_InterfaceBase):
@@ -183,28 +206,30 @@ class CanvasWidget(_InterfaceBase):
         self.graph_elem = sg.Graph((400, 400), (0, 0), (400, 400), key='+GRAPH+',
                                    tooltip='Graph')
 
-        self.rotate_x = 0.6161012
-        self.rotate_y = 0
-        self.rotate_z = 3.141 / 4
-        self.scale = 100
+        self.rotate_x: float = 0.6161012
+        self.rotate_y: float = 0
+        self.rotate_z: float = 3.141 / 4
+        self.scale: float = 50
 
-        self.structures = {}
+        self.structures: Dict[str, Geometry] = {}
 
         # Display a cube for debugging purposes.
         self.structures["test_cube"] = TestCube(self.graph_elem)
         self.structures["axis"] = Axis(self.graph_elem)
+        self.structures["machine_position"] = Geometry(self.graph_elem)
+        self.machine_position = self.structures["machine_position"]
 
         self.event_subscriptions = {
             "active_controller:machine_pos": ("_machine_pos_handler", None),
             "gui:keypress": ("_keypress_handler", None),
             }
 
-    def _machine_pos_handler(self, pos):
-        print("pos: ", pos)
-        self.add_nodes([(pos["x"], pos["y"], pos["z"])])
+    def _machine_pos_handler(self, pos: Dict[str, float]) -> None:
+        """ Event handler for "active_controller:machine_pos".
+            Called when the machine position is updated."""
+        self.machine_position.add_nodes([(pos["x"], pos["y"], pos["z"])])
 
-    def _keypress_handler(self, key):
-        print("key: ", key)
+    def _keypress_handler(self, key: Union[int, slice]) -> None:
         # TODO: Replace "special xxxx" with sensible named variable.
         if key == "special 16777234":
             self.rotate_z += 0.01
@@ -221,9 +246,8 @@ class CanvasWidget(_InterfaceBase):
 
         self.redraw()
 
-    def gui_layout(self) -> List:
+    def gui_layout(self) -> List[List[sg.Element]]:
         """ Layout information for the PySimpleGUI interface. """
-
         frame = [
             [self.graph_elem, sg.Stretch()],
         ]
@@ -235,30 +259,48 @@ class CanvasWidget(_InterfaceBase):
 
         return layout
 
-    def calculate_center(self):
-        combined_extremities = ([None, None, None], [None, None, None])
-        for structure in self.structures.values():
-            extremities = structure.calculate_nodes_extremities()
-            # Minimum extremities.
-            for index, value in enumerate(extremities[0]):
-                if(combined_extremities[0][index] is None or
-                   extremities[0][index] < combined_extremities[0][index]):
-                    combined_extremities[0][index] = extremities[0][index]
-            # Maximum extremities.
-            for index, value in enumerate(extremities[1]):
-                if(combined_extremities[1][index] is None or
-                   extremities[1][index] < combined_extremities[1][index]):
-                    combined_extremities[1][index] = extremities[1][index]
+    def calculate_center(self) -> Tuple[float, float, float]:
+        """ Calculate the center of all geometry. """
 
-        return (-(combined_extremities[0][0] + combined_extremities[1][0]) / 2,
-                -(combined_extremities[0][1] + combined_extremities[1][1]) / 2,
-                -(combined_extremities[0][2] + combined_extremities[1][2]) / 2)
+        # Would have preferred to use None here but mypy doesn't like Optional[float].
+        max_value: float = 9999999999
+        combined_minimums: List[float] = [max_value, max_value, max_value]
+        combined_maximums: List[float] = [-max_value, -max_value, -max_value]
+
+        for structure in self.structures.values():
+            if not structure.calculate_center_include:
+                continue
+
+            extremities = structure.calculate_nodes_extremities()
+
+            mimimums = extremities[0]
+            for index, value in enumerate(mimimums):
+                if value < combined_minimums[index]:
+                    combined_minimums[index] = value
+
+            maximums = extremities[1]
+            for index, value in enumerate(maximums):
+                if value > combined_maximums[index]:
+                    combined_maximums[index] = value
+
+        for v in combined_minimums:
+            if value == max_value:
+                return (0, 0, 0)
+        for v in combined_maximums:
+            if value == -max_value:
+                return (0, 0, 0)
+
+        return (-(combined_minimums[0] + combined_maximums[0]) / 2,
+                -(combined_minimums[1] + combined_maximums[1]) / 2,
+                -(combined_minimums[2] + combined_maximums[2]) / 2)
 
     def redraw(self) -> None:
+        """ Redraw all geometry to screen. """
         for structure in self.structures.values():
             structure.redraw()
 
     def update(self) -> None:
+        """ Update all Geometry objects. """
         super().update()
 
         rotate = (self.rotate_x, self.rotate_y, self.rotate_z)

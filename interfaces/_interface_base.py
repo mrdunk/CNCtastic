@@ -1,8 +1,8 @@
 """ Pluging providing control of some aspect of the active controller. """
 
-from typing import Dict, Optional, Union, Callable, cast
+from typing import Dict, Optional, Union, cast
 
-from pygcode import block, GCodeFeedRate     # type: ignore
+from pygcode import block, GCodeFeedRate, GCode
 
 from component import _ComponentBase
 from definitions import FlagState, MODAL_GROUPS
@@ -40,7 +40,7 @@ class _InterfaceBase(_ComponentBase):
     plugin_type = "interface"
 
     # Make a class reference to avoid expensive global lookup.
-    modal_groups = cast(Dict[str, Dict[str, Callable]], MODAL_GROUPS)
+    modal_groups = cast(Dict[str, Dict[str, GCode]], MODAL_GROUPS)
 
     def __init__(self, label: str = "") -> None:
         """ Args:

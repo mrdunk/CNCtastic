@@ -7,7 +7,7 @@ from pygcode import (GCodeLinearMove, GCodeRapidMove, GCodeArcMoveCW,
                      GCodeIncrementalDistanceMode, GCodeAbsoluteDistanceMode,
                      GCodeUseMillimeters, GCodeUseInches,
                      GCodeCoordSystemOffset, GCodeResetCoordSystemOffset,
-                     GCodeRestoreCoordSystemOffset)   # type: ignore
+                     GCodeRestoreCoordSystemOffset)
 
 class FlagState(Enum):
     """ Flag state used in place of a boolean when we may need to infer the value

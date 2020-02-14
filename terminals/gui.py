@@ -22,13 +22,13 @@ class Gui(_TerminalBase):
     def __init__(self, label: str = "gui") -> None:
         super().__init__(label)
         self._setup_done: bool = False
-        self.layout: List[List] = []
-        self._lastvalues: Dict = {}
-        self._diffvalues: Dict = {}
+        self.layout: List[List[sg.Element]] = []
+        self._lastvalues: Dict[str, Any] = {}
+        self._diffvalues: Dict[str, Any] = {}
         self.description = "GUI interface."
         self.window: Any = None
 
-    def setup(self, layouts: Dict) -> None:
+    def setup(self, layouts: Dict[str, List[List[sg.Element]]]) -> None:  # type: ignore[override]
         """ Since this component relies on data from many other components,
         we cannot do all the setup in __init__.
         Call this once layout data exists. """
@@ -52,7 +52,7 @@ class Gui(_TerminalBase):
                                 default_element_size=(4, 2),
                                 default_button_element_size=(4, 2)
                                 )
-        self._setup_done: bool = True
+        self._setup_done = True
 
         # Subscribe to events matching GUI widget keys.
         for event in self.window.AllKeysDict:
@@ -60,7 +60,7 @@ class Gui(_TerminalBase):
 
         #print(self.window.FindElement('canvas').TKCanvas)
 
-    def early_update(self) -> bool:
+    def early_update(self) -> bool:  # type: ignore[override]
         """ To be called once per frame.
         Returns:
             bool: True: Continue execution.
