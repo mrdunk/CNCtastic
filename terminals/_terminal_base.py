@@ -59,9 +59,13 @@ class _TerminalBase(_ComponentBase):
         """ Any configuration to be done after __init__ once other components
         are active. """
 
-    def early_update(self) -> None:
+    def early_update(self) -> bool:  # type: ignore[override]
         """ To be called once per frame.
         Returns:
             bool: True: Continue execution.
                   False: An "Exit" or empty event occurred. Stop execution. """
         raise NotImplementedError
+        return True
+
+    def close(self) -> None:
+        """ Perform any cleanup here. """

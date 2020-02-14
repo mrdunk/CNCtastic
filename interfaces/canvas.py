@@ -1,6 +1,6 @@
-from typing import List, Tuple, Dict, Union, Optional
+""" Display Gcode and machine movement in the GUI. """
 
-import random
+from typing import List, Tuple, Dict, Union, Optional
 
 import numpy as np
 #import PySimpleGUIQt as sg
@@ -17,7 +17,7 @@ class Geometry:
         self.graph_elem = graph_elem
         self.nodes = np.zeros((0, 4))
         self.display_nodes = np.zeros((0, 4))
-        self.edges: List[Tuple[int, int, Optional[str]]]= []
+        self.edges: List[Tuple[int, int, Optional[str]]] = []
         self.update_edges_from: int = 0
         self.calculate_center_include = True
 
@@ -33,7 +33,7 @@ class Geometry:
     def calculate_nodes_extremities(self) -> \
             Tuple[Tuple[float, float, float], Tuple[float, float, float]]:
         """ Return the maximum and minimum values for each axis. """
-        if not len(self.nodes):
+        if not self.nodes.any():
             return ((0, 0, 0), (1, 1, 1))
         max_x = self.nodes[0][0]
         min_x = self.nodes[0][0]
@@ -73,71 +73,84 @@ class Geometry:
             and desired viewing angle. """
         canvas_size = self.graph_elem.CanvasSize
 
-        t = self.translation_matrix(*center)
-        t = np.dot(t, self.scale_matrix(scale, scale, scale))
-        t = np.dot(t, self.rotate_z_matrix(rotate[2]))
-        t = np.dot(t, self.rotate_y_matrix(rotate[1]))
-        t = np.dot(t, self.rotate_x_matrix(rotate[0]))
-        t = np.dot(t, self.translation_matrix(
+        modifier = self.translation_matrix(*center)
+        modifier = np.dot(modifier, self.scale_matrix(scale, scale, scale))
+        modifier = np.dot(modifier, self.rotate_z_matrix(rotate[2]))
+        modifier = np.dot(modifier, self.rotate_y_matrix(rotate[1]))
+        modifier = np.dot(modifier, self.rotate_x_matrix(rotate[0]))
+        modifier = np.dot(modifier, self.translation_matrix(
             canvas_size[0] / 2, canvas_size[1] / 2, 0))
 
-        return_nodes = np.dot(nodes, t)
+        return_nodes = np.dot(nodes, modifier)
 
         return return_nodes
 
-    def translation_matrix(self, dx: float = 0, dy: float = 0, dz: float = 0) -> np.array:
-        """ Return matrix for translation along vector (dx, dy, dz). """
+    @classmethod
+    def translation_matrix(cls,
+                           dif_x: float = 0,
+                           dif_y: float = 0,
+                           dif_z: float = 0) -> np.array:
+        """ Return matrix for translation along vector (dif_x, dif_y, dif_z). """
 
         return np.array([[1, 0, 0, 0],
                          [0, 1, 0, 0],
                          [0, 0, 1, 0],
-                         [dx, dy, dz, 1]])
+                         [dif_x, dif_y, dif_z, 1]])
 
-    def scale_matrix(self, sx: float = 0, sy: float = 0, sz: float = 0) -> np.array:
+    @classmethod
+    def scale_matrix(cls,
+                     scale_x: float = 0,
+                     scale_y: float = 0,
+                     scale_z: float = 0) -> np.array:
         """ Return matrix for scaling equally along all axes. """
 
-        return np.array([[sx, 0,  0,  0],
-                         [0,  sy, 0,  0],
-                         [0,  0,  sz, 0],
-                         [0,  0,  0,  1]])
+        return np.array([[scale_x, 0, 0, 0],
+                         [0, scale_y, 0, 0],
+                         [0, 0, scale_z, 0],
+                         [0, 0, 0, 1]])
 
-    def rotate_x_matrix(self, radians: float) -> np.array:
+    @classmethod
+    def rotate_x_matrix(cls, radians: float) -> np.array:
         """ Return matrix for rotating about the x-axis by 'radians' radians """
 
-        c = np.cos(radians)
-        s = np.sin(radians)
+        cos = np.cos(radians)
+        sin = np.sin(radians)
         return np.array([[1, 0, 0, 0],
-            [0, c,-s, 0],
-            [0, s, c, 0],
-            [0, 0, 0, 1]])
+                         [0, cos, -sin, 0],
+                         [0, sin, cos, 0],
+                         [0, 0, 0, 1]])
 
-    def rotate_y_matrix(self, radians: float) -> np.array:
+    @classmethod
+    def rotate_y_matrix(cls, radians: float) -> np.array:
         """ Return matrix for rotating about the y-axis by 'radians' radians """
 
-        c = np.cos(radians)
-        s = np.sin(radians)
-        return np.array([[ c, 0, s, 0],
-            [ 0, 1, 0, 0],
-            [-s, 0, c, 0],
-            [ 0, 0, 0, 1]])
+        cos = np.cos(radians)
+        sin = np.sin(radians)
+        return np.array([[cos, 0, sin, 0],
+                         [0, 1, 0, 0],
+                         [-sin, 0, cos, 0],
+                         [0, 0, 0, 1]])
 
-    def rotate_z_matrix(self, radians: float) -> np.array:
+    @classmethod
+    def rotate_z_matrix(cls, radians: float) -> np.array:
         """ Return matrix for rotating about the z-axis by 'radians' radians """
 
-        c = np.cos(radians)
-        s = np.sin(radians)
-        return np.array([[c,-s, 0, 0],
-            [s, c, 0, 0],
-            [0, 0, 1, 0],
-            [0, 0, 0, 1]])
+        cos = np.cos(radians)
+        sin = np.sin(radians)
+        return np.array([[cos, -sin, 0, 0],
+                         [sin, cos, 0, 0],
+                         [0, 0, 1, 0],
+                         [0, 0, 0, 1]])
 
     def add_nodes(self, nodes: np.array) -> None:
+        """ Add points to geometry. """
         ones_column = np.ones((len(nodes), 1))
         ones_added = np.hstack((nodes, ones_column))
         self.nodes = np.vstack((self.nodes, ones_added))
 
-    def addEdges(self, edgeList: List[Tuple[int, int, Optional[str]]]) -> None:
-        self.edges += edgeList
+    def add_edges(self, edge_list: List[Tuple[int, int, Optional[str]]]) -> None:
+        """ Add edges between 2 nodes. """
+        self.edges += edge_list
 
     def update(self,
                scale: float,
@@ -149,7 +162,7 @@ class Geometry:
         if len(self.nodes) > len(self.display_nodes):
             update_nodes_from = len(self.display_nodes)
             new_nodes = self.transform(
-                    self.nodes[update_nodes_from:], scale, rotate, center)
+                self.nodes[update_nodes_from:], scale, rotate, center)
 
             color = "blue"
             for node in new_nodes:
@@ -175,10 +188,10 @@ class TestCube(Geometry):
         super().__init__(graph_elem)
 
         self.add_nodes([(x, y, z) for x in (0, 1) for y in (0, 1) for z in (0, 1)])
-        self.addEdges([(0, 4, "red")])
-        self.addEdges([(n, n + 4, None) for n in range(1, 4)])
-        self.addEdges([(n, n + 1, None) for n in range(0, 8, 2)])
-        self.addEdges([(n, n + 2, None) for n in (0, 1, 4, 5)])
+        self.add_edges([(0, 4, "red")])
+        self.add_edges([(n, n + 4, None) for n in range(1, 4)])
+        self.add_edges([(n, n + 1, None) for n in range(0, 8, 2)])
+        self.add_edges([(n, n + 2, None) for n in (0, 1, 4, 5)])
 
 
 class Axis(Geometry):
@@ -188,7 +201,7 @@ class Axis(Geometry):
         super().__init__(graph_elem)
 
         self.add_nodes([(0, 0, 0), (10, 0, 0), (0, 10, 0), (0, 0, 10)])
-        self.addEdges([(0, 1, "red"), (0, 2, "green"), (0, 3, "blue")])
+        self.add_edges([(0, 1, "red"), (0, 2, "green"), (0, 3, "blue")])
 
         self.calculate_center_include = False
 
@@ -275,18 +288,20 @@ class CanvasWidget(_InterfaceBase):
 
             mimimums = extremities[0]
             for index, value in enumerate(mimimums):
+                assert -max_value < value < max_value, "Coordinate out of range."
                 if value < combined_minimums[index]:
                     combined_minimums[index] = value
 
             maximums = extremities[1]
             for index, value in enumerate(maximums):
+                assert -max_value < value < max_value, "Coordinate out of range."
                 if value > combined_maximums[index]:
                     combined_maximums[index] = value
 
-        for v in combined_minimums:
+        for value in combined_minimums:
             if value == max_value:
                 return (0, 0, 0)
-        for v in combined_maximums:
+        for value in combined_maximums:
             if value == -max_value:
                 return (0, 0, 0)
 

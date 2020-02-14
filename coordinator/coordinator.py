@@ -3,10 +3,12 @@ Coordinator polls all components for published events and delivers them to
 subscribers. """
 
 
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, Deque, Tuple, Any
 from collections import deque
 
 from component import _ComponentBase
+from terminals._terminal_base import _TerminalBase
+from interfaces._interface_base import _InterfaceBase
 from controllers._controller_base import _ControllerBase
 
 class Coordinator(_ComponentBase):
@@ -14,7 +16,10 @@ class Coordinator(_ComponentBase):
     Coordinator polls all components for published events and delivers them to
     subscribers. """
 
-    def __init__(self, terminals: List, interfaces: List, controllers: List,
+    def __init__(self,
+                 terminals: List[_TerminalBase],
+                 interfaces: List[_InterfaceBase],
+                 controllers: List[_ControllerBase],
                  debug_show_events: bool = False) -> None:
         """
         Args:
@@ -23,20 +28,23 @@ class Coordinator(_ComponentBase):
         """
         super().__init__("__coordinator__")
 
-        self.terminals: Dict = {terminal.label:terminal for terminal in terminals}
-        self.interfaces: Dict = {interface.label:interface for interface in interfaces}
-        self.controllers: Dict = {controller.label:controller for controller in controllers}
+        self.terminals: Dict[str, _TerminalBase] = \
+                {terminal.label:terminal for terminal in terminals}
+        self.interfaces: Dict[str, _InterfaceBase] = \
+                {interface.label:interface for interface in interfaces}
+        self.controllers: Dict[str, _ControllerBase] = \
+                {controller.label:controller for controller in controllers}
         self.debug_show_events = debug_show_events
 
-        self.active_controller = None
+        self.active_controller: Optional[_ControllerBase] = None
 
         self.activate_controller()
 
-        self.all_components = (
-            [self] +
-            list(terminals) +
-            list(interfaces) +
-            list(controllers))
+        self.all_components: List[_ComponentBase] = [self]
+        self.all_components += list(terminals)
+        self.all_components += list(interfaces)
+        self.all_components += list(controllers)
+
         self.terminal_specific_setup()
 
         self.running = True
@@ -66,7 +74,7 @@ class Coordinator(_ComponentBase):
 
             if hasattr(terminal, "layout"):
                 print("Configuring GUI: %s" % terminal.label)
-                terminal.setup(layouts)
+                terminal.setup(layouts)  # type: ignore[call-arg]
             else:
                 terminal.setup()
 
@@ -187,7 +195,7 @@ class Coordinator(_ComponentBase):
         assert self.active_controller, "No active controller."
 
         active = self.active_controller.label
-        tmp_event_queue = deque()
+        tmp_event_queue: Deque[Tuple[str, Any]] = deque()
         for event_name, event_value in self._event_queue:
             if not isinstance(event_name, str):
                 continue
@@ -205,8 +213,8 @@ class Coordinator(_ComponentBase):
         for terminal in self.terminals.values():
             self.running = self.running and terminal.early_update()
 
-        for component in self.interfaces.values():
-            component.early_update()
+        for interface in self.interfaces.values():
+            interface.early_update()
 
         for controller in self.controllers.values():
             controller.early_update()

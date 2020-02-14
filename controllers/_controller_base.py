@@ -4,7 +4,7 @@ from typing import Any, Deque, Set
 try:
     from typing import Literal              # type: ignore
 except ImportError:
-    from typing_extensions import Literal   # type: ignore
+    from typing_extensions import Literal
 from collections import deque
 
 from pygcode import GCode
@@ -16,7 +16,7 @@ class _ControllerBase(_ComponentBase):
     """ Base class for all CNC machine control hardware. """
 
     # Strings of the gcode commands this controller supports.
-    SUPPORTED_GCODE: Set = set()
+    SUPPORTED_GCODE: Set[GCode] = set()
 
     # Type of component. Used by the plugin loader.
     plugin_type = "controller"
@@ -29,7 +29,7 @@ class _ControllerBase(_ComponentBase):
         self.connection_status: ConnectionState = ConnectionState.UNKNOWN
         self.desired_connection_status: ConnectionState = ConnectionState.NOT_CONNECTED
         self._new_gcode_line = None
-        self._queued_updates: Deque = deque()
+        self._queued_updates: Deque[Any] = deque()
 
         # Map incoming events to local member variables and callback methods.
         self.label = label
