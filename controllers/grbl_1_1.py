@@ -3,7 +3,7 @@
 
 """ A plugin to support Grbl 1.1 controller hardware. """
 
-from typing import List, Any, Optional
+from typing import List, Any, Optional, Deque, Tuple
 
 import time
 from queue import Queue, Empty
@@ -69,19 +69,19 @@ class Grbl1p1Controller(_SerialControllerBase):
         self.state = State(self.publish_from_here)
 
         # Populate with GRBL commands that are processed immediately and don't need queued.
-        self._command_immediate: Queue = Queue()
+        self._command_immediate: Queue[bytes] = Queue()
         # Populate with GRBL commands that are processed sequentially.
-        self._command_streaming: Queue = Queue()
+        self._command_streaming: Queue[bytes] = Queue()
 
         # Data received from GRBL that does not need processed immediately.
-        self._received_data: Queue = Queue()
+        self._received_data: Queue[bytes] = Queue()
 
         self._partial_read: bytes = b""
         self._last_write: float = 0
         self._error_count: int = 0
         self._ok_count: int = 0
-        self._send_buf_lens: deque = deque()
-        self._send_buf_actns: deque = deque()
+        self._send_buf_lens: Deque[int] = deque()
+        self._send_buf_actns: Deque[Tuple[bytes, Any]] = deque()
 
         """ Certain gcode commands write to EPROM which disabled interrupts which
         would interfere with serial IO. When one of these commands is executed we
@@ -97,7 +97,7 @@ class Grbl1p1Controller(_SerialControllerBase):
                 return True
         return False
 
-    def gui_layout(self) -> List:
+    def gui_layout(self) -> List[List[sg.Element]]:
         """ Layout information for the PySimpleGUI interface. """
         layout = [
             [sg.Text("Title:", size=(20, 1)),
@@ -156,7 +156,7 @@ class Grbl1p1Controller(_SerialControllerBase):
         self._error_count += 1
         self._send_buf_lens.popleft()
         action = self._send_buf_actns.popleft()
-        print("error: '%s' due to '%s' " % (incoming, action[0]))
+        print("error: '%s' due to '%s' " % (incoming.decode("utf-8"), action[0].decode("utf-8")))
         # Feed Hold:
         self._command_immediate.put(b"!")
 
@@ -167,9 +167,9 @@ class Grbl1p1Controller(_SerialControllerBase):
         self._ok_count += 1
         self._send_buf_lens.popleft()
         action = self._send_buf_actns.popleft()
-        print("'ok' acknowledges: %s" % action[0], type(action[1]))
+        print("'ok' acknowledges: %s" % action[0].decode("utf-8"), type(action[1]))
         if isinstance(action[1], GCode):
-            self._received_data.put(b"[sentGcode:%s]" % str(action.modal_copy()).encode("utf-8"))
+            self._received_data.put(b"[sentGcode:%s]" % str(action[1].modal_copy()).encode("utf-8"))
 
     def _write_immediate(self) -> bool:
         """ Write entries in the _command_immediate buffer to serial port. """
@@ -257,7 +257,7 @@ class Grbl1p1Controller(_SerialControllerBase):
 
         if command.door is FlagState.TRUE and not self.state.door:
             # GRBL Safety Door.
-            self._command_immediate.put(0x84)
+            self._command_immediate.put(chr(0x84).encode("utf-8"))
         elif command.door is FlagState.FALSE and self.state.door:
             if not self.state.parking:
                 # GRBL Cycle Start / Resume
@@ -284,6 +284,7 @@ class Grbl1p1Controller(_SerialControllerBase):
                     # Unsupported gcode.
                     # TODO: Need a way of raising an error.
                     print("Unsupported gcode: %s" % gcode, modal, modal_first)
+                    # GRBL feed hold.
                     self._command_immediate.put(b"!")
                     valid_gcode = False
             if valid_gcode:
@@ -299,6 +300,7 @@ class Grbl1p1Controller(_SerialControllerBase):
                     # Unsupported gcode.
                     # TODO: Need a way of raising an error.
                     print("Unsupported gcode: %s" % gcode, modal, modal_first)
+                    # GRBL feed hold.
                     self._command_immediate.put(b"!")
                     valid_gcode = False
             if valid_gcode:

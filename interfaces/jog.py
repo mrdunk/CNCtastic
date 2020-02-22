@@ -26,7 +26,6 @@ class JogWidget(_InterfaceBase):
     def __init__(self, label: str = "jogWidget") -> None:
         super().__init__(label)
 
-        self.label = label
         # Map incoming events to local member variables and callback methods.
         self.event_subscriptions = {
             self.key_gen("xyMultiply"): ("_xy_jog_step_multiply", 10),

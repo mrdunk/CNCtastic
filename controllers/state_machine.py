@@ -2,31 +2,17 @@
 Typically each hardware controller type will have it's own SM class inheriting
 from StateMachineBase. """
 
-from typing import Dict, List, Callable
+from typing import Dict, List, Callable, Optional, Any
 
 from definitions import MODAL_GROUPS, MODAL_COMMANDS
 
 
-def keys_to_lower(dict_) -> Dict:
+def keys_to_lower(dict_: Dict[str, Any]) -> Dict[str, Any]:
     """ Translate a dict's keys to lower case. """
     return {k.lower(): v for k, v in dict_.items()}
 
 class StateMachineBase:
     """ Base class for State Machines reflecting the state of hardware controllers. """
-    PAUSE_REASONS = {b"USER_SW": "User initiated pause from terminal.",
-                     b"USER_HW": "User initiated pause via HW button.",
-                     b"DOOR_OPEN": "Door currently open.",
-                     b"DOOR_CLOSED": "Door previously open.",
-                     }
-    HALT_REASONS = {b"USER_SW": "User initiated halt from terminal.",
-                    b"USER_HW": "User initiated halt via HW button.",
-                    b"UNKNOWN": "Unknown reason for halt."
-                    }
-    RESET_REASONS = {b"USER_SW": "User initiated reset from terminal.",
-                     b"USER_HW": "User initiated reset via HW button.",
-                     b"STARTUP": "Returning from power up.",
-                     b"UNKNOWN": "Unknown reason for reset."
-                    }
 
     machine_properties = [
         "machine_pos",
@@ -58,20 +44,20 @@ class StateMachineBase:
     MODAL_GROUPS = MODAL_GROUPS
     MODAL_COMMANDS = MODAL_COMMANDS
 
-    def __init__(self, on_update_callback: Callable) -> None:
+    def __init__(self, on_update_callback: Callable[[str, Any], None]) -> None:
         self.on_update_callback = on_update_callback
 
-        self.__machine_pos: Dict = {"x": 0, "y": 0, "z": 0, "a": 0, "b": 0}
-        self.__machine_pos_max: Dict = {"x": 0, "y": 0, "z": 0, "a": 0, "b": 0}
-        self.__machine_pos_min: Dict = {"x": 0, "y": 0, "z": 0, "a": 0, "b": 0}
-        self.__work_pos: Dict = {"x": 0, "y": 0, "z": 0, "a": 0, "b": 0}
-        self.__work_offset: Dict = {"x": 0, "y": 0, "z": 0, "a": 0, "b": 0}
-        self.__feed_rate: int = 0
-        self.__feed_rate_max: Dict = {"x": 0, "y": 0, "z": 0, "a": 0, "b": 0}
-        self.__feed_rate_accel: Dict = {"x": 0, "y": 0, "z": 0, "a": 0, "b": 0}
-        self.__feed_override: int = 100
-        self.__rapid_override: int = 100
-        self.__spindle_rate: int = 0
+        self.__machine_pos: Dict[str, float] = {"x": 0, "y": 0, "z": 0, "a": 0, "b": 0}
+        self.__machine_pos_max: Dict[str, float] = {"x": 0, "y": 0, "z": 0, "a": 0, "b": 0}
+        self.__machine_pos_min: Dict[str, float] = {"x": 0, "y": 0, "z": 0, "a": 0, "b": 0}
+        self.__work_pos: Dict[str, float] = {"x": 0, "y": 0, "z": 0, "a": 0, "b": 0}
+        self.__work_offset: Dict[str, float] = {"x": 0, "y": 0, "z": 0, "a": 0, "b": 0}
+        self.__feed_rate: float = 0
+        self.__feed_rate_max: Dict[str, float] = {"x": 0, "y": 0, "z": 0, "a": 0, "b": 0}
+        self.__feed_rate_accel: Dict[str, float] = {"x": 0, "y": 0, "z": 0, "a": 0, "b": 0}
+        self.__feed_override: float = 100
+        self.__rapid_override: float = 100
+        self.__spindle_rate: float = 0
         self.__spindle_override: int = 100
         self.__limit_x: float = False
         self.__limit_y: float = False
@@ -80,18 +66,17 @@ class StateMachineBase:
         self.__limit_b: float = False
         self.__probe: bool = False
         self.__pause: bool = False
-        self.pause_reason: List = []
+        self.pause_reason: List[str] = []
         self.__pause_park: bool = False
         self.__parking: bool = False
         self.__halt: bool = False
-        self.halt_reason: List = []
+        self.halt_reason: List[str] = []
         self.__door: bool = False
-        self.version: List[bytes] = []  # TODO Setter.
 
         self.gcode_modal: Dict = {}
 
-        self.version: List = []  # Up to the controller how this is populated.
-        self.machine_identifier: List = []  # Up to the controller how this is populated.
+        self.version: List[str] = []  # Up to the controller how this is populated.
+        self.machine_identifier: List[str] = []  # Up to the controller how this is populated.
 
         self.changes_made: bool = True
 
@@ -130,7 +115,7 @@ class StateMachineBase:
         return self.__work_offset
 
     @work_offset.setter
-    def work_offset(self, pos: Dict) -> None:
+    def work_offset(self, pos: Dict[str, float]) -> None:
         """ Setter. """
         pos = keys_to_lower(pos)
         data_changed = False
@@ -185,7 +170,7 @@ class StateMachineBase:
         return self.__machine_pos_max
 
     @machine_pos_max.setter
-    def machine_pos_max(self, pos: Dict) -> None:
+    def machine_pos_max(self, pos: Dict[str, float]) -> None:
         """ Setter. """
         pos = keys_to_lower(pos)
         data_changed = False
@@ -229,7 +214,7 @@ class StateMachineBase:
         return self.__machine_pos_min
 
     @machine_pos_min.setter
-    def machine_pos_min(self, pos: Dict) -> None:
+    def machine_pos_min(self, pos: Dict[str, float]) -> None:
         """ Setter. """
         pos = keys_to_lower(pos)
         data_changed = False
@@ -273,7 +258,7 @@ class StateMachineBase:
         return self.__machine_pos
 
     @machine_pos.setter
-    def machine_pos(self, pos: Dict) -> None:
+    def machine_pos(self, pos: Dict[str, float]) -> None:
         """ Setter. """
         pos = keys_to_lower(pos)
         data_changed = False
@@ -328,7 +313,7 @@ class StateMachineBase:
         return self.__work_pos
 
     @work_pos.setter
-    def work_pos(self, pos: Dict) -> None:
+    def work_pos(self, pos: Dict[str, float]) -> None:
         """ Setter. """
         pos = keys_to_lower(pos)
         data_changed = False
@@ -383,19 +368,19 @@ class StateMachineBase:
         return self.__feed_rate
 
     @feed_rate.setter
-    def feed_rate(self, feed_rate: int) -> None:
+    def feed_rate(self, feed_rate: float) -> None:
         """ Setter. """
         if self.__feed_rate != feed_rate:
             self.on_update_callback("feed_rate", feed_rate)
         self.__feed_rate = feed_rate
 
     @property
-    def feed_rate_max(self) -> Dict[str, int]:
+    def feed_rate_max(self) -> Dict[str, float]:
         """ Getter. """
         return self.__feed_rate_max
 
     @feed_rate_max.setter
-    def feed_rate_max(self, feedrate: Dict[str, int]) -> None:
+    def feed_rate_max(self, feedrate: Dict[str, float]) -> None:
         """ Setter. """
         data_changed = False
         pos_x = feedrate.get("x")
@@ -433,12 +418,12 @@ class StateMachineBase:
             self.on_update_callback("feed_rate_max", self.feed_rate_max)
 
     @property
-    def feed_rate_accel(self) -> Dict[str, int]:
+    def feed_rate_accel(self) -> Dict[str, float]:
         """ Getter. """
         return self.__feed_rate_accel
 
     @feed_rate_accel.setter
-    def feed_rate_accel(self, feedrate: Dict[str, int]) -> None:
+    def feed_rate_accel(self, feedrate: Dict[str, float]) -> None:
         """ Setter. """
         data_changed = False
         pos_x = feedrate.get("x")
@@ -596,7 +581,7 @@ class StateMachineBase:
         return self.__pause
 
     @pause.setter
-    def pause(self, pause: bool) -> None:
+    def pause(self, pause: bool, reason: Optional[str] = None) -> None:
         """ Setter. """
         if self.__pause != pause:
             self.__pause = pause
@@ -678,7 +663,7 @@ class StateMachineGrbl(StateMachineBase):
     def parse_incoming(self, incoming: bytes) -> None:
         """ Parse incoming string from Grbl controller. """
         if incoming.startswith(b"error:"):
-            print(b"ERROR:", incoming, b"TODO")
+            self._parse_incoming_error(incoming)
         elif incoming.startswith(b"ok"):
             assert False, "'ok' response should not have been passed to state machine."
         elif incoming.startswith(b"ALARM:"):
@@ -694,7 +679,10 @@ class StateMachineGrbl(StateMachineBase):
         elif incoming.startswith(b"Grbl "):
             self._parse_startup(incoming)
         else:
-            print("Input not parsed: %s" % incoming)
+            print("Input not parsed: %s" % incoming.decode('utf-8'))
+
+    def _parse_incoming_error(self, incoming: bytes) -> None:
+        print(b"ERROR:", incoming, b"TODO")
 
     def _parse_incoming_status(self, incoming: bytes) -> None:
         """ "parse_incoming" determined a "status" message was received from the
@@ -751,7 +739,8 @@ class StateMachineGrbl(StateMachineBase):
                 modal_group = self.MODAL_COMMANDS[chr(modal[0]).encode('utf-8')]
                 self.gcode_modal[modal_group] = modal
             else:
-                assert False, "Gcode word does not match any mmodal group: %s" % modal
+                assert False, "Gcode word does not match any mmodal group: %s" % \
+                              modal.decode('utf-8')
         self.on_update_callback("gcode_modal", self.gcode_modal)
 
         assert not update_units, "TODO: Units have changed. Lots of things will need recalculated."
@@ -778,17 +767,17 @@ class StateMachineGrbl(StateMachineBase):
             print(msg_type, incoming, "TODO")
         elif msg_type == b"VER":
             if len(self.version) < 1:
-                self.version.append(b"")
-            self.version[0] = incoming
+                self.version.append("")
+            self.version[0] = incoming.decode('utf-8')
         elif msg_type == b"OPT":
             while len(self.version) < 2:
-                self.version.append(b"")
-            self.version[1] = incoming
+                self.version.append("")
+            self.version[1] = incoming.decode('utf-8')
         elif msg_type == b"echo":
             # May be enabled when building GRBL as a debugging option.
             pass
         else:
-            assert False, "Unexpected feedback packet type: %s" % msg_type
+            assert False, "Unexpected feedback packet type: %s" % msg_type.decode('utf-8')
 
 
     def _parse_incoming_alarm(self, incoming: bytes) -> None:
@@ -911,7 +900,8 @@ class StateMachineGrbl(StateMachineBase):
             # Z Max travel, mm
             pass
         else:
-            assert False, "Unexpected setting: %s %s" % (setting, value)
+            assert False, "Unexpected setting: %s %s" % (
+                          setting.decode('utf-8'), value.decode('utf-8'))
 
     @staticmethod
     def _parse_startup(incoming: bytes) -> None:
@@ -946,16 +936,19 @@ class StateMachineGrbl(StateMachineBase):
         elif identifier == b"WCO":
             self.work_offset = self._parse_coordinates(value)
         else:
-            print("Invalid format: %s  Expected one of [MPos, WPos, WCO]" % identifier)
+            print("Invalid format: %s  Expected one of [MPos, WPos, WCO]" %
+                  identifier.decode('utf-8'))
 
     @staticmethod
-    def _parse_coordinates(string: bytes) -> Dict:
+    def _parse_coordinates(string: bytes) -> Dict[str, float]:
         """ Parse bytes for coordinate information. """
         parts = string.split(b",")
         if len(parts) < 3:
             print(string, parts)
-        assert len(parts) >= 3, "Malformed coordinates: %s" % string
-        assert len(parts) <= 4, "TODO: Handle more than 4 coordinates. %s" % string
+        assert len(parts) >= 3, \
+               "Malformed coordinates: %s" % string.decode('utf-8')
+        assert len(parts) <= 4, \
+               "TODO: Handle more than 4 coordinates. %s" % string.decode('utf-8')
         coordinates = {}
         coordinates["x"] = float(parts[0])
         coordinates["y"] = float(parts[1])
@@ -967,14 +960,14 @@ class StateMachineGrbl(StateMachineBase):
     def _set_state(self, state: bytes) -> None:
         """ Apply State. State has been reported by Grbl controller. """
         states = state.split(b":")
-        assert len(states) <= 2, "Invalid state: %s" % state
+        assert len(states) <= 2, "Invalid state: %s" % state.decode('utf-8')
 
         if len(states) == 1:
             substate = None
         else:
             state, substate = states
 
-        assert state in self.MACHINE_STATES, "Invalid state: %s" % state
+        assert state in self.MACHINE_STATES, "Invalid state: %s" % state.decode('utf-8')
         if state in [b"Idle", b"Run", b"Jog", b"Home"]:
             self.pause = False
             self.pause_park = False

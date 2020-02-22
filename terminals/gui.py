@@ -50,7 +50,8 @@ class Gui(_TerminalBase):
                                 return_keyboard_events=True,
                                 auto_size_text=False, auto_size_buttons=False,
                                 default_element_size=(4, 2),
-                                default_button_element_size=(4, 2)
+                                default_button_element_size=(4, 2),
+                                use_default_focus=False,
                                 )
         self._setup_done = True
 
@@ -95,8 +96,8 @@ class Gui(_TerminalBase):
     def publish(self) -> None:  # pylint: disable=W0221  # Un-needed arguments.
         """ Publish all events listed in the self.events_to_publish collection. """
         for event_, value in self._diffvalues.items():
-            if isinstance(value, str):
-                value = value.strip()
+            #if isinstance(value, str):
+            #    value = value.strip()
             self.publish_one_by_value(event_, value)
 
     def receive(self) -> None:
@@ -109,7 +110,11 @@ class Gui(_TerminalBase):
         # that in turn sends an event.
         while self._delivered:
             event, value = self._delivered.popleft()
-            if not hasattr(self.window[event], "update"):
+            if(hasattr(self.window[event], "metadata") and
+               self.window[event].metadata and
+               self.window[event].metadata.get("skip_update", False)):
+                # GUI widget has "skip_update" set so will not use the default
+                # update method.
                 continue
             if isinstance(value, Enum):
                 self.window[event].update(value.name)

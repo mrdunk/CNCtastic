@@ -1,3 +1,5 @@
+# pylint: disable=E1101  # Module 'PySimpleGUIQt' has no 'XXXX' member (no-member)
+
 """ Display Gcode and machine movement in the GUI. """
 
 from typing import List, Tuple, Dict, Union, Optional

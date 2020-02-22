@@ -1,4 +1,4 @@
-""" Pluging providing control of some aspect of the active controller. """
+""" Plugin providing interface to control of some aspect of the active controller. """
 
 from typing import Dict, Optional, Union, cast
 
@@ -139,4 +139,3 @@ class _InterfaceBase(_ComponentBase):
         if self._updated_data.gcode is None:
             self._updated_data.gcode = block.Block()
         self._updated_data.gcode.gcodes.append(gcode_word(**argkv))
-        print("###", self._updated_data.gcode.gcodes)
