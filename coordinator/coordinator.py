@@ -188,7 +188,9 @@ class Coordinator(_ComponentBase):
             self.publish_one_by_value("%s:active" % controller_name, controller.active)
 
     def _copy_active_controller_events(self) -> None:
-        """ All controllers publish events under their own name. Subscribers
+        """ Copy the active controller's events into the "active_controller:xxxx"
+        namespace.
+        All controllers publish events under their own name. Subscribers
         are usually only interested in the active controller.
         Here we make copies of the active controller's events under the name
         "active_controller:xxxx" to save working this out on every consumer."""

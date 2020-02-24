@@ -69,13 +69,10 @@ class JogWidget(_InterfaceBase):
         self.publish_one_by_value(self.key_gen("zJogStep"), self._z_jog_step)
 
     def _move_handler(self, values: List[int]) -> None:
-        self.absolute_distance_mode(False)
-        self.move_to(command="G00",
-                     x=self._xy_jog_step * values[0],
-                     y=self._xy_jog_step * values[1],
-                     z=self._z_jog_step * values[2],
-                     f=10000  # TODO: Feed rates on jog.py
-                     )
+        self.move_relative( x=self._xy_jog_step * values[0],
+                            y=self._xy_jog_step * values[1],
+                            z=self._z_jog_step * values[2],
+                            )
 
     def _wpos_handler_x(self, value: float) -> None:
         """ Called in response to an active_controller:work_pos:x event. """
@@ -246,16 +243,3 @@ class JogWidget(_InterfaceBase):
              ]
             ]
         return layout
-
-    def move_to(self, **argkv: Union[float, str]) -> None:
-        """ Move the machine head.
-        Args:
-            argkv: A dict containing one or more of the following parameters:
-                command: The gcode command as a string. Defaults to "G01".
-                x: The x coordinate.
-                y: The y coordinate.
-                z: The z coordinate.
-                f: The feed rate.
-        """
-        super().move_to(**argkv)
-        self._updated_data.jog = FlagState.TRUE

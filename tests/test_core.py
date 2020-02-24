@@ -317,27 +317,25 @@ class TestCoordinator(unittest.TestCase):
         self.assertIs(self.coordinator.active_controller, self.mock_controller)
         self.assertEqual(self.mock_controller.connection_status, ConnectionState.CONNECTED)
         # No data on mock_controller yet.
-        self.assertEqual(len(self.mock_controller.gcode), 0)
+        self.assertEqual(len(self.mock_controller.log), 0)
 
         # Send data to controller.
         data = {"X": 10, "Y": 20, "F": 100}
-        self.mock_widget.move_to(**data)
+        self.mock_widget.move_absolute(**data)
         self.coordinator.update_components()  # Push event from mock_widget onto queue.
         self.coordinator.update_components()  # Push event from queue to mock_controller.
 
-        self.assertEqual(len(self.mock_controller.gcode), 1)
-        self.assertEqual(self.mock_controller.gcode[-1][0], "TRUE")
-        data_match(self.mock_controller.gcode[-1][1], data)
+        self.assertEqual(len(self.mock_controller.log), 1)
+        self.assertEqual(self.mock_controller.log[-1], ("command", "move_absolute", data))
 
         # Send more data to controller.
         data = {"X": 1.2345, "Y": -6.7889, "F": 1000}
-        self.mock_widget.move_to(**data)
+        self.mock_widget.move_absolute(**data)
         self.coordinator.update_components()  # Push event from mock_widget onto queue.
         self.coordinator.update_components()  # Push event from queue to mock_controller.
 
-        self.assertEqual(len(self.mock_controller.gcode), 2)
-        self.assertEqual(self.mock_controller.gcode[-1][0], "TRUE")
-        data_match(self.mock_controller.gcode[-1][1], data)
+        self.assertEqual(len(self.mock_controller.log), 2)
+        self.assertEqual(self.mock_controller.log[-1], ("command", "move_absolute", data))
 
     def test_swap_controllers(self):
         """ Push to one controller, set a different controller active, push there
@@ -345,17 +343,17 @@ class TestCoordinator(unittest.TestCase):
         self.assertIs(self.coordinator.active_controller, self.mock_controller)
         self.assertEqual(self.mock_controller.connection_status, ConnectionState.CONNECTED)
         # No data on mock_controller yet.
-        self.assertEqual(len(self.mock_controller.gcode), 0)
+        self.assertEqual(len(self.mock_controller.log), 0)
 
         # Send data to controller.
-        self.mock_widget.move_to(x=10, y=20, f=100)
+        self.mock_widget.move_absolute(x=10, y=20, f=100)
         self.coordinator.update_components()  # Push event from mock_widget onto queue.
         self.coordinator.update_components()  # Push event from queue to mock_controller.
-        self.mock_widget.move_to(x=50, y=100, f=100)
+        self.mock_widget.move_absolute(x=50, y=100, f=100)
         self.coordinator.update_components()  # Push event from mock_widget onto queue.
         self.coordinator.update_components()  # Push event from queue to mock_controller.
 
-        self.assertEqual(len(self.mock_controller.gcode), 2)
+        self.assertEqual(len(self.mock_controller.log), 2)
 
         # Create new controller and make it active.
         self.mock_controller2 = MockController("owl")
@@ -370,30 +368,30 @@ class TestCoordinator(unittest.TestCase):
         self.assertIs(self.coordinator.active_controller, self.mock_controller2)
 
         # No data on mock_controller2 yet.
-        self.assertEqual(len(self.mock_controller2.gcode), 0)
+        self.assertEqual(len(self.mock_controller2.log), 0)
 
         # Push data to new controller.
-        self.mock_widget.move_to(x=100, y=200, f=1000)
+        self.mock_widget.move_absolute(x=100, y=200, f=1000)
         self.coordinator.update_components()  # Push event from mock_widget onto queue.
         self.coordinator.update_components()  # Push event from queue to mock_controller.
 
         # Has not changed data on old (inactive) controller.
-        self.assertEqual(len(self.mock_controller.gcode), 2)
+        self.assertEqual(len(self.mock_controller.log), 2)
         # Has changed data on new (active) controller.
-        self.assertEqual(len(self.mock_controller2.gcode), 1)
+        self.assertEqual(len(self.mock_controller2.log), 1)
 
         # Back to original controller.
         self.coordinator.activate_controller(controller=self.mock_controller)
 
         # Push data to original controller.
-        self.mock_widget.move_to(x=-1, y=-2, f=1)
+        self.mock_widget.move_absolute(x=-1, y=-2, f=1)
         self.coordinator.update_components()  # Push event from mock_widget onto queue.
         self.coordinator.update_components()  # Push event from queue to mock_controller.
 
         # New data on old (active) controller.
-        self.assertEqual(len(self.mock_controller.gcode), 3)
+        self.assertEqual(len(self.mock_controller.log), 3)
         # No change on new (inactive) controller.
-        self.assertEqual(len(self.mock_controller2.gcode), 1)
+        self.assertEqual(len(self.mock_controller2.log), 1)
 
     def test_component_names_match(self):
         """ Coordinator stores components keyed by their label. """

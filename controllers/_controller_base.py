@@ -7,10 +7,12 @@ except ImportError:
     from typing_extensions import Literal
 from collections import deque
 
-from pygcode import GCode
+from pygcode import Machine, GCodeCoordSystemOffset, \
+                    GCodeResetCoordSystemOffset, Block, GCode, Line
 
 from component import _ComponentBase
 from definitions import ConnectionState
+from controllers.state_machine import StateMachineBase
 
 class _ControllerBase(_ComponentBase):
     """ Base class for all CNC machine control hardware. """
@@ -28,8 +30,11 @@ class _ControllerBase(_ComponentBase):
         self.ready_for_data: bool = False
         self.connection_status: ConnectionState = ConnectionState.UNKNOWN
         self.desired_connection_status: ConnectionState = ConnectionState.NOT_CONNECTED
-        self._new_gcode_line = None
+        self._new_gcode = None
+        self._new_move_absolute = None
+        self._new_move_relative = None
         self._queued_updates: Deque[Any] = deque()
+        self.state = StateMachineBase(self.publish_from_here)
 
         # Map incoming events to local member variables and callback methods.
         self.label = label
@@ -38,7 +43,10 @@ class _ControllerBase(_ComponentBase):
                 ("set_desired_connection_status", ConnectionState.CONNECTED),
             self.key_gen("disconnect"):
                 ("set_desired_connection_status", ConnectionState.NOT_CONNECTED),
-            "desiredState:newGcode": ("_new_gcode_line", None),
+            #"desiredState:newGcode": ("_new_gcode_line", None),
+            "command:gcode": ("_new_gcode", None),
+            "command:move_absolute": ("_new_move_absolute", None),
+            "command:move_relative": ("_new_move_relative", None),
             }
 
         self.set_connection_status(ConnectionState.UNKNOWN)
@@ -111,6 +119,61 @@ class _ControllerBase(_ComponentBase):
             # Save incoming data to local buffer until it can be processed.
             # (self._delivered will be cleared later this iteration.)
             for event, value in self._delivered:
-                if event == "desiredState:newGcode":
-                    self._queued_updates.append(value)
-                # TODO: Flags.
+                ## TODO: Flags.
+                if event in ("command:gcode",
+                             "command:move_absolute",
+                             "command:move_relative"):
+                    self._queued_updates.append((event, value))
+
+    def _handle_gcode(self, gcode_block: Block) -> None:
+        raise NotImplementedError
+
+    def _handle_move_absolute(self,
+                              x: float = 0,
+                              y: float = 0,
+                              z: float = 0,
+                              f: float = 0,
+                              feed: float = 0) -> None:
+        """ Move machine head to specified coordinates. """
+        distance_mode_save = self.state.gcode_modal.get("distance", "G90")
+
+        gcode = "G90 G00 "
+        if x is not None:
+            gcode += "X%s " % x
+        if y is not None:
+            gcode += "Y%s " % y
+        if z is not None:
+            gcode += "Z%s " % z
+        if f is not None:
+            gcode += "F%s " % f
+
+        self._handle_gcode(Line(gcode).block)
+
+        if distance_mode_save != "G90":
+            # Restore modal distance_mode.
+            self._handle_gcode(Line(distance_mode_save).block)
+    
+    def _handle_move_relative(self,
+                              x: float = 0,
+                              y: float = 0,
+                              z: float = 0,
+                              f: float = 0,
+                              feed: float = 0) -> None:
+        """ Move machine head to specified coordinates. """
+        distance_mode_save = self.state.gcode_modal.get("distance", "G91")
+
+        gcode = "G91 G00 "
+        if x is not None:
+            gcode += "X%s " % x
+        if y is not None:
+            gcode += "Y%s " % y
+        if z is not None:
+            gcode += "Z%s " % z
+        if f is not None:
+            gcode += "F%s " % f
+
+        self._handle_gcode(Line(gcode).block)
+        
+        if distance_mode_save != "G91":
+            # Restore modal distance_mode.
+            self._handle_gcode(Line(distance_mode_save).block)

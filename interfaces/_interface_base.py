@@ -1,6 +1,6 @@
 """ Plugin providing interface to control of some aspect of the active controller. """
 
-from typing import Dict, Optional, Union, cast
+from typing import Dict, Optional, Union, cast, Any
 
 from pygcode import block, GCodeFeedRate, GCode
 
@@ -10,6 +10,7 @@ from definitions import FlagState, MODAL_GROUPS
 
 class UpdateState:
     """ Data container representing changes to be made to the state of the system. """
+    __instance_count: int = 0
     def __init__(self) -> None:
         self.gcode: Optional[block.Block] = None
         self.halt: FlagState = FlagState.UNSET
@@ -17,10 +18,23 @@ class UpdateState:
         self.jog: FlagState = FlagState.UNSET
         self.home: FlagState = FlagState.UNSET
         self.door: FlagState = FlagState.UNSET
+
+        #self.jog_relative: Dict[str, float] = {}
+        
         self.flags = ["halt", "pause", "jog", "home", "door"]
+        self.modified: bool = False
+
+        self.id_: int = self.__instance_count
+        UpdateState.__instance_count += 1
+
+    def __setattr__(self, name: str, value: Any) -> None:
+        """ Use __setattr__ to keep track of when anything in the instance has
+            been modified. """
+        self.__dict__["modified"] = True
+        self.__dict__[name] = value
 
     def __str__(self) -> str:
-        output = ""
+        output = "id: {self.id_}\t"
         if self.gcode is None:
             output += "gcode: None\t"
         else:
@@ -32,6 +46,7 @@ class UpdateState:
         output += "home: {self.home.name}"
 
         return output.format(self=self)
+
 
 class _InterfaceBase(_ComponentBase):
     """ A base class for user input objects used for controlling the machine. """
@@ -51,18 +66,27 @@ class _InterfaceBase(_ComponentBase):
     def update(self) -> None:
         """ Act on any events destined for this component.
             Called by the coordinator. """
+        """
+        newdata = False
+
         for flag in self._updated_data.flags:
             attr = getattr(self._updated_data, flag)
             if attr != FlagState.UNSET:
                 self.publish_one_by_value("desiredState:%s" % flag, attr)
+                newdata = True
+
         if self._updated_data.gcode is not None:
             self.publish_one_by_value("desiredState:newGcode", self._updated_data)
+            newdata = True
 
-        # Clear self._updated_data
-        self._updated_data = UpdateState()
+        if newdata:
+            # Clear self._updated_data
+            self._updated_data = UpdateState()"""
 
-    def move_to(self, **argkv: Union[str, float]) -> None:
-        """ Move the machine head.
+    def move_relative(self, **argkv: Union[str, float]) -> None:
+        """ Move the machine head relative to it's current position.
+        Note this may or may not be translated to gcode by the controller later
+        depending on the controller's functionality.
         Args:
             argkv: A dict containing one or more of the following parameters:
                 command: The gcode command as a string. Defaults to "G01".
@@ -71,23 +95,21 @@ class _InterfaceBase(_ComponentBase):
                 z: The z coordinate.
                 f: The feed rate.
         """
-        if "command" not in argkv:
-            argkv["command"] = "G01"
+        self.publish_one_by_value("command:move_relative", argkv)
 
-        feed = None
-        if "f" in argkv:
-            feed = argkv["f"]
-            del argkv["f"]
-        if "F" in argkv:
-            feed = argkv["F"]
-            del argkv["F"]
-
-        self._gcode_command("motion", **argkv)
-
-        assert self._updated_data.gcode is not None, "self._updated_data.gcode not set yet."
-
-        if feed is not None:
-            self._updated_data.gcode.gcodes.append(GCodeFeedRate(feed))
+    def move_absolute(self, **argkv: Union[str, float]) -> None:
+        """ Move the machine head to a absolute position.
+        Note this may or may not be translated to gcode by the controller later
+        depending on the controller's functionality.
+        Args:
+            argkv: A dict containing one or more of the following parameters:
+                command: The gcode command as a string. Defaults to "G01".
+                x: The x coordinate.
+                y: The y coordinate.
+                z: The z coordinate.
+                f: The feed rate.
+        """
+        self.publish_one_by_value("command:move_absolute", argkv)
 
     def g92_offsets(self, **argkv: Union[str, float]) -> None:
         """ Set work position offset.
@@ -97,8 +119,7 @@ class _InterfaceBase(_ComponentBase):
 
         self._gcode_command("non_modal", **argkv)
 
-        assert self._updated_data.gcode is not None, "self._updated_data.gcode not set yet."
-
+        #assert self._updated_data.gcode is not None, "self._updated_data.gcode not set yet."
 
     def absolute_distance_mode(self, *argv: bool, **argkv: Union[str, float]) -> None:
         """ Switch between "G90" and "G91" distance modes. """
@@ -136,6 +157,7 @@ class _InterfaceBase(_ComponentBase):
 
         gcode_word = self.modal_groups[modal_group][command]
 
-        if self._updated_data.gcode is None:
-            self._updated_data.gcode = block.Block()
-        self._updated_data.gcode.gcodes.append(gcode_word(**argkv))
+        gcode = block.Block()
+        gcode.gcodes.append(gcode_word(**argkv))
+        self.publish_one_by_value("command:gcode", gcode)
+

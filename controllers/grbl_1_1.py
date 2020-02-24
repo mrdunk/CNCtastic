@@ -169,7 +169,8 @@ class Grbl1p1Controller(_SerialControllerBase):
         action = self._send_buf_actns.popleft()
         print("'ok' acknowledges: %s" % action[0].decode("utf-8"), type(action[1]))
         if isinstance(action[1], GCode):
-            self._received_data.put(b"[sentGcode:%s]" % str(action[1].modal_copy()).encode("utf-8"))
+            self._received_data.put(b"[sentGcode:%s]" % \
+                                    str(action[1].modal_copy()).encode("utf-8"))
 
     def _write_immediate(self) -> bool:
         """ Write entries in the _command_immediate buffer to serial port. """
@@ -351,7 +352,7 @@ class Grbl1p1Controller(_SerialControllerBase):
             # The easiest way to replay the following events is to just request
             # the data from the Grbl controller again.
             # This way the events get re-sent when fresh data arrives.
-            # (The alternative would be to have the StateMchine re send the
+            # (The alternative would be to have the StateMchine re-send the
             # cached data.)
 
             # Request a report on the modal state of the GRBL controller.

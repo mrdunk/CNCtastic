@@ -3,7 +3,7 @@
 
 """ A controller for use when testing which mimics an actual hardware controller. """
 
-from typing import List, Callable, Any
+from typing import List, Callable, Any, Deque, Tuple
 try:
     from typing import Literal              # type: ignore
 except ImportError:
@@ -19,7 +19,7 @@ from terminals.gui import sg
 
 from definitions import ConnectionState
 from controllers._controller_base import _ControllerBase
-from controllers.state_machine import StateMachineBase
+from controllers.state_machine import StateMachineBase, keys_to_lower
 
 CONNECT_DELAY = 4   # seconds
 PUSH_DELAY = 1      # seconds
@@ -53,7 +53,7 @@ class DebugController(_ControllerBase):
         super().__init__(label)
 
         # A record of all gcode ever sent to this controller.
-        self.gcode: deque = deque()
+        self.log: Deque[Tuple[str, Any]] = deque()
 
         self._connect_time: float = 0
         self._last_receive_data_at: float = 0
@@ -64,7 +64,7 @@ class DebugController(_ControllerBase):
         # Allow replacing with a mock version when testing.
         self._time: Any = time
 
-    def gui_layout(self) -> List:
+    def gui_layout(self) -> List[List[sg.Element]]:
         """ Layout information for the PySimpleGUI interface. """
         layout = [
             [sg.Text("Title:", size=(20, 1)),
@@ -128,28 +128,32 @@ class DebugController(_ControllerBase):
 
     def update(self) -> None:
         super().update()
-
         if self.ready_for_data and self._queued_updates:
             # Process local buffer.
             self._last_receive_data_at = self._time.time()
-            update = self._queued_updates.popleft()
-            jog = update.jog.name
-            gcode = update.gcode
 
-            self.gcode.append((jog, gcode))
+            event, data = self._queued_updates.popleft()
+            component_name, action = event.split(":", 1)
+
+            self.log.append((component_name, action, data))
+
             if self.debug_show_events:
-                print("CONTROLLER: %s  RECEIVED: %s  BUFFER: %s" %
-                      (self.label, gcode.gcodes, len(self.gcode)))
+                print("CONTROLLER: %s  RECEIVED: %s %s" % (event, data))
 
-            gcode_debug_output = ""
-            for jog, gcode_ in self.gcode:
-                gcode_debug_output += "%s ; jog=%s ; supported=%s\n" % (
-                    str(gcode_.gcodes), jog, self.is_gcode_supported(gcode_.gcodes))
+            assert hasattr(self, "_handle_%s" % action),\
+                   "Missing handler for %s event." % action
+            if isinstance(data, dict):
+                getattr(self, "_handle_%s" % action)(**keys_to_lower(data))
+            else:
+                getattr(self, "_handle_%s" % action)(data)
 
-            self._handle_gcode(gcode)
-
-            self.publish_one_by_value(self.key_gen("gcode"), gcode_debug_output)
             self.state.update()
+            
+            # Generate output for debug log.
+            debug_output = ""
+            for log_line in self.log:
+                debug_output += "%s\t%s\t%s\n" % log_line
+            self.publish_one_by_value(self.key_gen("gcode"), debug_output)
 
     def _handle_gcode(self, gcode_block: Block) -> None:
         """ Update the virtual machine with incoming gcode. """
@@ -171,11 +175,12 @@ class DebugController(_ControllerBase):
         # _virtual_cnc can handle all other gcode.
         self.state.proces_gcode(gcode_block)
 
+
 class StateMachinePygcode(StateMachineBase):
     """ State Machine reflecting the state of a pygcode virtual machine.
         https://github.com/fragmuffin/pygcode/wiki/Interpreting-gcode """
 
-    def __init__(self, on_update_callback: Callable) -> None:
+    def __init__(self, on_update_callback: Callable[[str, Any], None]) -> None:
         super().__init__(on_update_callback)
         self._virtual_cnc = Machine()
 

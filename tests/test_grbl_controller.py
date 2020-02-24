@@ -145,11 +145,11 @@ class TestControllerReceiveDataFromSerial(unittest.TestCase):
         we know a buffer entry has been consumed. """
         self.controller._serial.dummy_data = [b"test\r\n", b"ok\r\n", b"test2\r\n", b"ok\r\n"]
         self.controller._send_buf_lens.append(5)
-        self.controller._send_buf_actns.append(("dummy", None))
+        self.controller._send_buf_actns.append((b"dummy", None))
         self.controller._send_buf_lens.append(10)
-        self.controller._send_buf_actns.append(("dummy", None))
+        self.controller._send_buf_actns.append((b"dummy", None))
         self.controller._send_buf_lens.append(20)
-        self.controller._send_buf_actns.append(("dummy", None))
+        self.controller._send_buf_actns.append((b"dummy", None))
 
         self.controller._periodic_io()
         # 1 "ok" processed. Entry removed from _bufferLengths.
@@ -167,9 +167,9 @@ class TestControllerReceiveDataFromSerial(unittest.TestCase):
         self.controller._serial.dummy_data = [
             b"test\r\n", b"error:12\r\n", b"test2\r\n", b"error:42\r\n"]
         self.controller._send_buf_lens.append(5)
-        self.controller._send_buf_actns.append(("dummy", None))
+        self.controller._send_buf_actns.append((b"dummy", None))
         self.controller._send_buf_lens.append(10)
-        self.controller._send_buf_actns.append(("dummy", None))
+        self.controller._send_buf_actns.append((b"dummy", None))
 
         self.controller._periodic_io()
         self.assertEqual(self.controller._error_count, 2)
