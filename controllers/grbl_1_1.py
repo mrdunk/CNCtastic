@@ -13,14 +13,21 @@ from pygcode import GCode, Block
 #import PySimpleGUIQt as sg
 from terminals.gui import sg
 
-from definitions import ConnectionState, FlagState
-from interfaces._interface_base import UpdateState
+from definitions import ConnectionState
 from controllers._controller_serial_base import _SerialControllerBase
 from controllers.state_machine import StateMachineGrbl as State
 
 REPORT_INTERVAL = 1.0 # seconds
 SERIAL_INTERVAL = 0.02 # seconds
 RX_BUFFER_SIZE = 128
+
+def sort_gcode(block: Block) -> str:
+    """ Reorder gcode to a manner that is friendly to clients.
+    eg: Feed rate should proceed "G01" and "G00". """
+    return_val = ""
+    for gcode in sorted(block.gcodes):
+        return_val += str(gcode) + " "
+    return return_val
 
 class Grbl1p1Controller(_SerialControllerBase):
     """ A plugin to support Grbl 1.1 controller hardware. """
@@ -48,25 +55,20 @@ class Grbl1p1Controller(_SerialControllerBase):
         b"F", b"T", b"S"
         ))
 
-    SUPPORTED_JOG_GCODE = set((
-        b"G20", b"G21",  # Inch and millimeter mode
-        b"G90", b"G91",  # Absolute and incremental distances
-        b"G53",          # Move in machine coordinates
-        b"F"
-        ))
-
     SLOWCOMMANDS = [b"G10 L2 ", b"G10 L20 ", b"G28.1 ", b"G30.1 ", b"$x=", b"$I=",
                     b"$Nx=", b"$RST=", b"G54 ", b"G55 ", b"G56 ", b"G57 ", b"G58 ",
                     b"G59 ", b"G28 ", b"G30 ", b"$$", b"$I", b"$N", b"$#"]
 
     def __init__(self, label: str = "grbl1.1") -> None:
+        # pylint: disable=E1136  # Value 'Queue' is unsubscriptable
+
         super().__init__(label)
 
         # Allow replacing with a mock version when testing.
         self._time: Any = time
 
         # State machine to track current GRBL state.
-        self.state = State(self.publish_from_here)
+        self.state: State = State(self.publish_from_here)
 
         # Populate with GRBL commands that are processed immediately and don't need queued.
         self._command_immediate: Queue[bytes] = Queue()
@@ -83,9 +85,9 @@ class Grbl1p1Controller(_SerialControllerBase):
         self._send_buf_lens: Deque[int] = deque()
         self._send_buf_actns: Deque[Tuple[bytes, Any]] = deque()
 
-        """ Certain gcode commands write to EPROM which disabled interrupts which
-        would interfere with serial IO. When one of these commands is executed we
-        should pause before continuing with serial IO. """
+        # Certain gcode commands write to EPROM which disabled interrupts which
+        # would interfere with serial IO. When one of these commands is executed we
+        # should pause before continuing with serial IO.
         self.flush_before_continue = False
 
     def _complete_before_continue(self, command: bytes) -> bool:
@@ -241,71 +243,66 @@ class Grbl1p1Controller(_SerialControllerBase):
             if self.testing:
                 break
 
-    def do_command(self, command: UpdateState) -> None:
-        """ Turn update received via event into something GRBL can parse and put
-        in a command buffer. """
-        assert isinstance(command, UpdateState)
-        print(command)
-
-        # Flags.
-        if command.pause is FlagState.TRUE and not self.state.pause:
+    def _handle_gcode(self, gcode_block: Block) -> None:
+        """ Handler for the "command:gcode" event. """
+        valid_gcode = True
+        if not self.is_gcode_supported(gcode_block):
+            # Unsupported gcode.
+            # TODO: Need a way of raising an error.
+            print("Unsupported gcode: %s" % str(gcode_block))
             # GRBL feed hold.
             self._command_immediate.put(b"!")
-        elif command.pause is FlagState.FALSE and self.state.pause:
-            if not self.state.parking:
-                # GRBL Cycle Start / Resume
-                self._command_immediate.put(b"~")
+            valid_gcode = False
+        if valid_gcode:
+            self._command_streaming.put(str(sort_gcode(gcode_block)).encode("utf-8"))
 
-        if command.door is FlagState.TRUE and not self.state.door:
-            # GRBL Safety Door.
-            self._command_immediate.put(chr(0x84).encode("utf-8"))
-        elif command.door is FlagState.FALSE and self.state.door:
-            if not self.state.parking:
-                # GRBL Cycle Start / Resume
-                self._command_immediate.put(b"~")
+    def _handle_move_absolute(self,
+                              x: Optional[float] = None, # pylint: disable=C0103
+                              y: Optional[float] = None, # pylint: disable=C0103
+                              z: Optional[float] = None, # pylint: disable=C0103
+                              f: Optional[float] = None  # pylint: disable=C0103
+                              ) -> None:
+        """ Handler for the "command:move_absolute" event.
+        Move machine head to specified coordinates. """
+        jog_command_string = b"$J=G90 "
 
-        if command.gcode is None:
-            return
+        if f is None:
+            # TODO: Need a tactic to deal with default feed rate.
+            f = 100
+        jog_command_string += b"F%s " % str(f).encode("utf-8")
 
-        # Gcode
-        if command.jog is FlagState.TRUE:
-            valid_gcode = True
-            jog_command_string = b"$J="
-            for gcode in sorted(command.gcode.gcodes):
-                modal = str(gcode.modal_copy()).encode("utf-8")
-                modal_first = bytes([modal[0]])
-                if (modal in self.SUPPORTED_JOG_GCODE or
-                        modal_first in self.SUPPORTED_JOG_GCODE):
-                    jog_command_string += str(gcode).encode("utf-8")
-                elif modal in [b"G00", b"G0", b"G01", b"G1"]:
-                    for param, value in gcode.get_param_dict().items():
-                        jog_command_string += param.encode("utf-8")
-                        jog_command_string += str(value).encode("utf-8")
-                else:
-                    # Unsupported gcode.
-                    # TODO: Need a way of raising an error.
-                    print("Unsupported gcode: %s" % gcode, modal, modal_first)
-                    # GRBL feed hold.
-                    self._command_immediate.put(b"!")
-                    valid_gcode = False
-            if valid_gcode:
-                self._command_streaming.put(jog_command_string)
-        else:
-            valid_gcode = True
-            # TODO: Use self.isGcodeSupported()
-            for gcode in sorted(command.gcode.gcodes):
-                modal = str(gcode.modal_copy()).encode("utf-8")
-                modal_first = bytes([modal[0]])
-                if (modal not in self.SUPPORTED_GCODE and
-                        modal_first not in self.SUPPORTED_GCODE):
-                    # Unsupported gcode.
-                    # TODO: Need a way of raising an error.
-                    print("Unsupported gcode: %s" % gcode, modal, modal_first)
-                    # GRBL feed hold.
-                    self._command_immediate.put(b"!")
-                    valid_gcode = False
-            if valid_gcode:
-                self._command_streaming.put(command.gcode)
+        if x is not None:
+            jog_command_string += b"X%s " % str(x).encode("utf-8")
+        if y is not None:
+            jog_command_string += b"Y%s " % str(y).encode("utf-8")
+        if z is not None:
+            jog_command_string += b"Z%s " % str(z).encode("utf-8")
+
+        self._command_streaming.put(jog_command_string)
+
+    def _handle_move_relative(self,
+                              x: Optional[float] = None, # pylint: disable=C0103
+                              y: Optional[float] = None, # pylint: disable=C0103
+                              z: Optional[float] = None, # pylint: disable=C0103
+                              f: Optional[float] = None  # pylint: disable=C0103
+                              ) -> None:
+        """ Handler for the "command:move_relative" event.
+        Move machine head to specified coordinates. """
+        jog_command_string = b"$J=G91 "
+
+        if f is None:
+            # TODO: Need a tactic to deal with default feed rate.
+            f = 100
+        jog_command_string += b"F%s " % str(f).encode("utf-8")
+
+        if x is not None:
+            jog_command_string += b"X%s " % str(x).encode("utf-8")
+        if y is not None:
+            jog_command_string += b"Y%s " % str(y).encode("utf-8")
+        if z is not None:
+            jog_command_string += b"Z%s " % str(z).encode("utf-8")
+
+        self._command_streaming.put(jog_command_string)
 
     def early_update(self) -> None:
         """ Called early in the event loop, before events have been received. """
@@ -327,19 +324,10 @@ class Grbl1p1Controller(_SerialControllerBase):
                 self.publish_one_by_value(self.key_gen("state"), self.state)
                 self.state.changes_made = False
 
-    def update(self) -> None:
-        """ Called by the coordinator after events have been delivered. """
-        super().update()
-
-        if self._queued_updates:
-            # Process local buffer.
-            for update in self._queued_updates:
-                self.do_command(update)
-            self._queued_updates.clear()
-
     def on_connected(self) -> None:
         """ Executed when serial port first comes up. """
         super().on_connected()
+        self.ready_for_data = True
 
         # Request a report on the modal state of the GRBL controller.
         self._command_streaming.put(b"$G")
@@ -352,12 +340,10 @@ class Grbl1p1Controller(_SerialControllerBase):
             # The easiest way to replay the following events is to just request
             # the data from the Grbl controller again.
             # This way the events get re-sent when fresh data arrives.
-            # (The alternative would be to have the StateMchine re-send the
-            # cached data.)
+            # (The alternative would be to have the StateMachine re-send the
+            # cached data but it is possible the StateMachine is stale.)
 
             # Request a report on the modal state of the GRBL controller.
-            #self._command_streaming.put(b"$G")
+            self._command_streaming.put(b"$G")
             # Grbl settings report.
-            #self._command_streaming.put(b"$$")
-
-            self.state.sync()
+            self._command_streaming.put(b"$$")

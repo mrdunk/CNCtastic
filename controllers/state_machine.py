@@ -41,7 +41,7 @@ class StateMachineBase:
         ]
 
     # Cheaper than global lookups
-    MODAL_GROUPS = MODAL_GROUPS
+    MODAL_GROUPS: Dict[str, Dict[str, Any]] = MODAL_GROUPS
     MODAL_COMMANDS = MODAL_COMMANDS
 
     def __init__(self, on_update_callback: Callable[[str, Any], None]) -> None:
@@ -73,7 +73,7 @@ class StateMachineBase:
         self.halt_reason: List[str] = []
         self.__door: bool = False
 
-        self.gcode_modal: Dict = {}
+        self.gcode_modal: Dict[bytes, bytes] = {}
 
         self.version: List[str] = []  # Up to the controller how this is populated.
         self.machine_identifier: List[str] = []  # Up to the controller how this is populated.
@@ -726,9 +726,11 @@ class StateMachineGrbl(StateMachineBase):
         modals = msg.split(b" ")
         update_units = False
         for modal in modals:
-            if modal in self.MODAL_GROUPS["units"]:
+            units: Dict[str, Any] = self.MODAL_GROUPS["units"]
+            if modal.decode() in units:
                 modal_group = self.MODAL_COMMANDS[modal]
-                if self.gcode_modal[modal_group] != modal:
+                if modal_group in self.gcode_modal and \
+                        self.gcode_modal[modal_group] != modal:
                     # Grbl has changed from mm to inches or vice versa.
                     update_units = True
 
@@ -743,7 +745,8 @@ class StateMachineGrbl(StateMachineBase):
                               modal.decode('utf-8')
         self.on_update_callback("gcode_modal", self.gcode_modal)
 
-        assert not update_units, "TODO: Units have changed. Lots of things will need recalculated."
+        assert not update_units, \
+               "TODO: Units have changed. Lots of things will need recalculated."
 
     def _parse_incoming_feedback(self, incoming: bytes) -> None:
         """ "parse_incoming" determined a "feedback" message was received from the
@@ -901,7 +904,7 @@ class StateMachineGrbl(StateMachineBase):
             pass
         else:
             assert False, "Unexpected setting: %s %s" % (
-                          setting.decode('utf-8'), value.decode('utf-8'))
+                setting.decode('utf-8'), value.decode('utf-8'))
 
     @staticmethod
     def _parse_startup(incoming: bytes) -> None:
@@ -962,13 +965,10 @@ class StateMachineGrbl(StateMachineBase):
         states = state.split(b":")
         assert len(states) <= 2, "Invalid state: %s" % state.decode('utf-8')
 
-        if len(states) == 1:
-            substate = None
-        else:
-            state, substate = states
-
+        state = states[0]
         assert state in self.MACHINE_STATES, "Invalid state: %s" % state.decode('utf-8')
-        if state in [b"Idle", b"Run", b"Jog", b"Home"]:
+
+        if state in (b"Idle", b"Run", b"Jog", b"Home"):
             self.pause = False
             self.pause_park = False
             self.halt = False

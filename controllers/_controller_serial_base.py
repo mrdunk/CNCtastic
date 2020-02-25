@@ -1,12 +1,16 @@
+# pylint: disable=W0223
+# Method '_handle_gcode' is abstract in class '_ControllerBase' but is not
+# overridden (abstract-method)
 """ Base class for hardware controllers that use a serial port to connect. """
 
+from typing import Optional
 try:
     from typing import Literal              # type: ignore
 except ImportError:
     from typing_extensions import Literal   # type: ignore
 
 import threading
-import serial    # type: ignore
+import serial
 
 
 from controllers._controller_base import _ControllerBase
@@ -25,7 +29,7 @@ class _SerialControllerBase(_ControllerBase):
         self.serial_baud = 115200
         self._serial = None
         self.testing: bool = False  # Prevent _periodic_io() from blocking during tests.
-        self._serial_thread: threading.Thread = None
+        self._serial_thread: Optional[threading.Thread] = None
 
     def connect(self) -> Literal[ConnectionState]:
         """ Try to open serial port. Set connection_status to CONNECTING. """
@@ -63,6 +67,8 @@ class _SerialControllerBase(_ControllerBase):
                 ConnectionState.CONNECTED,
                 ConnectionState.CONNECTING]:
             print("Disconnecting %s %s" % (self.label, self.serial_dev_name))
+
+        self.ready_for_data = False
 
         if self._serial is None:
             self.set_connection_status(ConnectionState.NOT_CONNECTED)

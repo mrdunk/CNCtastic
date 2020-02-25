@@ -1,18 +1,17 @@
 """ Base class for all CNC machine control hardware. """
 
-from typing import Any, Deque, Set
+from typing import Any, Deque, Set, Optional
 try:
     from typing import Literal              # type: ignore
 except ImportError:
     from typing_extensions import Literal
 from collections import deque
 
-from pygcode import Machine, GCodeCoordSystemOffset, \
-                    GCodeResetCoordSystemOffset, Block, GCode, Line
+from pygcode import Block, GCode, Line
 
 from component import _ComponentBase
 from definitions import ConnectionState
-from controllers.state_machine import StateMachineBase
+from controllers.state_machine import StateMachineBase, keys_to_lower
 
 class _ControllerBase(_ComponentBase):
     """ Base class for all CNC machine control hardware. """
@@ -43,7 +42,6 @@ class _ControllerBase(_ComponentBase):
                 ("set_desired_connection_status", ConnectionState.CONNECTED),
             self.key_gen("disconnect"):
                 ("set_desired_connection_status", ConnectionState.NOT_CONNECTED),
-            #"desiredState:newGcode": ("_new_gcode_line", None),
             "command:gcode": ("_new_gcode", None),
             "command:move_absolute": ("_new_move_absolute", None),
             "command:move_relative": ("_new_move_relative", None),
@@ -79,7 +77,7 @@ class _ControllerBase(_ComponentBase):
 
     def set_desired_connection_status(self, connection_status: Literal[ConnectionState]) -> None:
         """ Set connection status we would like controller to be in.
-        The controller should then attemt to transition to this state. """
+        The controller should then attempt to transition to this state. """
         self.desired_connection_status = connection_status
         self.publish_one_by_value(self.key_gen("desired_connection_status"), connection_status)
 
@@ -91,51 +89,70 @@ class _ControllerBase(_ComponentBase):
     def connect(self) -> Literal[ConnectionState]:
         """ Make connection to controller. """
         raise NotImplementedError
+        # pylint: disable=W0101 # Unreachable code (unreachable)
         return ConnectionState.UNKNOWN
 
     def disconnect(self) -> Literal[ConnectionState]:
         """ Disconnect from controller. """
         raise NotImplementedError
+        # pylint: disable=W0101 # Unreachable code (unreachable)
         return ConnectionState.UNKNOWN
 
     def is_gcode_supported(self, command: Any) -> bool:
         """ Check a gcode command line contains only supported gcode statements. """
-        if isinstance(command, list):
+        if isinstance(command, Block):
             return_val = True
-            for gcode in command:
-                return_val = return_val and str(gcode.word_key) in self.SUPPORTED_GCODE
+            for gcode in sorted(command.gcodes):
+                return_val = return_val and self.is_gcode_supported(gcode)
             return return_val
         if isinstance(command, GCode):
-            return str(command.word_key) in self.SUPPORTED_GCODE
-        if isinstance(command, str):
-            return str(command) in self.SUPPORTED_GCODE
+            modal = str(command.word_key or command.word_letter).encode("utf-8")
+            return self.is_gcode_supported(modal)
+        if isinstance(command, bytes):
+            return command in self.SUPPORTED_GCODE
 
         raise AttributeError("Cannot tell if %s is valid gcode." % command)
 
     def update(self) -> None:
+        self._queued_updates.clear()
         if(self._delivered and
            self.connection_status is ConnectionState.CONNECTED and
-           self.active):
-            # Save incoming data to local buffer until it can be processed.
-            # (self._delivered will be cleared later this iteration.)
+           self.active and
+           self.ready_for_data):
+            # Process incoming events.
             for event, value in self._delivered:
                 ## TODO: Flags.
                 if event in ("command:gcode",
                              "command:move_absolute",
                              "command:move_relative"):
+
+                    # Make a copy of events processes for derived classes that
+                    # need a record of work done here.
                     self._queued_updates.append((event, value))
 
+                    # Call handler functions for incoming events.
+                    action = event.split(":", 1)[1]
+                    assert hasattr(self, "_handle_%s" % action),\
+                           "Missing handler for %s event." % action
+                    if isinstance(value, dict):
+                        getattr(self, "_handle_%s" % action)(**keys_to_lower(value))
+                    else:
+                        getattr(self, "_handle_%s" % action)(value)
+
     def _handle_gcode(self, gcode_block: Block) -> None:
+        """ Handler for the "command:gcode" event. """
         raise NotImplementedError
 
     def _handle_move_absolute(self,
-                              x: float = 0,
-                              y: float = 0,
-                              z: float = 0,
-                              f: float = 0,
-                              feed: float = 0) -> None:
-        """ Move machine head to specified coordinates. """
-        distance_mode_save = self.state.gcode_modal.get("distance", "G90")
+                              # pylint: disable=C0103  # invalid-name
+                              x: Optional[float] = None,
+                              y: Optional[float] = None,
+                              z: Optional[float] = None,
+                              f: Optional[float] = None
+                              ) -> None:
+        """ Handler for the "command:move_absolute" event.
+        Move machine head to specified coordinates. """
+        distance_mode_save = self.state.gcode_modal.get(b"distance", b"G90")
 
         gcode = "G90 G00 "
         if x is not None:
@@ -149,18 +166,20 @@ class _ControllerBase(_ComponentBase):
 
         self._handle_gcode(Line(gcode).block)
 
-        if distance_mode_save != "G90":
+        if distance_mode_save != b"G90":
             # Restore modal distance_mode.
-            self._handle_gcode(Line(distance_mode_save).block)
-    
+            self._handle_gcode(Line(distance_mode_save.decode()).block)
+
     def _handle_move_relative(self,
-                              x: float = 0,
-                              y: float = 0,
-                              z: float = 0,
-                              f: float = 0,
-                              feed: float = 0) -> None:
-        """ Move machine head to specified coordinates. """
-        distance_mode_save = self.state.gcode_modal.get("distance", "G91")
+                              # pylint: disable=C0103  # invalid-name
+                              x: Optional[float] = None,
+                              y: Optional[float] = None,
+                              z: Optional[float] = None,
+                              f: Optional[float] = None
+                              ) -> None:
+        """ Handler for the "command:move_relative" event.
+        Move machine head to specified coordinates. """
+        distance_mode_save = self.state.gcode_modal.get(b"distance", b"G91")
 
         gcode = "G91 G00 "
         if x is not None:
@@ -173,7 +192,7 @@ class _ControllerBase(_ComponentBase):
             gcode += "F%s " % f
 
         self._handle_gcode(Line(gcode).block)
-        
-        if distance_mode_save != "G91":
+
+        if distance_mode_save != b"G91":
             # Restore modal distance_mode.
-            self._handle_gcode(Line(distance_mode_save).block)
+            self._handle_gcode(Line(distance_mode_save.decode()).block)

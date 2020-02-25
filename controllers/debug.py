@@ -19,7 +19,7 @@ from terminals.gui import sg
 
 from definitions import ConnectionState
 from controllers._controller_base import _ControllerBase
-from controllers.state_machine import StateMachineBase, keys_to_lower
+from controllers.state_machine import StateMachineBase
 
 CONNECT_DELAY = 4   # seconds
 PUSH_DELAY = 1      # seconds
@@ -53,13 +53,13 @@ class DebugController(_ControllerBase):
         super().__init__(label)
 
         # A record of all gcode ever sent to this controller.
-        self.log: Deque[Tuple[str, Any]] = deque()
+        self.log: Deque[Tuple[str, str, Any]] = deque()
 
         self._connect_time: float = 0
         self._last_receive_data_at: float = 0
 
         # State machine reflecting _virtual_cnc state.
-        self.state = StateMachinePygcode(self.publish_from_here)
+        self.state: StateMachinePygcode = StateMachinePygcode(self.publish_from_here)
 
         # Allow replacing with a mock version when testing.
         self._time: Any = time
@@ -128,32 +128,22 @@ class DebugController(_ControllerBase):
 
     def update(self) -> None:
         super().update()
-        if self.ready_for_data and self._queued_updates:
-            # Process local buffer.
+        if self._queued_updates:
             self._last_receive_data_at = self._time.time()
 
-            event, data = self._queued_updates.popleft()
-            component_name, action = event.split(":", 1)
+            # Process local event buffer.
+            for event, data in self._queued_updates:
+                # Generate output for debug log.
+                component_name, action = event.split(":", 1)
+                self.log.append((component_name, action, data))
 
-            self.log.append((component_name, action, data))
+                debug_output = ""
+                for log_line in self.log:
+                    debug_output += "%s\t%s\t%s\n" % log_line
+                self.publish_one_by_value(self.key_gen("gcode"), debug_output)
 
-            if self.debug_show_events:
-                print("CONTROLLER: %s  RECEIVED: %s %s" % (event, data))
-
-            assert hasattr(self, "_handle_%s" % action),\
-                   "Missing handler for %s event." % action
-            if isinstance(data, dict):
-                getattr(self, "_handle_%s" % action)(**keys_to_lower(data))
-            else:
-                getattr(self, "_handle_%s" % action)(data)
-
+            # Update the state machine to reflect the pygcode virtual machine.
             self.state.update()
-            
-            # Generate output for debug log.
-            debug_output = ""
-            for log_line in self.log:
-                debug_output += "%s\t%s\t%s\n" % log_line
-            self.publish_one_by_value(self.key_gen("gcode"), debug_output)
 
     def _handle_gcode(self, gcode_block: Block) -> None:
         """ Update the virtual machine with incoming gcode. """
