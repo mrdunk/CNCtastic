@@ -10,7 +10,6 @@ from math import log10, floor
 from terminals.gui import sg
 
 from interfaces._interface_base import _InterfaceBase
-from definitions import FlagState
 
 def round_1_sf(number: float) -> float:
     """ Round a float to 1 significant figure. """

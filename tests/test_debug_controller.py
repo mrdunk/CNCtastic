@@ -8,7 +8,7 @@ from pygcode import Block, Line
 
 import unittest
 import loader  # pylint: disable=E0401,W0611
-from definitions import ConnectionState, FlagState
+from definitions import ConnectionState
 from controllers.debug import DebugController
 
 
@@ -38,7 +38,7 @@ class TestControllerConnectionStates(unittest.TestCase):
         self.controller.connection_status = ConnectionState.CONNECTED
         self.controller.desired_connection_status = ConnectionState.CONNECTED
 
-        self.assertEqual(len(self.controller.gcode), 0)
+        self.assertEqual(len(self.controller.log), 0)
 
     def test_connect(self) -> None:
         """ Controller transitions to CONNECTED state after a delay. """
@@ -88,33 +88,30 @@ class TestControllerSendData(unittest.TestCase):
         self.controller._time = MockTime()
         self.controller.connection_status = ConnectionState.CONNECTED
         self.controller.desired_connection_status = ConnectionState.CONNECTED
+        self.controller.active = True
+        self.controller.ready_for_data = True
 
-        self.assertEqual(len(self.controller.gcode), 0)
+        self.assertEqual(len(self.controller.log), 0)
         self.assertEqual(self.controller.state.machine_pos,
                          {"x": 0, "y": 0, "z": 0, "a": 0, "b": 0})
         self.assertEqual(self.controller.state.work_pos,
                          {"x": 0, "y": 0, "z": 0, "a": 0, "b": 0})
 
-        class MockCommand:  # pylint: disable=R0903: (too-few-public-methods)
-            """ Container to pass input data to controller. """
-            jog: FlagState = FlagState.UNSET
-            gcode: Block = Line("G0 X10 Y20").block
-        self.update = MockCommand()
-
-    def test_incoming_gcode(self) -> None:
-        """ Gcode gets passed on to the pygcode VM. """
-        self.controller.ready_for_data = True
-        self.controller._queued_updates.append(self.update)
+    def test_incoming_event(self) -> None:
+        """ Incoming events gets processed by controller. """
+        fake_event = ("command:gcode", Line("G0 X10 Y20").block)
+        self.controller._delivered.append(fake_event)
         self.controller.update()
+        self.controller._delivered.clear()
 
-        self.assertEqual(len(self.controller.gcode), 1)
+        self.assertEqual(len(self.controller.log), 1)
         self.assertEqual(self.controller.state.machine_pos,
                          {"x": 10, "y": 20, "z": 0, "a": 0, "b": 0})
 
         # Further calls to self.controller.update() should have no affect as
         # there is no new data.
-        self.assertEqual(len(self.controller._queued_updates), 0)
         self.controller.update()
+        self.assertEqual(len(self.controller.log), 1)
         self.assertEqual(self.controller.state.machine_pos,
                          {"x": 10, "y": 20, "z": 0, "a": 0, "b": 0})
 
@@ -122,48 +119,48 @@ class TestControllerSendData(unittest.TestCase):
         """ Local G92 implementation.
         G92: GCodeCoordSystemOffset is not handled by pygcode's VM so we manually
         compute the offset. """
-        self.controller.ready_for_data = True
-        self.update.gcode = Line("G92 X10 Y20").block
-        self.controller._queued_updates.append(self.update)
+        fake_event = ("command:gcode", Line("G92 X10 Y20").block)
+        self.controller._delivered.append(fake_event)
         self.controller.update()
+        self.controller._delivered.clear()
 
         # G92 should have created a diff between machine_pos and work_pos.
-        self.assertEqual(len(self.controller.gcode), 1)
+        self.assertEqual(len(self.controller.log), 1)
         self.assertEqual(self.controller.state.machine_pos,
                          {"x": 0, "y": 0, "z": 0, "a": 0, "b": 0})
         self.assertEqual(self.controller.state.work_pos,
                          {"x": 10, "y": 20, "z": 0, "a": 0, "b": 0})
 
         # Now move and observe diff between machine_pos and work_pos.
-        self.controller.ready_for_data = True
-        self.update.gcode = Line("G0 X10 Y20").block
-        self.controller._queued_updates.append(self.update)
+        fake_event = ("command:gcode", Line("G0 X10 Y20").block)
+        self.controller._delivered.append(fake_event)
         self.controller.update()
+        self.controller._delivered.clear()
 
-        self.assertEqual(len(self.controller.gcode), 2)
+        self.assertEqual(len(self.controller.log), 2)
         self.assertEqual(self.controller.state.machine_pos,
                          {"x": 10, "y": 20, "z": 0, "a": 0, "b": 0})
         self.assertEqual(self.controller.state.work_pos,
                          {"x": 20, "y": 40, "z": 0, "a": 0, "b": 0})
 
         # Further G92's work as expected.
-        self.controller.ready_for_data = True
-        self.update.gcode = Line("G92 X0 Y0").block
-        self.controller._queued_updates.append(self.update)
+        fake_event = ("command:gcode", Line("G92 X0 Y0").block)
+        self.controller._delivered.append(fake_event)
         self.controller.update()
+        self.controller._delivered.clear()
 
-        self.assertEqual(len(self.controller.gcode), 3)
+        self.assertEqual(len(self.controller.log), 3)
         self.assertEqual(self.controller.state.machine_pos,
                          {"x": 10, "y": 20, "z": 0, "a": 0, "b": 0})
         self.assertEqual(self.controller.state.work_pos,
                          {"x": 0, "y": 0, "z": 0, "a": 0, "b": 0})
 
-        self.controller.ready_for_data = True
-        self.update.gcode = Line("G0 X0 Y0").block
-        self.controller._queued_updates.append(self.update)
+        fake_event = ("command:gcode", Line("G0 X0 Y0").block)
+        self.controller._delivered.append(fake_event)
         self.controller.update()
+        self.controller._delivered.clear()
 
-        self.assertEqual(len(self.controller.gcode), 4)
+        self.assertEqual(len(self.controller.log), 4)
         self.assertEqual(self.controller.state.machine_pos,
                          {"x": 0, "y": 0, "z": 0, "a": 0, "b": 0})
         self.assertEqual(self.controller.state.work_pos,
@@ -175,25 +172,25 @@ class TestControllerSendData(unittest.TestCase):
         manually compute the offset. """
 
         # Use G92 to create a diff between machine_pos and work_pos.
-        self.controller.ready_for_data = True
-        self.update.gcode = Line("G92 X10 Y20").block
-        self.controller._queued_updates.append(self.update)
+        fake_event = ("command:gcode", Line("G92 X10 Y20").block)
+        self.controller._delivered.append(fake_event)
         self.controller.update()
+        self.controller._delivered.clear()
 
-        self.assertEqual(len(self.controller.gcode), 1)
+        self.assertEqual(len(self.controller.log), 1)
         self.assertEqual(self.controller.state.machine_pos,
                          {"x": 0, "y": 0, "z": 0, "a": 0, "b": 0})
         self.assertEqual(self.controller.state.work_pos,
                          {"x": 10, "y": 20, "z": 0, "a": 0, "b": 0})
 
         # Now G92.1
-        self.controller.ready_for_data = True
-        self.update.gcode = Line("G92.1").block
-        self.controller._queued_updates.append(self.update)
+        fake_event = ("command:gcode", Line("G92.1").block)
+        self.controller._delivered.append(fake_event)
         self.controller.update()
+        self.controller._delivered.clear()
 
         # G92.1 should have reset the diff between machine_pos and work_pos.
-        self.assertEqual(len(self.controller.gcode), 2)
+        self.assertEqual(len(self.controller.log), 2)
         self.assertEqual(self.controller.state.machine_pos,
                          {"x": 0, "y": 0, "z": 0, "a": 0, "b": 0})
         self.assertEqual(self.controller.state.work_pos,
