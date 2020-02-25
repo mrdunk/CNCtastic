@@ -6,11 +6,11 @@
 from typing import List
 from collections import deque
 
-#import PySimpleGUIQt as sg
-from terminals.gui import sg
-
 from pygcode import Line
 from pygcode.exceptions import GCodeWordStrError
+
+#import PySimpleGUIQt as sg
+from terminals.gui import sg
 
 from interfaces._interface_base import _InterfaceBase
 
@@ -40,6 +40,7 @@ class Terminal(_InterfaceBase):
         self.newline = gcode
 
     def _gcode_submit(self, key, value) -> None:
+        print("OOOO", key, value)
         self.widget_newline.Update(value="")
 
         # TODO The rest of this method is a workaround for
@@ -48,7 +49,7 @@ class Terminal(_InterfaceBase):
         # self.widget_log.Update(value=newline, append=True)
 
         valid = self._raw_gcode(self.newline)
-        newline = "> %s\n" % (str(self._updated_data.gcode) if valid else self.newline)
+        newline = "> %s\n" % (str(self.newline) if valid else self.newline)
 
         self.log.append((newline, valid))
         self.newline = ""
@@ -59,9 +60,9 @@ class Terminal(_InterfaceBase):
         for line in self.log:
             text_color = "blue" if line[1] else "red"
             self.widget_log.Update(
-                    value=line[0], append=True, text_color_for_value=text_color)
+                value=line[0], append=True, text_color_for_value=text_color)
 
-    def gui_layout(self) -> List:
+    def gui_layout(self) -> List[List[sg.Element]]:
         """ Layout information for the PySimpleGUI interface. """
         log_size = (60, 10)
         self.widget_log = sg.Multiline(
@@ -97,6 +98,6 @@ class Terminal(_InterfaceBase):
             line = Line(str(raw_gcode).strip())
         except GCodeWordStrError:
             return False
-        self._updated_data.gcode = line.block
-        print(self._updated_data.gcode)
+        self.publish_one_by_value("command:gcode", line.block)
+        print(line.block)
         return True

@@ -9,12 +9,6 @@ from pygcode import (GCodeLinearMove, GCodeRapidMove, GCodeArcMoveCW,
                      GCodeCoordSystemOffset, GCodeResetCoordSystemOffset,
                      GCodeRestoreCoordSystemOffset)
 
-class FlagState(Enum):
-    """ Flag state used in place of a boolean when we may need to infer the value
-    has not changed. """
-    UNSET = 0
-    TRUE = 1
-    FALSE = 2
 
 class ConnectionState(Enum):
     """ Connection state of one of the controller components.

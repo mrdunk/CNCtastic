@@ -1,8 +1,8 @@
 """ Plugin providing interface to control of some aspect of the active controller. """
 
-from typing import Dict, Optional, Union, cast, Any
+from typing import Union
 
-from pygcode import block, GCodeFeedRate, GCode, GCodeCoordSystemOffset
+from pygcode import block, GCodeCoordSystemOffset
 
 from component import _ComponentBase
 

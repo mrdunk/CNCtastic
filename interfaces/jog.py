@@ -3,7 +3,7 @@
 
 """ Send Gcode to active controller in response to GUI button presses. """
 
-from typing import Dict, List, Union
+from typing import Dict, List
 from math import log10, floor
 
 #import PySimpleGUIQt as sg
@@ -53,7 +53,7 @@ class JogWidget(_InterfaceBase):
 
         self._xy_jog_step: float = 10
         self._z_jog_step: float = 10
-        self._w_pos: Dict = {}
+        self._w_pos: Dict[str, float] = {}
 
     def _xy_jog_step_multiply(self, multiplier: float) -> None:
         self._xy_jog_step = round_1_sf(self._xy_jog_step * multiplier)
@@ -68,10 +68,10 @@ class JogWidget(_InterfaceBase):
         self.publish_one_by_value(self.key_gen("zJogStep"), self._z_jog_step)
 
     def _move_handler(self, values: List[int]) -> None:
-        self.move_relative( x=self._xy_jog_step * values[0],
-                            y=self._xy_jog_step * values[1],
-                            z=self._z_jog_step * values[2],
-                            )
+        self.move_relative(x=self._xy_jog_step * values[0],
+                           y=self._xy_jog_step * values[1],
+                           z=self._z_jog_step * values[2],
+                           )
 
     def _wpos_handler_x(self, value: float) -> None:
         """ Called in response to an active_controller:work_pos:x event. """
@@ -127,7 +127,7 @@ class JogWidget(_InterfaceBase):
         self._w_pos["z"] = value
         self.g92_offsets(**self._w_pos)
 
-    def gui_layout(self) -> List:
+    def gui_layout(self) -> List[List[sg.Element]]:
         """ Layout information for the PySimpleGUI interface. """
         but_w = 5
         but_h = 1.5
