@@ -86,8 +86,9 @@ class Grbl1p1Controller(_SerialControllerBase):
         self._send_buf_actns: Deque[Tuple[bytes, Any]] = deque()
 
         self.preivious_machine_state: bytes = b"Unknown"
-        self.running_gcode: bool = False
         self.running_jog: bool = False
+        self.running_gcode: bool = False
+        self.running_mode_at: float = self._time.time()
 
         # Certain gcode commands write to EPROM which disabled interrupts which
         # would interfere with serial IO. When one of these commands is executed we
@@ -193,37 +194,6 @@ class Grbl1p1Controller(_SerialControllerBase):
         #print("_write_immediate", task)
         return self._serial_write(task)
 
-    def _write_streaming_original(self) -> bool:
-        """ Write entries in the _command_streaming buffer to serial port. """
-        if self.flush_before_continue and sum(self._send_buf_lens) == 0:
-            self.flush_before_continue = False
-
-        if self._send_buf_lens:
-            return False
-
-        if sum(self._send_buf_lens) >= RX_BUFFER_SIZE - 1:
-            return False
-
-        task = None
-        try:
-            task = self._command_streaming.get(block=False)
-        except Empty:
-            return False
-
-        task_string = task
-        if isinstance(task, Block):
-            task_string = str(task).encode("utf-8")
-
-        if self._complete_before_continue(task_string):
-            self.flush_before_continue = True
-
-        #print("_write_streaming", task_string)
-        if self._serial_write(task_string + b"\n"):
-            self._send_buf_lens.append(len(task_string) + 1)
-            self._send_buf_actns.append((task_string, task))
-            return True
-        return False
-
     def _last_in_command_queue(self) -> Any:
         task = None
         # Cheat and take a look at the next value in the Queue without
@@ -236,37 +206,13 @@ class Grbl1p1Controller(_SerialControllerBase):
 
         return task
 
-    def _pop_command_queue(self, expected: Any) -> None:
-        compare = self._command_streaming.get(block=False)
-        assert expected is compare, "Task not what we thought it was."
-
-    def _write_streaming(self) -> bool:
-        """ Write entries in the _command_streaming buffer to serial port. """
-        if self.flush_before_continue:
-            if sum(self._send_buf_lens) > 0:
-                # Currently processing a task that must be completed before
-                # moving on to the next in the queue.
-                #print("flush_before_continue")
-                return False
-            self.flush_before_continue = False
-
-        if sum(self._send_buf_lens) >= RX_BUFFER_SIZE - 1:
-            # Input buffer full. Come back later.
-            return False
-
-        if not self.state.machine_state == self.preivious_machine_state:
-            print("!!! Transition !!!", self.preivious_machine_state, self.state.machine_state)
-            if self.state.machine_state == b"Idle":
-                # Has returned to Idle.
-                self.running_gcode = False
-                self.running_jog = False
-            self.preivious_machine_state = self.state.machine_state
-
-        task = self._last_in_command_queue()
-        if not task:
-            return False
-        # Since we definitely want to continue, we can de-queue the task now.
-        self._pop_command_queue(task)
+    def _pop_task(self) -> Tuple[Any, str, str]:
+        """ Pop a task from the command queue. """
+        task = None
+        try:
+            task = self._command_streaming.get(block=False)
+        except Empty:
+            return (None, "", "")
 
         task_string = task
         if isinstance(task, Block):
@@ -275,16 +221,70 @@ class Grbl1p1Controller(_SerialControllerBase):
         task_string_human = task_string
         task_string = task_string.replace(b" ", b"")
         
-        print("_write_streaming: %s  running_jog: %s  running_gcode: %s",
+        return (task, task_string, task_string_human)
+
+    def _write_streaming(self) -> bool:
+        """ Write entries in the _command_streaming buffer to serial port. """
+
+        assert not (self.running_gcode and self.running_jog), \
+               "Invalid state: Jog and Gcode modes active at same time."
+
+        if self.flush_before_continue:
+            if sum(self._send_buf_lens) > 0:
+                # Currently processing a task that must be completed before
+                # moving on to the next in the queue.
+                return False
+            self.flush_before_continue = False
+
+        if sum(self._send_buf_lens) >= RX_BUFFER_SIZE - 1:
+            # Input buffer full. Come back later.
+            return False
+
+        if not self.state.machine_state == self.preivious_machine_state:
+            #print("!!! Transition !!!", self.preivious_machine_state, self.state.machine_state)
+            if self.state.machine_state in (b"Idle", b"CancelJog"):
+                # Has returned to Idle.
+                self.running_gcode = False
+                self.running_jog = False
+            self.preivious_machine_state = self.state.machine_state
+
+        if self.state.machine_state == b"Idle" and \
+           self._time.time() - self.running_mode_at > 2 * REPORT_INTERVAL and \
+           (self.running_gcode or self.running_jog):
+                #print("!!! Timeout !!!  running_gcode: %s  running_jog: %s" % \
+                #        (self.running_gcode, self.running_jog))
+                self.running_gcode = False
+                self.running_jog = False
+
+        task, task_string, task_string_human = self._pop_task()
+        if not task:
+            return False
+
+        print("_write_streaming: %s  running_jog: %s  running_gcode: %s" %
               (task_string, self.running_jog, self.running_gcode))
 
         jog = task_string.startswith(b"$J=")
         if jog:
+            if self.running_gcode:
+                self.publish_one_by_value(
+                    "user_feedback:command_state",
+                    "Can't start jog while performing gcode for: %s\n" %
+                    task_string_human)
+                print("Can't start jog while performing gcode")
+                # Since the Jog command has already been de-queued it is lost.
+                # This is appropriate behaviour.
+                return False
             self.running_jog = True
-            self.running_gcode = False
+            self.running_mode_at = self._time.time()
         else:
-            self.running_jog = False
+            if self.running_jog:
+                self.publish_one_by_value(
+                    "user_feedback:command_state",
+                    "Cancelling active Jog action to perform Gcode action for: %s\n" \
+                        % task_string_human) 
+                self.cancel_jog()
             self.running_gcode = True
+            self.running_mode_at = self._time.time()
 
         if self._complete_before_continue(task_string):
             # The task about to be processes writes to EPROM or does something
@@ -300,7 +300,6 @@ class Grbl1p1Controller(_SerialControllerBase):
             self._send_buf_actns.append((task_string_human, task))
             return True
         return False
-
 
     def _periodic_io(self) -> None:
         """ Read from and write to serial port.
@@ -394,16 +393,13 @@ class Grbl1p1Controller(_SerialControllerBase):
         print("Cancel jog")
         self._command_immediate.put(b"\x85")
         while self._write_immediate(): pass
-        self.state.machine_state = b"Unknown"
+        self.state.machine_state = b"ClearJog"
 
         # All Grbl internal buffers are cleared of Jog commands and we should
         # only have Jog commands in there so it's safe to clear our buffers too.
         self._send_buf_lens.clear()
         self._send_buf_actns.clear()
-
-    def flush_buffer(self) -> None:
-        print("Flush buffer")
-        self._command_streaming.put(b"G4 P0.01")
+        self.running_jog = False
 
     def early_update(self) -> None:
         """ Called early in the event loop, before events have been received. """
@@ -430,7 +426,18 @@ class Grbl1p1Controller(_SerialControllerBase):
         super().on_connected()
         self.ready_for_data = True
 
-        # Perform a soft reset og Grbl.
+        # Clear any state from before a disconnect.
+        self.preivious_machine_state = b"Unknown"
+        self.running_jog = False
+        self.running_gcode = False
+        self.running_mode_at = self._time.time()
+        self.flush_before_continue = False
+        self._send_buf_lens.clear()
+        self._send_buf_actns.clear()
+
+        # Perform a soft reset of Grbl.
+        # With a lot of testing we could avoid needing this reset and keep state
+        # between disconnect/connect cycles.
         self._command_immediate.put(b"\x18")
         # Request a report on the modal state of the GRBL controller.
         self._command_streaming.put(b"$G")

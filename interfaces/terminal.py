@@ -27,6 +27,7 @@ class Terminal(_InterfaceBase):
         self.event_subscriptions = {
             self.key_gen("gcode_newline"): ("_gcode_update", None),
             self.key_gen("gcode_submit"): ("_gcode_submit", None),
+            "user_feedback:command_state": ("_user_feedback", None)
         }
 
         self.widget_log = None
@@ -35,6 +36,10 @@ class Terminal(_InterfaceBase):
         # TODO Workaround for https://github.com/PySimpleGUI/PySimpleGUI/issues/2623
         # Remove this when the `autoscroll` parameter works.
         self.log: deque[str] = deque()
+
+    def _user_feedback(self, value) -> None:
+        self.log.append((value, False))
+        self._update_content()
 
     def _gcode_update(self, gcode) -> None:
         self.newline = gcode
@@ -53,6 +58,10 @@ class Terminal(_InterfaceBase):
         self.log.append((newline, valid))
         self.newline = ""
 
+        self._update_content()
+
+    def _update_content(self) -> None:
+        """ Redraw the terminal window contents. """
         while len(self.log) > self.widget_log.metadata["size"][1]:
             self.log.popleft()
         self.widget_log.Update(value="")
