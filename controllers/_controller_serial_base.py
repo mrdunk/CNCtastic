@@ -25,7 +25,8 @@ class _SerialControllerBase(_ControllerBase):
     def __init__(self, label: str = "serialController") -> None:
         super().__init__(label)
         #self.serial_dev_name = "spy:///tmp/ttyFAKE?file=/tmp/serialspy.txt"
-        self.serial_dev_name = "/tmp/ttyFAKE"
+        #self.serial_dev_name = "/tmp/ttyFAKE"
+        self.serial_dev_name = "/dev/ttyUSB0"
         self.serial_baud = 115200
         self._serial = None
         self.testing: bool = False  # Prevent _periodic_io() from blocking during tests.

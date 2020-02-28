@@ -85,15 +85,22 @@ class Grbl1p1Controller(_SerialControllerBase):
         self._send_buf_lens: Deque[int] = deque()
         self._send_buf_actns: Deque[Tuple[bytes, Any]] = deque()
 
+        self.preivious_machine_state: bytes = b"Unknown"
+        self.running_gcode: bool = False
+        self.running_jog: bool = False
+
         # Certain gcode commands write to EPROM which disabled interrupts which
         # would interfere with serial IO. When one of these commands is executed we
         # should pause before continuing with serial IO.
         self.flush_before_continue = False
 
     def _complete_before_continue(self, command: bytes) -> bool:
-        """ Certain gcode commands write to EPROM which disabled interrupts which
+        """ Determine if we should allow current command to finish before
+        starting next one.
+        Certain gcode commands write to EPROM which disabled interrupts which
         would interfere with serial IO. When one of these commands is executed we
-        should pause before continuing with serial IO. """
+        should pause before continuing with serial IO.
+        """
         for slow_command in self.SLOWCOMMANDS:
             if slow_command in command:
                 return True
@@ -170,6 +177,7 @@ class Grbl1p1Controller(_SerialControllerBase):
         self._send_buf_lens.popleft()
         action = self._send_buf_actns.popleft()
         print("'ok' acknowledges: %s" % action[0].decode("utf-8"), type(action[1]))
+
         if isinstance(action[1], GCode):
             self._received_data.put(b"[sentGcode:%s]" % \
                                     str(action[1].modal_copy()).encode("utf-8"))
@@ -185,7 +193,7 @@ class Grbl1p1Controller(_SerialControllerBase):
         #print("_write_immediate", task)
         return self._serial_write(task)
 
-    def _write_streaming(self) -> bool:
+    def _write_streaming_original(self) -> bool:
         """ Write entries in the _command_streaming buffer to serial port. """
         if self.flush_before_continue and sum(self._send_buf_lens) == 0:
             self.flush_before_continue = False
@@ -215,6 +223,84 @@ class Grbl1p1Controller(_SerialControllerBase):
             self._send_buf_actns.append((task_string, task))
             return True
         return False
+
+    def _last_in_command_queue(self) -> Any:
+        task = None
+        # Cheat and take a look at the next value in the Queue without
+        # de-queueing it.
+        with self._command_streaming.mutex:
+            if not self._command_streaming.queue:
+                return None
+            task = self._command_streaming.queue[0]
+        assert task, "task went missing."
+
+        return task
+
+    def _pop_command_queue(self, expected: Any) -> None:
+        compare = self._command_streaming.get(block=False)
+        assert expected is compare, "Task not what we thought it was."
+
+    def _write_streaming(self) -> bool:
+        """ Write entries in the _command_streaming buffer to serial port. """
+        if self.flush_before_continue:
+            if sum(self._send_buf_lens) > 0:
+                # Currently processing a task that must be completed before
+                # moving on to the next in the queue.
+                #print("flush_before_continue")
+                return False
+            self.flush_before_continue = False
+
+        if sum(self._send_buf_lens) >= RX_BUFFER_SIZE - 1:
+            # Input buffer full. Come back later.
+            return False
+
+        if not self.state.machine_state == self.preivious_machine_state:
+            print("!!! Transition !!!", self.preivious_machine_state, self.state.machine_state)
+            if self.state.machine_state == b"Idle":
+                # Has returned to Idle.
+                self.running_gcode = False
+                self.running_jog = False
+            self.preivious_machine_state = self.state.machine_state
+
+        task = self._last_in_command_queue()
+        if not task:
+            return False
+        # Since we definitely want to continue, we can de-queue the task now.
+        self._pop_command_queue(task)
+
+        task_string = task
+        if isinstance(task, Block):
+            task_string = str(task).encode("utf-8")
+        task_string = task_string.strip()
+        task_string_human = task_string
+        task_string = task_string.replace(b" ", b"")
+        
+        print("_write_streaming: %s  running_jog: %s  running_gcode: %s",
+              (task_string, self.running_jog, self.running_gcode))
+
+        jog = task_string.startswith(b"$J=")
+        if jog:
+            self.running_jog = True
+            self.running_gcode = False
+        else:
+            self.running_jog = False
+            self.running_gcode = True
+
+        if self._complete_before_continue(task_string):
+            # The task about to be processes writes to EPROM or does something
+            # else non-standard with the microcontroller.
+            # No further tasks should be executed until this task has been
+            # completed.
+            # See "EEPROM Issues" in
+            # https://github.com/gnea/grbl/wiki/Grbl-v1.1-Interface
+            self.flush_before_continue = True
+
+        if self._serial_write(task_string + b"\n"):
+            self._send_buf_lens.append(len(task_string) + 1)
+            self._send_buf_actns.append((task_string_human, task))
+            return True
+        return False
+
 
     def _periodic_io(self) -> None:
         """ Read from and write to serial port.
@@ -267,8 +353,8 @@ class Grbl1p1Controller(_SerialControllerBase):
         jog_command_string = b"$J=G90 "
 
         if f is None:
-            # TODO: Need a tactic to deal with default feed rate.
-            f = 100
+            # Make feed very large and allow Grbls maximum feedrate to apply.
+            f = 10000000
         jog_command_string += b"F%s " % str(f).encode("utf-8")
 
         if x is not None:
@@ -291,8 +377,8 @@ class Grbl1p1Controller(_SerialControllerBase):
         jog_command_string = b"$J=G91 "
 
         if f is None:
-            # TODO: Need a tactic to deal with default feed rate.
-            f = 100
+            # Make feed very large and allow Grbls maximum feedrate to apply.
+            f = 10000000
         jog_command_string += b"F%s " % str(f).encode("utf-8")
 
         if x is not None:
@@ -303,6 +389,21 @@ class Grbl1p1Controller(_SerialControllerBase):
             jog_command_string += b"Z%s " % str(z).encode("utf-8")
 
         self._command_streaming.put(jog_command_string)
+
+    def cancel_jog(self) -> None:
+        print("Cancel jog")
+        self._command_immediate.put(b"\x85")
+        while self._write_immediate(): pass
+        self.state.machine_state = b"Unknown"
+
+        # All Grbl internal buffers are cleared of Jog commands and we should
+        # only have Jog commands in there so it's safe to clear our buffers too.
+        self._send_buf_lens.clear()
+        self._send_buf_actns.clear()
+
+    def flush_buffer(self) -> None:
+        print("Flush buffer")
+        self._command_streaming.put(b"G4 P0.01")
 
     def early_update(self) -> None:
         """ Called early in the event loop, before events have been received. """
@@ -329,6 +430,8 @@ class Grbl1p1Controller(_SerialControllerBase):
         super().on_connected()
         self.ready_for_data = True
 
+        # Perform a soft reset og Grbl.
+        self._command_immediate.put(b"\x18")
         # Request a report on the modal state of the GRBL controller.
         self._command_streaming.put(b"$G")
         # Grbl settings report.

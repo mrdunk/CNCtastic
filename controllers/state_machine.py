@@ -659,6 +659,17 @@ class StateMachineGrbl(StateMachineBase):
 
     MACHINE_STATES = [
         b"Idle", b"Run", b"Hold", b"Jog", b"Alarm", b"Door", b"Check", b"Home", b"Sleep"]
+    
+    def __init__(self, on_update_callback: Callable[[str, Any], None]) -> None:
+        super().__init__(on_update_callback)
+
+        self.machine_state = b"Unknown"
+
+    def __str__(self) -> str:
+        output = super().__str__()
+
+        new_output = ("Grbl state: {self.machine_state}\n")
+        return output + new_output.format(self=self)
 
     def parse_incoming(self, incoming: bytes) -> None:
         """ Parse incoming string from Grbl controller. """
@@ -677,7 +688,7 @@ class StateMachineGrbl(StateMachineBase):
         elif incoming.startswith(b">"):
             self._parse_startup(incoming)
         elif incoming.startswith(b"Grbl "):
-            self._parse_startup(incoming)
+            self._parse_welcome(incoming)
         else:
             print("Input not parsed: %s" % incoming.decode('utf-8'))
 
@@ -908,11 +919,17 @@ class StateMachineGrbl(StateMachineBase):
 
     @staticmethod
     def _parse_startup(incoming: bytes) -> None:
-        """ "parse_incoming" determined Grbl's startup message is being received..
+        """ "parse_incoming" determined Grbl's startup blocks are being received.
+        These are strings of Gcode that get executed on every restart. """
+        print("Grbl executed the following gcode on startup: %s" %
+              incoming.lstrip(">").rstrip(":ok"))
+        assert incoming.startswith(b">") and incoming.endswith(b":ok")
+
+    @staticmethod
+    def _parse_welcome(incoming: bytes) -> None:
+        """ "parse_incoming" determined Grbl's welcome message is being received.
         Perform any tasks appropriate to a Grbl restart here. """
         print("Startup:", incoming)
-        assert incoming.startswith(b">") and incoming.endswith(b":ok")
-        # This implies no alarms are active.
         print("Startup successful. TODO: Clear Alarm states.")
 
     def _set_overrides(self, value: bytes) -> None:
@@ -967,6 +984,7 @@ class StateMachineGrbl(StateMachineBase):
 
         state = states[0]
         assert state in self.MACHINE_STATES, "Invalid state: %s" % state.decode('utf-8')
+        self.machine_state = state
 
         if state in (b"Idle", b"Run", b"Jog", b"Home"):
             self.pause = False

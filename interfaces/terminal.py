@@ -40,7 +40,6 @@ class Terminal(_InterfaceBase):
         self.newline = gcode
 
     def _gcode_submit(self, key, value) -> None:
-        print("OOOO", key, value)
         self.widget_newline.Update(value="")
 
         # TODO The rest of this method is a workaround for
