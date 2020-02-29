@@ -3,7 +3,7 @@
 # overridden (abstract-method)
 """ Base class for hardware controllers that use a serial port to connect. """
 
-from typing import Optional
+from typing import Optional, List
 try:
     from typing import Literal              # type: ignore
 except ImportError:
@@ -11,13 +11,19 @@ except ImportError:
 
 import threading
 import serial
+import serial.tools.list_ports
+import os.path
 
+#import PySimpleGUIQt as sg
+from terminals.gui import sg
 
 from controllers._controller_base import _ControllerBase
 from definitions import ConnectionState
 
 SERIAL_INTERVAL = 0.02 # seconds
 
+# Path to grbl-sim instance.
+FAKE_SERIAL = "/tmp/ttyFAKE"
 
 class _SerialControllerBase(_ControllerBase):
     """ Base class for hardware controllers that use a serial port to connect. """
@@ -25,12 +31,64 @@ class _SerialControllerBase(_ControllerBase):
     def __init__(self, label: str = "serialController") -> None:
         super().__init__(label)
         #self.serial_dev_name = "spy:///tmp/ttyFAKE?file=/tmp/serialspy.txt"
-        self.serial_dev_name = "/tmp/ttyFAKE"
-        #self.serial_dev_name = "/dev/ttyUSB0"
+        self.serial_dev_name: str = ""
         self.serial_baud = 115200
         self._serial = None
         self.testing: bool = False  # Prevent _periodic_io() from blocking during tests.
         self._serial_thread: Optional[threading.Thread] = None
+        self.event_subscriptions[self.key_gen("device_picker")] = ("set_device", None)
+        self.event_subscriptions[self.key_gen("device_scan")] = ("search_device", None)
+        self.ports: List[str] = []
+
+    def gui_layout(self) -> List[List[sg.Element]]:
+        self.device_picker = sg.Combo(values=["to_populate"],
+                                      size=(25, 1),
+                                      key=self.key_gen("device_picker"),
+                                      enable_events=True,
+                                      )
+        device_scan = sg.Button("Scan",
+                                size=(5, 1),
+                                key=self.key_gen("device_scan"),
+                                tooltip="Scan for serial ports.",
+                                )
+
+        #self.search_device("", None)
+
+        return [
+                self.device_picker,
+                device_scan,
+                ]
+
+    def set_device(self, device) -> None:
+        print("set_device", device)
+        if not device:
+            return
+
+        self.serial_dev_name = device
+        self.disconnect()
+
+    def search_device(self, event: str, unused: None) -> None:
+        print("search_device", event)
+        
+        self.ports = [x.device for x in serial.tools.list_ports.comports() \
+                  if x.vid is not None \
+                  and  x.pid is not None \
+                  and x.device is not None]
+
+        if os.path.exists(FAKE_SERIAL):
+            self.ports += [FAKE_SERIAL]
+
+        if not self.ports:
+            self.ports.append("No serial ports autodetected")
+
+        print("Found ports {}".format(self.ports))
+
+        if not self.serial_dev_name:
+            self.serial_dev_name = self.ports[0]
+
+        self.device_picker.Update(values=self.ports,
+                                  #value=self.serial_dev_name
+                                  )
 
     def connect(self) -> Literal[ConnectionState]:
         """ Try to open serial port. Set connection_status to CONNECTING. """
@@ -120,6 +178,8 @@ class _SerialControllerBase(_ControllerBase):
         self.set_connection_status(ConnectionState.NOT_CONNECTED)
         self._serial = None
 
+        self.search_device("", None)
+
     def _serial_write(self, data: bytes) -> bool:
         """ Send data to serial port. """
         if self._serial is None:
@@ -188,3 +248,10 @@ class _SerialControllerBase(_ControllerBase):
         #     self._time.sleep(SERIAL_INTERVAL)
         #     if self.testing:
         #         break
+
+    def update(self) -> None:
+        super().update()
+
+        if not self.ports:
+            self.search_device("", None)
+

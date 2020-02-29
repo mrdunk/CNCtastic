@@ -659,7 +659,7 @@ class StateMachineGrbl(StateMachineBase):
 
     MACHINE_STATES = [
         b"Idle", b"Run", b"Hold", b"Jog", b"Alarm", b"Door", b"Check", b"Home", b"Sleep"]
-    
+
     def __init__(self, on_update_callback: Callable[[str, Any], None]) -> None:
         super().__init__(on_update_callback)
 
@@ -922,7 +922,7 @@ class StateMachineGrbl(StateMachineBase):
         """ "parse_incoming" determined Grbl's startup blocks are being received.
         These are strings of Gcode that get executed on every restart. """
         print("Grbl executed the following gcode on startup: %s" %
-              incoming.lstrip(">").rstrip(":ok"))
+              incoming.lstrip(b">").rstrip(b":ok").decode('utf-8'))
         assert incoming.startswith(b">") and incoming.endswith(b":ok")
 
     @staticmethod

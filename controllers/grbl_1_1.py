@@ -109,10 +109,12 @@ class Grbl1p1Controller(_SerialControllerBase):
 
     def gui_layout(self) -> List[List[sg.Element]]:
         """ Layout information for the PySimpleGUI interface. """
+        device_picker = super().gui_layout()
         layout = [
             [sg.Text("Title:", size=(20, 1)),
              sg.Text("unknown", key=self.key_gen("label"), size=(20, 1)),
              sg.Checkbox("Active", default=self.active, key=self.key_gen("active"))],
+            device_picker,
             [sg.Text("Connection state:", size=(20, 1)),
              sg.Text(size=(18, 1), key=self.key_gen("connection_status"))],
             [sg.Text("Desired:", size=(20, 1)),
@@ -206,13 +208,13 @@ class Grbl1p1Controller(_SerialControllerBase):
 
         return task
 
-    def _pop_task(self) -> Tuple[Any, str, str]:
+    def _pop_task(self) -> Tuple[Any, bytes, bytes]:
         """ Pop a task from the command queue. """
         task = None
         try:
             task = self._command_streaming.get(block=False)
         except Empty:
-            return (None, "", "")
+            return (None, b"", b"")
 
         task_string = task
         if isinstance(task, Block):
@@ -220,7 +222,7 @@ class Grbl1p1Controller(_SerialControllerBase):
         task_string = task_string.strip()
         task_string_human = task_string
         task_string = task_string.replace(b" ", b"")
-        
+
         return (task, task_string, task_string_human)
 
     def _write_streaming(self) -> bool:
@@ -251,17 +253,17 @@ class Grbl1p1Controller(_SerialControllerBase):
         if self.state.machine_state == b"Idle" and \
            self._time.time() - self.running_mode_at > 2 * REPORT_INTERVAL and \
            (self.running_gcode or self.running_jog):
-                #print("!!! Timeout !!!  running_gcode: %s  running_jog: %s" % \
-                #        (self.running_gcode, self.running_jog))
-                self.running_gcode = False
-                self.running_jog = False
+            #print("!!! Timeout !!!  running_gcode: %s  running_jog: %s" % \
+            #        (self.running_gcode, self.running_jog))
+            self.running_gcode = False
+            self.running_jog = False
 
         task, task_string, task_string_human = self._pop_task()
         if not task:
             return False
 
         print("_write_streaming: %s  running_jog: %s  running_gcode: %s" %
-              (task_string, self.running_jog, self.running_gcode))
+              (task_string.decode('utf-8'), self.running_jog, self.running_gcode))
 
         jog = task_string.startswith(b"$J=")
         if jog:
@@ -269,7 +271,7 @@ class Grbl1p1Controller(_SerialControllerBase):
                 self.publish_one_by_value(
                     "user_feedback:command_state",
                     "Can't start jog while performing gcode for: %s\n" %
-                    task_string_human)
+                    task_string_human.decode('utf-8'))
                 print("Can't start jog while performing gcode")
                 # Since the Jog command has already been de-queued it is lost.
                 # This is appropriate behaviour.
@@ -281,7 +283,7 @@ class Grbl1p1Controller(_SerialControllerBase):
                 self.publish_one_by_value(
                     "user_feedback:command_state",
                     "Cancelling active Jog action to perform Gcode action for: %s\n" \
-                        % task_string_human) 
+                        % task_string_human.decode('utf-8'))
                 self.cancel_jog()
             self.running_gcode = True
             self.running_mode_at = self._time.time()
@@ -390,9 +392,11 @@ class Grbl1p1Controller(_SerialControllerBase):
         self._command_streaming.put(jog_command_string)
 
     def cancel_jog(self) -> None:
+        """ Cancel currently running Jog action. """
         print("Cancel jog")
         self._command_immediate.put(b"\x85")
-        while self._write_immediate(): pass
+        while self._write_immediate():
+            pass
         self.state.machine_state = b"ClearJog"
 
         # All Grbl internal buffers are cleared of Jog commands and we should
