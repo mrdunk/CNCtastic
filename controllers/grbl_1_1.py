@@ -89,6 +89,7 @@ class Grbl1p1Controller(_SerialControllerBase):
         self.running_jog: bool = False
         self.running_gcode: bool = False
         self.running_mode_at: float = self._time.time()
+        self.first_receive: bool = False
 
         # Certain gcode commands write to EPROM which disabled interrupts which
         # would interfere with serial IO. When one of these commands is executed we
@@ -162,6 +163,13 @@ class Grbl1p1Controller(_SerialControllerBase):
             self._incoming_ok()
         else:
             self._received_data.put(incoming)
+
+        if not self.first_receive:
+            self.first_receive = True
+            # Request a report on the modal state of the GRBL controller.
+            self._command_streaming.put(b"$G")
+            # Grbl settings report.
+            self._command_streaming.put(b"$$")
 
     def _incoming_error(self, incoming: bytes) -> None:
         """ Called when GRBL returns an "error:". """
@@ -323,8 +331,6 @@ class Grbl1p1Controller(_SerialControllerBase):
                 self._command_immediate.put(b"?")
                 self._last_write = self._time.time()
 
-                #print("Receive buffer contains %s commands, %s bytes" %
-                #        (len(self._send_buf_lens), sum(self._send_buf_lens)))
             self._time.sleep(SERIAL_INTERVAL)
 
             if self.testing:
@@ -438,15 +444,12 @@ class Grbl1p1Controller(_SerialControllerBase):
         self.flush_before_continue = False
         self._send_buf_lens.clear()
         self._send_buf_actns.clear()
+        self.first_receive = False
 
         # Perform a soft reset of Grbl.
         # With a lot of testing we could avoid needing this reset and keep state
         # between disconnect/connect cycles.
-        self._command_immediate.put(b"\x18")
-        # Request a report on the modal state of the GRBL controller.
-        self._command_streaming.put(b"$G")
-        # Grbl settings report.
-        self._command_streaming.put(b"$$")
+        #self._command_immediate.put(b"\x18")
 
     def on_activate(self) -> None:
         """ Called whenever self.active is set True. """

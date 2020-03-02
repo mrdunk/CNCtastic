@@ -64,8 +64,10 @@ class _SerialControllerBase(_ControllerBase):
         if not device:
             return
 
-        self.serial_dev_name = device
+        # Disconnect from any other serial port.
         self.disconnect()
+
+        self.serial_dev_name = device
 
     def search_device(self, event: str, unused: None) -> None:
         print("search_device", event)
@@ -87,7 +89,7 @@ class _SerialControllerBase(_ControllerBase):
             self.serial_dev_name = self.ports[0]
 
         self.device_picker.Update(values=self.ports,
-                                  #value=self.serial_dev_name
+                                  value=self.serial_dev_name
                                   )
 
     def connect(self) -> Literal[ConnectionState]:
@@ -117,7 +119,7 @@ class _SerialControllerBase(_ControllerBase):
 
     def disconnect(self) -> Literal[ConnectionState]:
         """ Close serial port, shut down serial port thread, etc.
-        Set connection_status to DISCONNECTING.. """
+        Set connection_status to DISCONNECTING. """
         if self.connection_status in [
                 ConnectionState.DISCONNECTING,
                 ConnectionState.NOT_CONNECTED]:
@@ -127,6 +129,7 @@ class _SerialControllerBase(_ControllerBase):
                 ConnectionState.CONNECTING]:
             print("Disconnecting %s %s" % (self.label, self.serial_dev_name))
 
+        self.set_desired_connection_status(ConnectionState.NOT_CONNECTED)
         self.ready_for_data = False
 
         if self._serial is None:
@@ -178,7 +181,7 @@ class _SerialControllerBase(_ControllerBase):
         self.set_connection_status(ConnectionState.NOT_CONNECTED)
         self._serial = None
 
-        self.search_device("", None)
+        #self.search_device("", None)
 
     def _serial_write(self, data: bytes) -> bool:
         """ Send data to serial port. """
@@ -254,4 +257,3 @@ class _SerialControllerBase(_ControllerBase):
 
         if not self.ports:
             self.search_device("", None)
-
