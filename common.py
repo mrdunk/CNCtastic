@@ -37,10 +37,13 @@ def load_plugins(directory: str) -> Set[Any]:
 
     full_dir = os.path.join(BASEDIR, directory)
 
+    for finder, name, ispkg in pkgutil.iter_modules([full_dir]):
+        print(finder, name, ispkg)
+
     discovered_plugins = [
         importlib.import_module(directory + "." + name)
         for finder, name, ispkg in pkgutil.iter_modules([full_dir])
-        if not name.startswith('_')
+        if name and not name.startswith('_')
         ]
 
     for module in discovered_plugins:

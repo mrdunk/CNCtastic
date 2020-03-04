@@ -2,9 +2,15 @@
 
 from typing import List, Dict, Any
 from enum import Enum
+import sys
+import os 
 
+BASEDIR = os.path.dirname(os.path.abspath(sys.modules['__main__'].__file__))
+sys.path.insert(0, os.path.join(BASEDIR, "PySimpleGUI/PySimpleGUIQt/"))
 import PySimpleGUIQt as sg
 #import PySimpleGUIWeb as sg
+if hasattr(sg, "__version__"):
+    print("PySimpleGUIQt version: %s" % sg.__version__)
 
 from terminals._terminal_base import _TerminalBase, diff_dicts
 
