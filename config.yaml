@@ -1,0 +1,9 @@
+controllers:
+  debug:
+    type: DebugController
+  franken_machine:
+    type: Grbl1p1Controller
+    serial_port: /dev/ttyUSB0
+  test_grbl:
+    type: Grbl1p1Controller
+    serial_port: /tmp/ttyFAKE

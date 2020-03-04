@@ -29,6 +29,9 @@ def sort_gcode(block: Block) -> str:
         return_val += str(gcode) + " "
     return return_val
 
+#class Test:
+#    pass
+
 class Grbl1p1Controller(_SerialControllerBase):
     """ A plugin to support Grbl 1.1 controller hardware. """
 

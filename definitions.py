@@ -16,11 +16,12 @@ class ConnectionState(Enum):
     UNKNOWN = 0
     NOT_CONNECTED = 1
     MISSING_RESOURCE = 2
-    CONNECTING = 3
-    CONNECTED = 4
-    DISCONNECTING = 5
-    FAIL = 6
-    CLEANUP = 7
+    BLOCKED = 3
+    CONNECTING = 4
+    CONNECTED = 5
+    DISCONNECTING = 6
+    FAIL = 7
+    CLEANUP = 8
 
 # Mapping of modal groups to the individual gcode commands they contain.
 MODAL_GROUPS = {

@@ -5,6 +5,7 @@ import pkgutil
 import importlib
 import os
 import sys
+import inspect
 
 #from controllers import debug
 from component import _ComponentBase
@@ -13,17 +14,15 @@ BASEDIR = os.path.dirname(sys.argv[0])
 
 def get_component_from_module(module: Any) -> Iterator[_ComponentBase]:
     """ Yields plugin classes when provided with """
-    for thing_name in dir(module):
-        thing = getattr(module, thing_name)
-
+    for name, object_ in inspect.getmembers(module):
         is_valid_plugin = False
         try:
-            is_valid_plugin = getattr(thing, "is_valid_plugin")
+            is_valid_plugin = getattr(object_, "is_valid_plugin")
         except AttributeError:
             pass
         else:
             if is_valid_plugin:
-                yield thing
+                yield object_
 
 def load_plugins(directory: str) -> Set[Any]:
     """ Load plugins.
@@ -51,9 +50,10 @@ def load_plugins(directory: str) -> Set[Any]:
                 active_by_default: bool = True
                 if "active_by_default" in dir(thing):
                     active_by_default = getattr(thing, "active_by_default")
-
-                print("  type: %s\tname: %s\tactive_by_default: %s\t" %
-                      (thing.plugin_type, thing.get_classname(), active_by_default))
-                plugins.add((active_by_default, thing))
+                
+                if (active_by_default, thing) not in plugins:
+                    print("  type: %s\tname: %s\tactive_by_default: %s\t" %
+                          (thing.plugin_type, thing.get_classname(), active_by_default))
+                    plugins.add((active_by_default, thing))
 
     return plugins

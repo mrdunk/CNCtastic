@@ -3,7 +3,7 @@
 # overridden (abstract-method)
 """ Base class for hardware controllers that use a serial port to connect. """
 
-from typing import Optional, List
+from typing import Optional, List, Set
 try:
     from typing import Literal              # type: ignore
 except ImportError:
@@ -27,6 +27,8 @@ FAKE_SERIAL = "/tmp/ttyFAKE"
 
 class _SerialControllerBase(_ControllerBase):
     """ Base class for hardware controllers that use a serial port to connect. """
+
+    _serial_port_in_use: Set[str] = set()
 
     def __init__(self, label: str = "serialController") -> None:
         super().__init__(label)
@@ -101,6 +103,10 @@ class _SerialControllerBase(_ControllerBase):
                 ConnectionState.MISSING_RESOURCE]:
             return self.connection_status
 
+        if self.serial_dev_name in self._serial_port_in_use:
+            self.connection_status = ConnectionState.BLOCKED
+            return self.connection_status
+
         self.set_connection_status(ConnectionState.CONNECTING)
 
         try:
@@ -115,6 +121,7 @@ class _SerialControllerBase(_ControllerBase):
         except serial.serialutil.SerialException:
             self.set_connection_status(ConnectionState.MISSING_RESOURCE)
 
+        self._serial_port_in_use.add(self.serial_dev_name)
         return self.connection_status
 
     def disconnect(self) -> Literal[ConnectionState]:
@@ -179,8 +186,12 @@ class _SerialControllerBase(_ControllerBase):
 
         print("Serial disconnected.")
         self.set_connection_status(ConnectionState.NOT_CONNECTED)
+        self._serial_port_in_use.discard(self.serial_dev_name)
         self._serial = None
 
+        self.publish_one_by_value(self.key_gen("state"),
+                                  "Connection state: %s" %
+                                  self.connection_status.name)
         #self.search_device("", None)
 
     def _serial_write(self, data: bytes) -> bool:
@@ -224,13 +235,17 @@ class _SerialControllerBase(_ControllerBase):
                 self.on_connected()
 
             elif self.connection_status is ConnectionState.DISCONNECTING:
-                # Trying to diconnect.
+                # Trying to disconnect.
                 self.on_disconnected()
 
-            elif self.connection_status in [
-                    ConnectionState.FAIL, ConnectionState.MISSING_RESOURCE]:
+            elif self.connection_status in [ConnectionState.FAIL,
+                                            ConnectionState.MISSING_RESOURCE,
+                                            ConnectionState.BLOCKED]:
                 # A serial port error occurred either # while opening a serial port or
                 # on an already open port.
+                self.publish_one_by_value(self.key_gen("state"),
+                                          "Connection state: %s" %
+                                          self.connection_status.name)
                 self.set_desired_connection_status(ConnectionState.NOT_CONNECTED)
                 self.set_connection_status(ConnectionState.CLEANUP)
 

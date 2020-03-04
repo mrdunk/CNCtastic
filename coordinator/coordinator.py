@@ -5,6 +5,10 @@ subscribers. """
 
 from typing import List, Dict, Optional, Deque, Tuple, Any
 from collections import deque
+import sys
+from ruamel.yaml import YAML, YAMLError
+from pathlib import Path
+import pprint
 
 from component import _ComponentBase
 from terminals._terminal_base import _TerminalBase
@@ -19,7 +23,7 @@ class Coordinator(_ComponentBase):
     def __init__(self,
                  terminals: List[_TerminalBase],
                  interfaces: List[_InterfaceBase],
-                 controllers: List[_ControllerBase],
+                 controller_classes: List[_ControllerBase],
                  debug_show_events: bool = False) -> None:
         """
         Args:
@@ -32,20 +36,25 @@ class Coordinator(_ComponentBase):
                 {terminal.label:terminal for terminal in terminals}
         self.interfaces: Dict[str, _InterfaceBase] = \
                 {interface.label:interface for interface in interfaces}
-        self.controllers: Dict[str, _ControllerBase] = \
-                {controller.label:controller for controller in controllers}
+        self.controller_classes: Dict[str, _ControllerBase] = \
+                {controller.get_classname(): controller for controller in controller_classes}
+        self.controllers: Dict[str, _ControllerBase] = {}
         self.debug_show_events = debug_show_events
 
         self.active_controller: Optional[_ControllerBase] = None
+
+        self.config: Dict[Any] = {}
+        self._load_config("config.yaml")
+        self._setup_controllers()
 
         self.activate_controller()
 
         self.all_components: List[_ComponentBase] = [self]
         self.all_components += list(terminals)
         self.all_components += list(interfaces)
-        self.all_components += list(controllers)
+        self.all_components += list(self.controllers.values())
 
-        self.terminal_specific_setup()
+        self._terminal_specific_setup()
 
         self.running = True
 
@@ -53,9 +62,39 @@ class Coordinator(_ComponentBase):
         # Change which controller is active in response to event.
         for controller in self.controllers:
             self.event_subscriptions["%s:active" % controller] = (
-                "_active_controller_on_event", controller)
+                "_on_activate_controller", controller)
 
-    def terminal_specific_setup(self) -> None:
+    def _setup_controllers(self) -> None:
+        assert "DebugController" in self.controller_classes
+        instance = self.controller_classes["DebugController"]()
+        self.controllers[instance.label] = instance
+
+        if "controllers" not in self.config:
+            return
+
+        for label, controller in self.config["controllers"].items():
+            assert controller["type"] in self.controller_classes, \
+                   "Controller type '%s' specified in config file does not exist." \
+                   % controller["type"]
+            class_ = self.controller_classes[controller["type"]]
+            self.controllers[label] = class_(label)
+
+    def _load_config(self, filename: str) -> bool:
+        path = Path(filename)
+        yaml=YAML(typ='safe')
+        try:
+            self.config = yaml.load(path)
+        except YAMLError as error:
+            print("--------")
+            print("Problem in configuration file: %s" % error.problem_mark.name)
+            print("  line: %s  column: %s" % (error.problem_mark.line, error.problem_mark.column))
+            print("--------")
+            sys.exit(0)
+        
+        print("Config:")
+        pprint.pprint(self.config)
+
+    def _terminal_specific_setup(self) -> None:
         """ Do configuration that was not possible before all other components
         were instantiated. """
         # Gather GUI layouts from all components.
@@ -160,7 +199,7 @@ class Coordinator(_ComponentBase):
         self.active_controller = controller
         _only_one_active()
 
-    def _active_controller_on_event(self, event_name: str, event_value: bool) -> None:
+    def _on_activate_controller(self, event_name: str, event_value: bool) -> None:
         """ Make whichever controller has it's "active" property set the active
             one. """
 

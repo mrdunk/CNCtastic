@@ -28,7 +28,8 @@ def main() -> None:
     terminals: List[_TerminalBase] = \
         []
     controllers: List[_ControllerBase] = \
-        [controller() for active, controller in class_controllers if active]
+        [controller for active, controller in class_controllers if active]
+    # Instantiate the interfaces here.
     interfaces: List[_InterfaceBase] = \
         [interface() for active, interface in class_interfaces if active]
 

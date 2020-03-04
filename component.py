@@ -47,7 +47,7 @@ class _ComponentBase:
     @classmethod
     def get_classname(cls) -> str:
         """ Return class name. """
-        return cls.__name__
+        return cls.__qualname__
 
     def key_gen(self, tag: str) -> str:
         """ Return an event name prepended with the component name.
