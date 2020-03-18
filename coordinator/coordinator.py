@@ -42,17 +42,15 @@ class Coordinator(_ComponentBase):
         self.debug_show_events = debug_show_events
 
         self.active_controller: Optional[_ControllerBase] = None
-
         self.config: Dict[Any] = {}
-        self._load_config("config.yaml")
-        self._setup_controllers()
-
-        self.activate_controller()
-
+        
         self.all_components: List[_ComponentBase] = [self]
         self.all_components += list(terminals)
         self.all_components += list(interfaces)
-        self.all_components += list(self.controllers.values())
+        #self.all_components += list(self.controllers.values())
+
+        self._load_config("config.yaml")
+        self._setup_controllers()
 
         self._terminal_specific_setup()
 
@@ -65,19 +63,28 @@ class Coordinator(_ComponentBase):
                 "_on_activate_controller", controller)
 
     def _setup_controllers(self) -> None:
-        assert "DebugController" in self.controller_classes
-        instance = self.controller_classes["DebugController"]()
-        self.controllers[instance.label] = instance
+        self.controllers = {}
+        l = self.all_components
+        self.all_components = list(
+                filter(lambda i: isinstance(i, _ControllerBase),
+                       l))
 
-        if "controllers" not in self.config:
-            return
+        if "DebugController" in self.controller_classes:
+            instance = self.controller_classes["DebugController"]()
+            self.controllers[instance.label] = instance
+            self.all_components.append(instance)
 
-        for label, controller in self.config["controllers"].items():
-            assert controller["type"] in self.controller_classes, \
-                   "Controller type '%s' specified in config file does not exist." \
-                   % controller["type"]
-            class_ = self.controller_classes[controller["type"]]
-            self.controllers[label] = class_(label)
+        if "controllers" in self.config:
+            for label, controller in self.config["controllers"].items():
+                assert controller["type"] in self.controller_classes, \
+                    "Controller type '%s' specified in config file does not exist." \
+                    % controller["type"]
+                class_ = self.controller_classes[controller["type"]]
+                instance = class_(label)
+                self.controllers[label] = instance
+                self.all_components.append(instance)
+
+        self.activate_controller()
 
     def _load_config(self, filename: str) -> bool:
         path = Path(filename)

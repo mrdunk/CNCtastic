@@ -9,13 +9,13 @@ from math import log10, floor
 #import PySimpleGUIQt as sg
 from terminals.gui import sg
 
-from interfaces._interface_base import _InterfaceBase
+from interfaces._interface_movement_base import _InterfaceMovementBase
 
 def round_1_sf(number: float) -> float:
     """ Round a float to 1 significant figure. """
     return round(number, -int(floor(log10(abs(number)))))
 
-class JogWidget(_InterfaceBase):
+class JogWidget(_InterfaceMovementBase):
     """ Allows user to directly control various machine settings. eg: Jog the
     head to given coordinates. """
 

@@ -11,8 +11,11 @@ import PySimpleGUIQt as sg
 #import PySimpleGUIWeb as sg
 if hasattr(sg, "__version__"):
     print("PySimpleGUIQt version: %s" % sg.__version__)
+elif hasattr(sg, "version"):
+    print("PySimpleGUIQt version: %s" % sg.version)
 
 from terminals._terminal_base import _TerminalBase, diff_dicts
+from controllers._controller_base import _ControllerBase
 
 class Gui(_TerminalBase):
     """ Display GUI interface.
@@ -33,19 +36,37 @@ class Gui(_TerminalBase):
         self._diffvalues: Dict[str, Any] = {}
         self.description = "GUI interface."
         self.window: Any = None
+        self.config: Dict[Any] = {}
+        self.position = (0, 0)  # TODO: Make the window position persistent.
 
-    def setup(self, layouts: Dict[str, List[List[sg.Element]]]) -> None:  # type: ignore[override]
+        self._restarting: bool = True
+
+    def _controller_picker(self) -> List[List[List[sg.Element]]]:
+        output = [
+                [sg.Button("Restart", size=(8, 2), key=self.key_gen("restart"))],
+            ]
+        
+        return output
+
+    def setup(self,
+              layouts: Dict[str, List[List[sg.Element]]]) -> None:  # type: ignore[override]
         """ Since this component relies on data from many other components,
         we cannot do all the setup in __init__.
-        Call this once layout data exists. """
+        Call this once layout data exists.
+        
+        Args:
+            layouts: GUI layout widget data. Defines layout of various GUI screens. """
+
         if self._setup_done:
             print("WARNING: Attempting to run setup() more than once on %s" %
                   self.label)
             return
 
+        self.layouts = layouts
+
         sg.SetOptions(element_padding=(1, 1))
 
-        tabs = []
+        tabs = [sg.Tab("_controller_picker", self._controller_picker())]
         for label, layout in layouts.items():
             tabs.append(sg.Tab(label, layout))
 
@@ -58,14 +79,16 @@ class Gui(_TerminalBase):
                                 default_element_size=(4, 2),
                                 default_button_element_size=(4, 2),
                                 use_default_focus=False,
+                                location=self.position,
                                 )
-        self._setup_done = True
 
         # Subscribe to events matching GUI widget keys.
         for event in self.window.AllKeysDict:
             self.event_subscriptions[event] = None
-
-        #print(self.window.FindElement('canvas').TKCanvas)
+        self.event_subscriptions[self.key_gen("restart")] = ("_restart", None)
+        
+        self._setup_done = True
+        self._restarting = True
 
     def early_update(self) -> bool:  # type: ignore[override]
         """ To be called once per frame.
@@ -86,7 +109,9 @@ class Gui(_TerminalBase):
         # Combine events with the values. Put the event key in there with empty value.
         if not event == "__TIMEOUT__":
             key_value = None
-            if len(event) == 1 or event.startswith("special "):
+            if event == self.key_gen("restart"):
+                self._restart()
+            elif len(event) == 1 or event.startswith("special "):
                 # This is a key-press of a regular "qwerty" key.
                 key_value = event
                 event = "gui:keypress"
@@ -98,6 +123,13 @@ class Gui(_TerminalBase):
             print(event, self._diffvalues)
 
         return event not in (None, ) and not event.startswith("Exit")
+
+    def update(self) -> None:
+        super().update()
+
+        if self._restarting:
+            self._restarting = False
+            self.publish_one_by_value(self.key_gen("has_restarted"), True)
 
     def publish(self) -> None:  # pylint: disable=W0221  # Un-needed arguments.
         """ Publish all events listed in the self.events_to_publish collection. """
@@ -137,11 +169,18 @@ class Gui(_TerminalBase):
                     # PySimpleGUIQt.
                     pass
 
+    def _restart(self) -> None:
+        self.position = self.window.CurrentLocation()
+        print("restart", self.position)
+        self.close()
+        self.setup(self.layouts)
+
     def close(self) -> None:
         """ Close GUI window. """
         if not self._setup_done:
             return
 
+        self._setup_done = False
         self.window.close()
 
     def __del__(self) -> None:

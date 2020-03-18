@@ -8,9 +8,12 @@
 import unittest
 import loader  # pylint: disable=E0401,W0611
 from coordinator.coordinator import Coordinator
+from controllers.debug import DebugController
 from controllers.mock_controller import MockController
 from interfaces.jog import JogWidget
 from definitions import ConnectionState
+
+from controllers import debug
 
 
 
@@ -76,9 +79,15 @@ class TestCoordinator(unittest.TestCase):
     """ Coordinator interaction with components. """
 
     def setUp(self):
+        def coordinator_load_config(instance: Coordinator, filename: str) -> None:
+            """ Override Coordinator._load_config for test. """
+            instance.config =  {'controllers': {'mockController': {'type': 'MockController'}}}
+
+        Coordinator._load_config = coordinator_load_config
+
         self.mock_widget = JogWidget()
-        self.mock_controller = MockController()
-        self.coordinator = Coordinator([], [self.mock_widget], [self.mock_controller])
+        self.coordinator = Coordinator([], [self.mock_widget], [MockController])
+        self.mock_controller = self.coordinator.controllers["mockController"]
         self.coordinator.active_controller = self.mock_controller
         self.coordinator.active_controller.connect()
         self.coordinator.update_components()  # Push events to subscribed targets.
@@ -94,214 +103,268 @@ class TestCoordinator(unittest.TestCase):
         self.assertEqual(len(self.mock_controller._event_queue), 0)
         self.coordinator.close()
 
-    def test_collection_name_is_label(self):
-        """ The keys in the collections should match the component's label. """
-        self.mock_controller1 = MockController("debug")
-        self.mock_controller2 = MockController("owl")
-        self.coordinator = Coordinator([], [], [self.mock_controller1, self.mock_controller2])
+    def test_controller_create_from_config(self):
+        """ Instances created from the config should be added to various
+            collections. """
+        self.coordinator.config =  {"controllers": {
+            "debug": {"type": "MockController"},
+            "debug": {"type": "MockController"},
+        }}
+        self.coordinator._setup_controllers()
 
-        self.assertIn(self.mock_controller1.label, self.coordinator.controllers)
-        self.assertIn(self.mock_controller2.label, self.coordinator.controllers)
+        self.assertTrue(self.coordinator.controllers["debug"].active)
+        self.assertIs(self.coordinator.active_controller,
+                      self.coordinator.controllers["debug"])
+        self.assertIn("debug", self.coordinator.controllers)
+        self.assertIn(self.coordinator.controllers["debug"],
+                      self.coordinator.all_components)
+        self.assertEqual(self.coordinator.all_components.count(
+            self.coordinator.controllers["debug"]), 1)
 
     def test_activate_controller_tiebreaker(self):
         """ The "debug" controller gets enabled if no others are eligible. """
-        self.mock_controller1 = MockController("owl")
-        self.mock_controller2 = MockController("tiger")
-        self.mock_controller3 = MockController("debug")
-        self.mock_controller1.active = False
-        self.mock_controller2.active = False
-        self.mock_controller3.active = False
-        self.coordinator = Coordinator(
-            [], [], [self.mock_controller1, self.mock_controller2, self.mock_controller3])
+        self.coordinator.config =  {"controllers": {
+            "owl": {"type": "MockController"},
+            "tiger": {"type": "MockController"},
+            "debug": {"type": "MockController"},
+        }}
+        self.coordinator._setup_controllers()
 
-        self.assertFalse(self.mock_controller1.active)
-        self.assertFalse(self.mock_controller2.active)
-        self.assertTrue(self.mock_controller3.active)
-        self.assertIs(self.coordinator.active_controller, self.mock_controller3)
+        self.assertFalse(self.coordinator.controllers["owl"].active)
+        self.assertFalse(self.coordinator.controllers["tiger"].active)
+        self.assertTrue(self.coordinator.controllers["debug"].active)
+        self.assertIs(self.coordinator.active_controller,
+                      self.coordinator.controllers["debug"])
+
+    def test_debug_controller_autocreate(self):
+        """ Automatically create "debug" controller if DebugController class
+            exists. """
+        self.coordinator.config =  {"controllers": {
+            "owl": {"type": "MockController"},
+            "tiger": {"type": "MockController"},
+        }}
+        self.coordinator.controller_classes["DebugController"] = DebugController
+        self.coordinator._setup_controllers()
+
+        self.assertFalse(self.coordinator.controllers["owl"].active)
+        self.assertFalse(self.coordinator.controllers["tiger"].active)
+        self.assertTrue(self.coordinator.controllers["debug"].active)
+        self.assertIs(self.coordinator.active_controller,
+                      self.coordinator.controllers["debug"])
 
     def test_activate_controller_active_flag(self):
         """ The first controller with it's "active" flag set gets enabled. """
-        self.mock_controller1 = MockController("owl")
-        self.mock_controller2 = MockController("tiger")
-        self.mock_controller3 = MockController("debug")
-        self.mock_controller1.active = False
-        self.mock_controller2.active = True
-        self.mock_controller3.active = False
-        self.coordinator = Coordinator(
-            [], [], [self.mock_controller1, self.mock_controller2, self.mock_controller3])
+        self.coordinator.config =  {"controllers": {
+            "owl": {"type": "MockController"},
+            "tiger": {"type": "MockController"},
+            "debug": {"type": "MockController"},
+        }}
+        self.coordinator._setup_controllers()
+        self.coordinator.controllers["owl"].active = False
+        self.coordinator.controllers["tiger"].active = True
+        self.coordinator.controllers["debug"].active = False
+        self.coordinator.activate_controller()
 
-        self.assertFalse(self.mock_controller1.active)
-        self.assertTrue(self.mock_controller2.active)
-        self.assertFalse(self.mock_controller3.active)
-        self.assertIs(self.coordinator.active_controller, self.mock_controller2)
+        self.assertFalse(self.coordinator.controllers["owl"].active)
+        self.assertTrue(self.coordinator.controllers["tiger"].active)
+        self.assertFalse(self.coordinator.controllers["debug"].active)
+        self.assertIs(self.coordinator.active_controller,
+                      self.coordinator.controllers["tiger"])
 
     def test_activate_controller_multi_active_flag(self):
         """ The first controller with it's "active" flag set gets enabled. """
-        self.mock_controller1 = MockController("owl")
-        self.mock_controller2 = MockController("tiger")
-        self.mock_controller3 = MockController("debug")
-        self.mock_controller1.active = True
-        self.mock_controller2.active = True
-        self.mock_controller3.active = False
-        self.coordinator = Coordinator(
-            [], [], [self.mock_controller1, self.mock_controller2, self.mock_controller3])
+        self.coordinator.config =  {"controllers": {
+            "owl": {"type": "MockController"},
+            "tiger": {"type": "MockController"},
+            "debug": {"type": "MockController"},
+        }}
+        self.coordinator._setup_controllers()
+        self.coordinator.controllers["owl"].active = True
+        self.coordinator.controllers["tiger"].active = True
+        self.coordinator.controllers["debug"].active = False
+        self.coordinator.activate_controller()
 
-        self.assertTrue(self.mock_controller1.active)
-        self.assertFalse(self.mock_controller2.active)
-        self.assertFalse(self.mock_controller3.active)
-        self.assertIs(self.coordinator.active_controller, self.mock_controller1)
+        self.assertTrue(self.coordinator.controllers["owl"].active)
+        self.assertFalse(self.coordinator.controllers["tiger"].active)
+        self.assertFalse(self.coordinator.controllers["debug"].active)
+        self.assertIs(self.coordinator.active_controller,
+                      self.coordinator.controllers["owl"])
 
     def test_activate_controller_prefer_not_debug(self):
         """ The first controller with it's "active" flag set gets enabled but
         prefer one that isn't the debug one."""
-        self.mock_controller1 = MockController("debug")
-        self.mock_controller2 = MockController("owl")
-        self.mock_controller3 = MockController("tiger")
-        self.mock_controller1.active = True
-        self.mock_controller2.active = False
-        self.mock_controller3.active = True
-        self.coordinator = Coordinator(
-            [], [], [self.mock_controller1, self.mock_controller2, self.mock_controller3])
+        self.coordinator.config =  {"controllers": {
+            "owl": {"type": "MockController"},
+            "tiger": {"type": "MockController"},
+            "debug": {"type": "MockController"},
+        }}
+        self.coordinator._setup_controllers()
+        self.coordinator.controllers["debug"].active = True
+        self.coordinator.controllers["tiger"].active = False
+        self.coordinator.controllers["owl"].active = True
+        self.coordinator.activate_controller()
 
-        # Not the first active in the list..
-        self.assertFalse(self.mock_controller1.active)
-        self.assertFalse(self.mock_controller2.active)
-        self.assertTrue(self.mock_controller3.active)
-        self.assertIs(self.coordinator.active_controller, self.mock_controller3)
+        self.assertFalse(self.coordinator.controllers["tiger"].active)
+        self.assertFalse(self.coordinator.controllers["debug"].active)
+        self.assertTrue(self.coordinator.controllers["owl"].active)
+        self.assertIs(self.coordinator.active_controller,
+                      self.coordinator.controllers["owl"])
 
     def test_activate_controller_add_later(self):
         """ Add a new controller later. """
-        self.mock_controller1 = MockController("owl")
-        self.mock_controller2 = MockController("tiger")
-        self.mock_controller3 = MockController("debug")
-        self.mock_controller1.active = True
-        self.mock_controller2.active = False
-        self.mock_controller3.active = False
-        self.coordinator = Coordinator(
-            [], [], [self.mock_controller1, self.mock_controller2, self.mock_controller3])
+        self.coordinator.config =  {"controllers": {
+            "owl": {"type": "MockController"},
+            "tiger": {"type": "MockController"},
+            "debug": {"type": "MockController"},
+        }}
+        self.coordinator._setup_controllers()
+        self.coordinator.controllers["owl"].active = False
+        self.coordinator.controllers["tiger"].active = True
+        self.coordinator.controllers["debug"].active = False
+        self.coordinator.activate_controller()
 
-        # Auto chose the active one.
-        self.assertTrue(self.mock_controller1.active)
-        self.assertFalse(self.mock_controller2.active)
-        self.assertFalse(self.mock_controller3.active)
-        self.assertIs(self.coordinator.active_controller, self.mock_controller1)
+        self.assertFalse(self.coordinator.controllers["owl"].active)
+        self.assertTrue(self.coordinator.controllers["tiger"].active)
+        self.assertFalse(self.coordinator.controllers["debug"].active)
+        self.assertIs(self.coordinator.active_controller,
+                      self.coordinator.controllers["tiger"])
 
         self.mock_controller4 = MockController("KingKong")
         self.mock_controller4.active = False
         self.coordinator.activate_controller(controller=self.mock_controller4)
 
         # The new one is now added and active.
-        self.assertFalse(self.mock_controller1.active)
-        self.assertFalse(self.mock_controller2.active)
-        self.assertFalse(self.mock_controller3.active)
-        self.assertTrue(self.mock_controller4.active)
-        self.assertIn(self.mock_controller4.label, self.coordinator.controllers)
-        self.assertIn(self.mock_controller4, self.coordinator.all_components)
-        self.assertEqual(self.coordinator.all_components.count(self.mock_controller4), 1)
-        self.assertIs(self.coordinator.active_controller, self.mock_controller4)
+        self.assertFalse(self.coordinator.controllers["owl"].active)
+        self.assertFalse(self.coordinator.controllers["tiger"].active)
+        self.assertFalse(self.coordinator.controllers["debug"].active)
+        self.assertTrue(self.coordinator.controllers["KingKong"].active)
+        self.assertIn("KingKong", self.coordinator.controllers)
+        self.assertIn(self.coordinator.controllers["KingKong"],
+                      self.coordinator.all_components)
+        self.assertEqual(self.coordinator.all_components.count(
+            self.coordinator.controllers["KingKong"]), 1)
+        self.assertIs(self.coordinator.active_controller,
+                      self.coordinator.controllers["KingKong"])
 
     def test_activate_controller_by_instance(self):
         """ Enable a controller specified by instance. """
-        self.mock_controller1 = MockController("owl")
-        self.mock_controller2 = MockController("tiger")
-        self.mock_controller3 = MockController("debug")
-        self.mock_controller1.active = True
-        self.mock_controller2.active = False
-        self.mock_controller3.active = False
-        self.coordinator = Coordinator(
-            [], [], [self.mock_controller1, self.mock_controller2, self.mock_controller3])
+        self.coordinator.config =  {"controllers": {
+            "owl": {"type": "MockController"},
+            "tiger": {"type": "MockController"},
+            "debug": {"type": "MockController"},
+        }}
+        self.coordinator._setup_controllers()
+        self.coordinator.controllers["owl"].active = False
+        self.coordinator.controllers["tiger"].active = True
+        self.coordinator.controllers["debug"].active = False
+        self.coordinator.activate_controller()
 
-        # Auto chose the active one.
-        self.assertTrue(self.mock_controller1.active)
-        self.assertFalse(self.mock_controller2.active)
-        self.assertFalse(self.mock_controller3.active)
-        self.assertIs(self.coordinator.active_controller, self.mock_controller1)
+        self.assertFalse(self.coordinator.controllers["owl"].active)
+        self.assertTrue(self.coordinator.controllers["tiger"].active)
+        self.assertFalse(self.coordinator.controllers["debug"].active)
+        self.assertIs(self.coordinator.active_controller,
+                      self.coordinator.controllers["tiger"])
 
-        self.coordinator.activate_controller(controller=self.mock_controller2)
+        # Specify a new active controller.
+        self.coordinator.activate_controller(controller=self.coordinator.controllers["owl"])
 
         # The specified one is now active.
-        self.assertFalse(self.mock_controller1.active)
-        self.assertTrue(self.mock_controller2.active)
-        self.assertFalse(self.mock_controller3.active)
-        self.assertIn(self.mock_controller2.label, self.coordinator.controllers)
-        self.assertIs(self.coordinator.active_controller, self.mock_controller2)
-        self.assertEqual(self.coordinator.all_components.count(self.mock_controller2), 1)
+        self.assertTrue(self.coordinator.controllers["owl"].active)
+        self.assertFalse(self.coordinator.controllers["tiger"].active)
+        self.assertFalse(self.coordinator.controllers["debug"].active)
+        self.assertEqual(self.coordinator.all_components.count(
+            self.coordinator.controllers["owl"]), 1)
+        self.assertIs(self.coordinator.active_controller,
+                      self.coordinator.controllers["owl"])
 
     def test_activate_controller_by_label(self):
         """ The controller with the specified label gets enabled. """
-        self.mock_controller1 = MockController("owl")
-        self.mock_controller2 = MockController("tiger")
-        self.mock_controller3 = MockController("debug")
-        self.mock_controller1.active = True
-        self.mock_controller2.active = False
-        self.mock_controller3.active = False
-        self.coordinator = Coordinator(
-            [], [], [self.mock_controller1, self.mock_controller2, self.mock_controller3])
+        self.coordinator.config =  {"controllers": {
+            "owl": {"type": "MockController"},
+            "tiger": {"type": "MockController"},
+            "debug": {"type": "MockController"},
+        }}
+        self.coordinator._setup_controllers()
+        self.coordinator.controllers["owl"].active = False
+        self.coordinator.controllers["tiger"].active = True
+        self.coordinator.controllers["debug"].active = False
+        self.coordinator.activate_controller()
 
-        # Auto chose the active one.
-        self.assertTrue(self.mock_controller1.active)
-        self.assertIs(self.coordinator.active_controller, self.mock_controller1)
+        self.assertFalse(self.coordinator.controllers["owl"].active)
+        self.assertTrue(self.coordinator.controllers["tiger"].active)
+        self.assertFalse(self.coordinator.controllers["debug"].active)
+        self.assertIs(self.coordinator.active_controller,
+                      self.coordinator.controllers["tiger"])
 
-        self.coordinator.activate_controller(label="debug")
+        # Specify a new active controller.
+        self.coordinator.activate_controller(label="owl")
 
         # The specified one is now active.
-        self.assertFalse(self.mock_controller1.active)
-        self.assertFalse(self.mock_controller2.active)
-        self.assertTrue(self.mock_controller3.active)
-        self.assertIn(self.mock_controller3.label, self.coordinator.controllers)
-        self.assertIs(self.coordinator.active_controller, self.mock_controller3)
+        self.assertTrue(self.coordinator.controllers["owl"].active)
+        self.assertFalse(self.coordinator.controllers["tiger"].active)
+        self.assertFalse(self.coordinator.controllers["debug"].active)
+        self.assertEqual(self.coordinator.all_components.count(
+            self.coordinator.controllers["owl"]), 1)
+        self.assertIs(self.coordinator.active_controller,
+                      self.coordinator.controllers["owl"])
 
     def test_activate_controller_on_event_set(self):
-        """ The "_active_controller_on_event" event handler changes active controller. """
-        self.mock_controller1 = MockController("owl")
-        self.mock_controller2 = MockController("tiger")
-        self.mock_controller3 = MockController("debug")
-        self.mock_controller1.active = False
-        self.mock_controller2.active = False
-        self.mock_controller3.active = False
-        self.coordinator = Coordinator(
-            [], [], [self.mock_controller1, self.mock_controller2, self.mock_controller3])
+        """ The "_on_activate_controller" event handler changes active controller. """
+        self.coordinator.config =  {"controllers": {
+            "owl": {"type": "MockController"},
+            "tiger": {"type": "MockController"},
+            "debug": {"type": "MockController"},
+        }}
+        self.coordinator._setup_controllers()
+        self.coordinator.controllers["owl"].active = False
+        self.coordinator.controllers["tiger"].active = True
+        self.coordinator.controllers["debug"].active = False
+        self.coordinator.activate_controller()
 
-        # Default startup has "debug" controller active.
-        self.assertFalse(self.mock_controller1.active)
-        self.assertFalse(self.mock_controller2.active)
-        self.assertTrue(self.mock_controller3.active)
-        self.assertIs(self.coordinator.active_controller, self.mock_controller3)
+        self.assertFalse(self.coordinator.controllers["owl"].active)
+        self.assertTrue(self.coordinator.controllers["tiger"].active)
+        self.assertFalse(self.coordinator.controllers["debug"].active)
+        self.assertIs(self.coordinator.active_controller,
+                      self.coordinator.controllers["tiger"])
 
-        # "_active_controller_on_event" changes the default controller.
-        self.coordinator._active_controller_on_event("tiger:active", True)
+        # "_on_activate_controller" changes the default controller.
+        self.coordinator._on_activate_controller("owl:active", True)
 
-        self.assertFalse(self.mock_controller1.active)
-        self.assertTrue(self.mock_controller2.active)
-        self.assertFalse(self.mock_controller3.active)
-        self.assertIs(self.coordinator.active_controller, self.mock_controller2)
+        self.assertTrue(self.coordinator.controllers["owl"].active)
+        self.assertFalse(self.coordinator.controllers["tiger"].active)
+        self.assertFalse(self.coordinator.controllers["debug"].active)
+        self.assertIs(self.coordinator.active_controller,
+                      self.coordinator.controllers["owl"])
 
     def test_activate_controller_on_event_unset(self):
-        """ The "_active_controller_on_event" event handler un-sets active controller,
+        """ The "_on_activate_controller" event handler un-sets active controller,
         returning it to "debug". """
-        self.mock_controller1 = MockController("owl")
-        self.mock_controller2 = MockController("tiger")
-        self.mock_controller3 = MockController("debug")
-        self.mock_controller1.active = False
-        self.mock_controller2.active = True
-        self.mock_controller3.active = False
-        self.coordinator = Coordinator(
-            [], [], [self.mock_controller1, self.mock_controller2, self.mock_controller3])
+        self.coordinator.config =  {"controllers": {
+            "owl": {"type": "MockController"},
+            "tiger": {"type": "MockController"},
+            "debug": {"type": "MockController"},
+        }}
+        self.coordinator._setup_controllers()
+        self.coordinator.controllers["owl"].active = False
+        self.coordinator.controllers["tiger"].active = True
+        self.coordinator.controllers["debug"].active = False
+        self.coordinator.activate_controller()
 
-        # Default startup has "debug" controller active.
-        self.assertFalse(self.mock_controller1.active)
-        self.assertTrue(self.mock_controller2.active)
-        self.assertFalse(self.mock_controller3.active)
-        self.assertIs(self.coordinator.active_controller, self.mock_controller2)
+        self.assertFalse(self.coordinator.controllers["owl"].active)
+        self.assertTrue(self.coordinator.controllers["tiger"].active)
+        self.assertFalse(self.coordinator.controllers["debug"].active)
+        self.assertIs(self.coordinator.active_controller,
+                      self.coordinator.controllers["tiger"])
 
-        # "_active_controller_on_event" un-sets the currently active.
+        # "_on_activate_controller" un-sets the currently active.
         # The default controller ("debug") will be made the active.
-        self.coordinator._active_controller_on_event("tiger:active", False)
+        self.coordinator._on_activate_controller("tiger:active", False)
 
-        self.assertFalse(self.mock_controller1.active)
-        self.assertFalse(self.mock_controller2.active)
-        self.assertTrue(self.mock_controller3.active)
-        self.assertIs(self.coordinator.active_controller, self.mock_controller3)
+        self.assertFalse(self.coordinator.controllers["owl"].active)
+        self.assertFalse(self.coordinator.controllers["tiger"].active)
+        self.assertTrue(self.coordinator.controllers["debug"].active)
+        self.assertIs(self.coordinator.active_controller,
+                      self.coordinator.controllers["debug"])
 
     def test_push_from_interface_to_controller(self):
         """ Data pushed as an event is processed by the controller. """
@@ -395,12 +458,13 @@ class TestCoordinator(unittest.TestCase):
 
     def test_component_names_match(self):
         """ Coordinator stores components keyed by their label. """
-        self.mock_controller1 = MockController("owl")
-        self.mock_controller2 = MockController("tiger")
-        self.coordinator = Coordinator(
-            [], [], [self.mock_controller1, self.mock_controller2])
+        self.coordinator.config =  {'controllers': {
+            'owl': {'type': 'MockController'},
+            'tiger': {'type': 'MockController'},
+        }}
+        self.coordinator._setup_controllers()
 
-        self.assertIn(self.mock_controller1.label, self.coordinator.controllers)
+        self.assertSetEqual(set(["owl", "tiger"]), set(self.coordinator.controllers.keys()))
 
 
 class TestEvents(unittest.TestCase):

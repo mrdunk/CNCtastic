@@ -159,7 +159,7 @@ class Geometry:
                rotate: Tuple[float, float, float],
                center: Tuple[float, float, float]
                ) -> None:
-        """ Draw/redraw any nodes and edges that hab=ve been added since last update. """
+        """ Draw/redraw any nodes and edges that have been added since last update. """
         color: Optional[str]
         if len(self.nodes) > len(self.display_nodes):
             update_nodes_from = len(self.display_nodes)
@@ -237,6 +237,8 @@ class CanvasWidget(_InterfaceBase):
         self.event_subscriptions = {
             "active_controller:machine_pos": ("_machine_pos_handler", None),
             "gui:keypress": ("_keypress_handler", None),
+            "gui:restart": ("redraw", None),
+            "gui:has_restarted": ("redraw", None),
             }
 
     def _machine_pos_handler(self, pos: Dict[str, float]) -> None:
@@ -311,7 +313,7 @@ class CanvasWidget(_InterfaceBase):
                 -(combined_minimums[1] + combined_maximums[1]) / 2,
                 -(combined_minimums[2] + combined_maximums[2]) / 2)
 
-    def redraw(self) -> None:
+    def redraw(self, *unused) -> None:
         """ Redraw all geometry to screen. """
         for structure in self.structures.values():
             structure.redraw()

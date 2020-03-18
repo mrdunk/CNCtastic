@@ -4,6 +4,7 @@
 from typing import Dict, Any
 
 from component import _ComponentBase
+from controllers._controller_base import _ControllerBase
 
 
 def diff_dicts(original: Dict[str, Any], new: Dict[str, Any]) -> Dict[str, Any]:

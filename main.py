@@ -65,6 +65,7 @@ def main() -> None:
     # Populate and start the coordinator.
     coordinator = Coordinator(terminals, interfaces, controllers, args.debug_show_events)
 
+    # Main program loop.
     while True:
         if not coordinator.update_components():
             break

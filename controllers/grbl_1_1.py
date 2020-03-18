@@ -3,7 +3,7 @@
 
 """ A plugin to support Grbl 1.1 controller hardware. """
 
-from typing import List, Any, Optional, Deque, Tuple
+from typing import List, Any, Optional, Deque, Tuple, Dict
 
 import time
 from queue import Queue, Empty
@@ -110,6 +110,35 @@ class Grbl1p1Controller(_SerialControllerBase):
             if slow_command in command:
                 return True
         return False
+
+    """@classmethod
+    def gui_layout_status(cls) -> List[List[sg.Element]]:
+        return [[]]
+
+    @classmethod
+    def gui_layout_config(cls) -> List[List[sg.Element]]:
+        return [
+            [sg.Text("Title:", size=(20, 1)),
+             sg.Text("#Grbl1p1Controller", key="#Grbl1p1Controller:label", size=(20, 1)),
+             sg.Checkbox("Active", key="#Grbl1p1Controller:active")],
+            #device_picker,
+            [sg.Text("Connection state:", size=(20, 1)),
+             sg.Text(size=(18, 1), key="#Grbl1p1Controller:connection_status")],
+            [sg.Text("Desired:", size=(20, 1)),
+             sg.Text(size=(18, 1), key="#Grbl1p1Controller:desired_connection_status")],
+            [sg.Multiline(default_text="Machine state", size=(60, 10),
+                          key="#Grbl1p1Controller:state",
+                          autoscroll=True, disabled=True)],
+            [sg.Button('Connect', key="#Grbl1p1Controller:connect", size=(10, 1), pad=(2, 2)),
+             sg.Button('Disconnect', key="#Grbl1p1Controller:disconnect",
+                       size=(10, 1), pad=(2, 2)), sg.Exit(size=(10, 1), pad=(2, 2))
+             ],
+        ]
+
+    @classmethod
+    def gui_layout_2(cls) -> Dict[str, List[List[sg.Element]]]:
+        return {"status": cls.gui_layout_status(),
+                "config": cls.gui_layout_config()}"""
 
     def gui_layout(self) -> List[List[sg.Element]]:
         """ Layout information for the PySimpleGUI interface. """

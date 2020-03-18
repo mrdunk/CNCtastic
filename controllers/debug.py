@@ -3,7 +3,7 @@
 
 """ A controller for use when testing which mimics an actual hardware controller. """
 
-from typing import List, Callable, Any, Deque, Tuple
+from typing import List, Callable, Any, Deque, Tuple, Dict
 try:
     from typing import Literal              # type: ignore
 except ImportError:
@@ -63,6 +63,33 @@ class DebugController(_ControllerBase):
 
         # Allow replacing with a mock version when testing.
         self._time: Any = time
+
+    """@classmethod
+    def gui_layout_status(cls) -> List[List[sg.Element]]:
+        return [[]]
+
+    @classmethod
+    def gui_layout_config(cls) -> List[List[sg.Element]]:
+        return [
+            [sg.Text("Title:", size=(20, 1)),
+             sg.Text("#Debug", key="#Debug:label", size=(20, 1)),
+             sg.Checkbox("Active", key="#Debug:active")],
+            [sg.Text("Connection state:", size=(20, 1)),
+             sg.Text(size=(18, 1), key="#Debug:connection_status")],
+            [sg.Text("Desired:", size=(20, 1)),
+             sg.Text(size=(18, 1), key="#Debug:desired_connection_status")],
+            [sg.Multiline(default_text="gcode", size=(60, 10), key="#Debug:gcode",
+                          autoscroll=True, disabled=True)],
+            [sg.Button('Connect', key="#Debug:connect", size=(10, 1), pad=(2, 2)),
+             sg.Button('Disconnect', key="#Debug:disconnect", size=(10, 1), pad=(2, 2)),
+             sg.Exit(size=(10, 1), pad=(2, 2))
+             ],
+        ]
+
+    @classmethod
+    def gui_layout_2(cls) -> Dict[str, List[List[sg.Element]]]:
+        return {"status": cls.gui_layout_status(),
+                "config": cls.gui_layout_config()}"""
 
     def gui_layout(self) -> List[List[sg.Element]]:
         """ Layout information for the PySimpleGUI interface. """
