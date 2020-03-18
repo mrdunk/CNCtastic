@@ -3,7 +3,7 @@
 
 """ A controller for use when testing which mimics an actual hardware controller. """
 
-from typing import List, Callable, Any, Deque, Tuple, Dict
+from typing import List, Callable, Any, Deque, Tuple
 try:
     from typing import Literal              # type: ignore
 except ImportError:

@@ -64,10 +64,9 @@ class Coordinator(_ComponentBase):
 
     def _setup_controllers(self) -> None:
         self.controllers = {}
-        l = self.all_components
         self.all_components = list(
-                filter(lambda i: isinstance(i, _ControllerBase),
-                       l))
+                filter(lambda i: isinstance(i, _ControllerBase) is False,
+                       self.all_components))
 
         if "DebugController" in self.controller_classes:
             instance = self.controller_classes["DebugController"]()

@@ -9,10 +9,10 @@ try:
 except ImportError:
     from typing_extensions import Literal   # type: ignore
 
+import os.path
 import threading
 import serial
 import serial.tools.list_ports
-import os.path
 
 #import PySimpleGUIQt as sg
 from terminals.gui import sg
@@ -41,8 +41,10 @@ class _SerialControllerBase(_ControllerBase):
         self.event_subscriptions[self.key_gen("device_picker")] = ("set_device", None)
         self.event_subscriptions[self.key_gen("device_scan")] = ("search_device", None)
         self.ports: List[str] = []
+        self.device_picker: sg.Combo = None
 
     def gui_layout(self) -> List[List[sg.Element]]:
+        """ GUI layout common to all derived classes. """
         self.device_picker = sg.Combo(values=["to_populate"],
                                       size=(25, 1),
                                       key=self.key_gen("device_picker"),
@@ -57,12 +59,12 @@ class _SerialControllerBase(_ControllerBase):
         #self.search_device("", None)
 
         return [
-                self.device_picker,
-                device_scan,
-                ]
+            self.device_picker,
+            device_scan,
+        ]
 
     def set_device(self, device) -> None:
-        print("set_device", device)
+        """ Set serial port. """
         if not device:
             return
 
@@ -71,9 +73,8 @@ class _SerialControllerBase(_ControllerBase):
 
         self.serial_dev_name = device
 
-    def search_device(self, event: str, unused: None) -> None:
-        print("search_device", event)
-        
+    def search_device(self, _: str, __: None) -> None:
+        """ Search system for serial ports. """
         self.ports = [x.device for x in serial.tools.list_ports.comports() \
                   if x.vid is not None \
                   and  x.pid is not None \
@@ -85,7 +86,7 @@ class _SerialControllerBase(_ControllerBase):
         if not self.ports:
             self.ports.append("No serial ports autodetected")
 
-        print("Found ports {}".format(self.ports))
+        # print("Found ports {}".format(self.ports))
 
         if not self.serial_dev_name:
             self.serial_dev_name = self.ports[0]
@@ -96,7 +97,7 @@ class _SerialControllerBase(_ControllerBase):
 
     def connect(self) -> Literal[ConnectionState]:
         """ Try to open serial port. Set connection_status to CONNECTING. """
-        print("connect")
+        # print("connect")
         if self.connection_status in [
                 ConnectionState.CONNECTING,
                 ConnectionState.CONNECTED,

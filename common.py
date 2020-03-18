@@ -1,6 +1,6 @@
 """ Misc library methods. """
 
-from typing import List, Any, Set, Iterator
+from typing import Any, Set, Iterator
 import pkgutil
 import importlib
 import os
@@ -14,7 +14,7 @@ BASEDIR = os.path.dirname(sys.argv[0])
 
 def get_component_from_module(module: Any) -> Iterator[_ComponentBase]:
     """ Yields plugin classes when provided with """
-    for name, object_ in inspect.getmembers(module):
+    for _, object_ in inspect.getmembers(module):
         is_valid_plugin = False
         try:
             is_valid_plugin = getattr(object_, "is_valid_plugin")
@@ -49,11 +49,11 @@ def load_plugins(directory: str) -> Set[Any]:
     for module in discovered_plugins:
         for thing in get_component_from_module(module):
             if(isinstance(thing.plugin_type, str) and
-                    directory.startswith(thing.plugin_type)):
+               directory.startswith(thing.plugin_type)):
                 active_by_default: bool = True
                 if "active_by_default" in dir(thing):
                     active_by_default = getattr(thing, "active_by_default")
-                
+
                 if (active_by_default, thing) not in plugins:
                     print("  type: %s\tname: %s\tactive_by_default: %s\t" %
                           (thing.plugin_type, thing.get_classname(), active_by_default))
