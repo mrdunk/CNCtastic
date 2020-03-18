@@ -6,7 +6,7 @@ Uses plugins for different hardware controller types. (Eg, Grbl, etc.)
 Uses plugins for different operating modes. (Eg. Jog, run GCode file, etc.)
 """
 
-from typing import List
+from typing import List, Type
 import argparse
 
 import common
@@ -27,7 +27,7 @@ def main() -> None:
     # Component plugin instances.
     terminals: List[_TerminalBase] = \
         []
-    controllers: List[_ControllerBase] = \
+    controllers: List[Type[_ControllerBase]] = \
         [controller for active, controller in class_controllers if active]
     # Instantiate the interfaces here.
     interfaces: List[_InterfaceBase] = \

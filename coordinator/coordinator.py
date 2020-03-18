@@ -3,10 +3,10 @@ Coordinator polls all components for published events and delivers them to
 subscribers. """
 
 
-from typing import List, Dict, Optional, Deque, Tuple, Any
+from typing import List, Dict, Optional, Deque, Tuple, Any, Type
 from collections import deque
 import sys
-from ruamel.yaml import YAML, YAMLError
+from ruamel.yaml import YAML, YAMLError  # type: ignore
 from pathlib import Path
 import pprint
 
@@ -23,7 +23,7 @@ class Coordinator(_ComponentBase):
     def __init__(self,
                  terminals: List[_TerminalBase],
                  interfaces: List[_InterfaceBase],
-                 controller_classes: List[_ControllerBase],
+                 controller_classes: List[Type[_ControllerBase]],
                  debug_show_events: bool = False) -> None:
         """
         Args:
@@ -36,13 +36,13 @@ class Coordinator(_ComponentBase):
                 {terminal.label:terminal for terminal in terminals}
         self.interfaces: Dict[str, _InterfaceBase] = \
                 {interface.label:interface for interface in interfaces}
-        self.controller_classes: Dict[str, _ControllerBase] = \
+        self.controller_classes: Dict[str, Type[_ControllerBase]] = \
                 {controller.get_classname(): controller for controller in controller_classes}
         self.controllers: Dict[str, _ControllerBase] = {}
         self.debug_show_events = debug_show_events
 
         self.active_controller: Optional[_ControllerBase] = None
-        self.config: Dict[Any] = {}
+        self.config: Dict[str, Any] = {}
         
         self.all_components: List[_ComponentBase] = [self]
         self.all_components += list(terminals)
@@ -69,7 +69,7 @@ class Coordinator(_ComponentBase):
                        self.all_components))
 
         if "DebugController" in self.controller_classes:
-            instance = self.controller_classes["DebugController"]()
+            instance = self.controller_classes["DebugController"]("debug")
             self.controllers[instance.label] = instance
             self.all_components.append(instance)
 
@@ -85,7 +85,7 @@ class Coordinator(_ComponentBase):
 
         self.activate_controller()
 
-    def _load_config(self, filename: str) -> bool:
+    def _load_config(self, filename: str) -> None:
         path = Path(filename)
         yaml=YAML(typ='safe')
         try:

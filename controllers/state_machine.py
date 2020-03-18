@@ -41,7 +41,7 @@ class StateMachineBase:
         ]
 
     # Cheaper than global lookups
-    MODAL_GROUPS: Dict[str, Dict[str, Any]] = MODAL_GROUPS
+    MODAL_GROUPS: Dict[str, Any] = MODAL_GROUPS
     MODAL_COMMANDS = MODAL_COMMANDS
 
     def __init__(self, on_update_callback: Callable[[str, Any], None]) -> None:

@@ -1,6 +1,6 @@
 """ Plugin to provide GUI using PySimpleGUI. """
 
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 from enum import Enum
 import sys
 import os 
@@ -36,7 +36,7 @@ class Gui(_TerminalBase):
         self._diffvalues: Dict[str, Any] = {}
         self.description = "GUI interface."
         self.window: Any = None
-        self.config: Dict[Any] = {}
+        self.config: Dict[str, Any] = {}
         self.position = (0, 0)  # TODO: Make the window position persistent.
 
         self._restarting: bool = True
@@ -49,7 +49,7 @@ class Gui(_TerminalBase):
         return output
 
     def setup(self,
-              layouts: Dict[str, List[List[sg.Element]]]) -> None:  # type: ignore[override]
+              layouts: Dict[str, List[List[sg.Element]]]) -> None:
         """ Since this component relies on data from many other components,
         we cannot do all the setup in __init__.
         Call this once layout data exists.
@@ -131,7 +131,8 @@ class Gui(_TerminalBase):
             self._restarting = False
             self.publish_one_by_value(self.key_gen("has_restarted"), True)
 
-    def publish(self) -> None:  # pylint: disable=W0221  # Un-needed arguments.
+    def publish(self, event_name: str = "", property_: Optional[str] = None) -> None:  
+    #def publish(self) -> None:  # pylint: disable=W0221  # Un-needed arguments.
         """ Publish all events listed in the self.events_to_publish collection. """
         for event_, value in self._diffvalues.items():
             #if isinstance(value, str):

@@ -61,9 +61,9 @@ class _SerialControllerBase(_ControllerBase):
         return [
             self.device_picker,
             device_scan,
-        ]
+            ]
 
-    def set_device(self, device) -> None:
+    def set_device(self, device: str) -> None:
         """ Set serial port. """
         if not device:
             return
