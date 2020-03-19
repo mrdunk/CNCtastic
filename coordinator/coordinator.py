@@ -43,16 +43,15 @@ class Coordinator(_ComponentBase):
 
         self.active_controller: Optional[_ControllerBase] = None
         self.config: Dict[str, Any] = {}
-        
+
         self.all_components: List[_ComponentBase] = [self]
         self.all_components += list(terminals)
         self.all_components += list(interfaces)
-        #self.all_components += list(self.controllers.values())
 
         self._load_config("config.yaml")
         self._setup_controllers()
 
-        self._terminal_specific_setup()
+        self._setup_terminals()
 
         self.running = True
 
@@ -96,33 +95,18 @@ class Coordinator(_ComponentBase):
             print("  line: %s  column: %s" % (error.problem_mark.line, error.problem_mark.column))
             print("--------")
             sys.exit(0)
-        
+
         print("Config:")
         pprint.pprint(self.config)
 
-    def _terminal_specific_setup(self) -> None:
+    def _setup_terminals(self) -> None:
         """ Do configuration that was not possible before all other components
         were instantiated. """
-        # Gather GUI layouts from all components.
-        layouts = {}
-        for component in self.all_components:
-            try:
-                layouts[component.label] = component.gui_layout()   # type: ignore
-            except AttributeError:
-                # component does not have gui_layout property.
-                pass
-
-        # Activate terminals.
         for terminal in self.terminals.values():
             print("Terminal %s of type %s is being activated." %
                   (terminal.label, terminal.get_classname()))
 
-            if hasattr(terminal, "layout"):
-                print("Configuring GUI: %s" % terminal.label)
-                terminal.setup(layouts)  # type: ignore[call-arg]
-            else:
-                terminal.setup()
-
+            terminal.setup(self.interfaces, self.controllers)
 
     def _clear_events(self) -> None:
         """ Clear the event queue after all events have been delivered. """

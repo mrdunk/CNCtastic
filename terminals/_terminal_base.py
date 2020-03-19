@@ -4,6 +4,7 @@
 from typing import Dict, Any
 
 from component import _ComponentBase
+from interfaces._interface_base import _InterfaceBase
 from controllers._controller_base import _ControllerBase
 
 
@@ -55,12 +56,19 @@ class _TerminalBase(_ComponentBase):
     def __init__(self, label: str = "_guiBase") -> None:
         super().__init__(label)
         self.active = False
+        
+        self.interfaces: Dict[str, _InterfaceBase] = {}
+        self.controllers: Dict[str, _ControllerBase] = {}
 
-    def setup(self) -> None:
+    def setup(self,
+              interfaces: Dict[str, _InterfaceBase],
+              controllers: Dict[str, _ControllerBase]) -> None:
         """ Any configuration to be done after __init__ once other components
         are active. """
+        self.interfaces = interfaces
+        self.controllers = controllers
 
-    def early_update(self) -> bool:  # type: ignore[override]
+    def early_update(self) -> bool:
         """ To be called once per frame.
         Returns:
             bool: True: Continue execution.

@@ -54,9 +54,10 @@ class _ComponentBase:
         eg: "componentName:event_name". """
         return "%s:%s" % (self.label, tag)
 
-    def early_update(self) -> None:
+    def early_update(self) -> bool:
         """ To be called periodically.
         Any housekeeping tasks should happen here. """
+        return True
 
     def publish(self, event_name: str = "", property_: Optional[str] = None) -> None:
         """ Publish all events listed in the self.events_to_publish collection. """

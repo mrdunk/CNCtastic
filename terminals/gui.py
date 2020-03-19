@@ -15,6 +15,7 @@ elif hasattr(sg, "version"):
     print("PySimpleGUIQt version: %s" % sg.version)
 
 from terminals._terminal_base import _TerminalBase, diff_dicts
+from interfaces._interface_base import _InterfaceBase
 from controllers._controller_base import _ControllerBase
 
 class Gui(_TerminalBase):
@@ -49,25 +50,27 @@ class Gui(_TerminalBase):
         return output
 
     def setup(self,
-              layouts: Dict[str, List[List[sg.Element]]]) -> None:
+              interfaces: Dict[str, _InterfaceBase],
+              controllers: Dict[str, _ControllerBase]) -> None:
         """ Since this component relies on data from many other components,
         we cannot do all the setup in __init__.
-        Call this once layout data exists.
-        
-        Args:
-            layouts: GUI layout widget data. Defines layout of various GUI screens. """
-
+        Call this once layout data exists. """
         if self._setup_done:
             print("WARNING: Attempting to run setup() more than once on %s" %
                   self.label)
             return
 
-        self.layouts = layouts
+        super().setup(interfaces, controllers)
+
+        self.layouts = {}
+        for key, value in {**self.interfaces, **self.controllers}.items():
+            if hasattr(value, "gui_layout"):
+                self.layouts[key] = value.gui_layout()
 
         sg.SetOptions(element_padding=(1, 1))
 
         tabs = [sg.Tab("_controller_picker", self._controller_picker())]
-        for label, layout in layouts.items():
+        for label, layout in self.layouts.items():
             tabs.append(sg.Tab(label, layout))
 
         self.layout = [[sg.TabGroup([tabs])]]
@@ -90,7 +93,7 @@ class Gui(_TerminalBase):
         self._setup_done = True
         self._restarting = True
 
-    def early_update(self) -> bool:  # type: ignore[override]
+    def early_update(self) -> bool:
         """ To be called once per frame.
         Returns:
             bool: True: Continue execution.
@@ -174,7 +177,7 @@ class Gui(_TerminalBase):
         self.position = self.window.CurrentLocation()
         print("restart", self.position)
         self.close()
-        self.setup(self.layouts)
+        self.setup(self.interfaces, self.controllers)
 
     def close(self) -> None:
         """ Close GUI window. """

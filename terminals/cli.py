@@ -104,7 +104,7 @@ class Cli(_TerminalBase):
         character = self.stdscr.getch()   # read a keypress
 
         if character is not None and isinstance(character, int) and character > -1:
-            self.win_mainout.addstr("%s %s\n" % (character, curses.keyname(character)))
+            self.win_mainout.addstr("%r %r\n" % (character, curses.keyname(character)))
             self.win_mainout.refresh()
 
         if self.temp_stdout.tell() > self.temp_stdout_pos:
