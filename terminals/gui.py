@@ -7,6 +7,7 @@ import os
 
 BASEDIR = os.path.dirname(os.path.abspath(sys.modules['__main__'].__file__))
 sys.path.insert(0, os.path.join(BASEDIR, "PySimpleGUI/PySimpleGUIQt/"))
+
 import PySimpleGUIQt as sg
 #import PySimpleGUIWeb as sg
 if hasattr(sg, "__version__"):
@@ -14,6 +15,7 @@ if hasattr(sg, "__version__"):
 elif hasattr(sg, "version"):
     print("PySimpleGUIQt version: %s" % sg.version)
 
+import common
 from terminals._terminal_base import _TerminalBase, diff_dicts
 from interfaces._interface_base import _InterfaceBase
 from controllers._controller_base import _ControllerBase
@@ -42,12 +44,12 @@ class Gui(_TerminalBase):
 
         self._restarting: bool = True
 
-    def _controller_picker(self) -> List[List[List[sg.Element]]]:
-        output = [
-                [sg.Button("Restart", size=(8, 2), key=self.key_gen("restart"))],
-            ]
-        
-        return output
+    #def _controller_picker(self) -> List[List[List[sg.Element]]]:
+    #    output = [
+    #            [sg.Button("Restart", size=(8, 2), key=self.key_gen("restart"))],
+    #        ]
+    #    
+    #    return output
 
     def setup(self,
               interfaces: Dict[str, _InterfaceBase],
@@ -62,14 +64,22 @@ class Gui(_TerminalBase):
 
         super().setup(interfaces, controllers)
 
+
+        class_pages = common.load_plugins("gui_pages")
+        pages = {page[1].label: page[1]() for page in class_pages}
+
+
         self.layouts = {}
-        for key, value in {**self.interfaces, **self.controllers}.items():
+        for key, value in {**self.interfaces,
+                           **self.controllers,
+                           **pages}.items():
             if hasattr(value, "gui_layout"):
                 self.layouts[key] = value.gui_layout()
 
         sg.SetOptions(element_padding=(1, 1))
 
-        tabs = [sg.Tab("_controller_picker", self._controller_picker())]
+        #tabs = [sg.Tab("_controller_picker", self._controller_picker())]
+        tabs = []
         for label, layout in self.layouts.items():
             tabs.append(sg.Tab(label, layout))
 

@@ -36,13 +36,14 @@ def load_plugins(directory: str) -> Set[Any]:
     plugins: Set[Any] = set([])
 
     full_dir = os.path.join(BASEDIR, directory)
+    full_mod_path = full_dir.replace("/", ".").strip(".")
 
-    for finder, name, ispkg in pkgutil.iter_modules([full_dir]):
-        print(finder, name, ispkg)
+    # for finder, name, ispkg in pkgutil.iter_modules([full_dir]):
+    #    print(finder, name, ispkg, full_mod_path + "." + name)
 
     discovered_plugins = [
-        importlib.import_module(directory + "." + name)
-        for finder, name, ispkg in pkgutil.iter_modules([full_dir])
+        importlib.import_module(full_mod_path + "." + name)
+        for finder, name, ispkg in pkgutil.iter_modules([full_mod_path])
         if name and not name.startswith('_')
         ]
 
