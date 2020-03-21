@@ -33,23 +33,18 @@ class Gui(_TerminalBase):
 
     def __init__(self, label: str = "gui") -> None:
         super().__init__(label)
-        self._setup_done: bool = False
         self.layout: List[List[sg.Element]] = []
+        self.selected_tab_key: str = ""
         self._lastvalues: Dict[str, Any] = {}
         self._diffvalues: Dict[str, Any] = {}
         self.description = "GUI interface."
         self.window: Any = None
         self.config: Dict[str, Any] = {}
-        self.position = (0, 0)  # TODO: Make the window position persistent.
+        self.position = (1, 1)  # TODO: Make the window position persistent.
+        self.size = (800, 600)
 
-        self._restarting: bool = True
-
-    #def _controller_picker(self) -> List[List[List[sg.Element]]]:
-    #    output = [
-    #            [sg.Button("Restart", size=(8, 2), key=self.key_gen("restart"))],
-    #        ]
-    #    
-    #    return output
+        self._setup_done: bool = False
+        self._first_pass_done: bool = False
 
     def setup(self,
               interfaces: Dict[str, _InterfaceBase],
@@ -64,44 +59,47 @@ class Gui(_TerminalBase):
 
         super().setup(interfaces, controllers)
 
+        sg.SetOptions(element_padding=(1, 1))
+        #sg.theme("BlueMono")
+        sg.theme("DarkGrey")
 
         class_pages = common.load_plugins("gui_pages")
-        pages = {page[1].label: page[1]() for page in class_pages}
-
+        self.sub_components = {page.label: page(interfaces, controllers)
+                               for _, page in class_pages}
 
         self.layouts = {}
         for key, value in {**self.interfaces,
-                           **self.controllers,
-                           **pages}.items():
+                           **self.sub_components}.items():
             if hasattr(value, "gui_layout"):
                 self.layouts[key] = value.gui_layout()
 
-        sg.SetOptions(element_padding=(1, 1))
-
-        #tabs = [sg.Tab("_controller_picker", self._controller_picker())]
         tabs = []
         for label, layout in self.layouts.items():
-            tabs.append(sg.Tab(label, layout))
+            tabs.append(sg.Tab(label, layout, key="tabs_%s" % len(tabs)))
 
-        self.layout = [[sg.TabGroup([tabs])]]
+        self.layout = [[sg.TabGroup([tabs], key="tabs")]]
 
-        self.window = sg.Window("CNCtastic", self.layout,
-                                resizable=True, size=(600, 600),
+        self.window = sg.Window("CNCtastic",
+                                self.layout,
+                                resizable=True,
                                 return_keyboard_events=True,
-                                auto_size_text=False, auto_size_buttons=False,
-                                default_element_size=(4, 2),
-                                default_button_element_size=(4, 2),
+                                #auto_size_text=False,
+                                #auto_size_buttons=False,
+                                #default_element_size=(4, 2),
+                                #default_button_element_size=(4, 2),
                                 use_default_focus=False,
                                 location=self.position,
+                                size=self.size,
                                 )
+        self.window.Finalize()
 
         # Subscribe to events matching GUI widget keys.
         for event in self.window.AllKeysDict:
             self.event_subscriptions[event] = None
         self.event_subscriptions[self.key_gen("restart")] = ("_restart", None)
-        
+
         self._setup_done = True
-        self._restarting = True
+        self._first_pass_done = False
 
     def early_update(self) -> bool:
         """ To be called once per frame.
@@ -139,13 +137,16 @@ class Gui(_TerminalBase):
 
     def update(self) -> None:
         super().update()
-
-        if self._restarting:
-            self._restarting = False
+        
+        if not self._first_pass_done:
+            self._first_pass_done = True
             self.publish_one_by_value(self.key_gen("has_restarted"), True)
+            
+            if self.selected_tab_key:
+                tab = self.window[self.selected_tab_key]
+                self.window[self.selected_tab_key].select()
 
     def publish(self, event_name: str = "", property_: Optional[str] = None) -> None:  
-    #def publish(self) -> None:  # pylint: disable=W0221  # Un-needed arguments.
         """ Publish all events listed in the self.events_to_publish collection. """
         for event_, value in self._diffvalues.items():
             #if isinstance(value, str):
@@ -184,8 +185,16 @@ class Gui(_TerminalBase):
                     pass
 
     def _restart(self) -> None:
-        self.position = self.window.CurrentLocation()
-        print("restart", self.position)
+        self.selected_tab_key = self.window["tabs"].get()
+        #self.size = self.window.Size
+        self.size = self.window.QT_QMainWindow.size().toTuple()
+        #self.position = self.window.CurrentLocation()
+        geom = self.window.QT_QMainWindow.frameGeometry()
+        self.position = (geom.left(), geom.top())
+        print("restart",
+              self.position,
+              self.size,
+              self.selected_tab_key)
         self.close()
         self.setup(self.interfaces, self.controllers)
 

@@ -38,8 +38,10 @@ class _SerialControllerBase(_ControllerBase):
         self._serial = None
         self.testing: bool = False  # Prevent _periodic_io() from blocking during tests.
         self._serial_thread: Optional[threading.Thread] = None
+        
         self.event_subscriptions[self.key_gen("device_picker")] = ("set_device", None)
         self.event_subscriptions[self.key_gen("device_scan")] = ("search_device", None)
+        
         self.ports: List[str] = []
         self.device_picker: sg.Combo = None
 
@@ -91,9 +93,13 @@ class _SerialControllerBase(_ControllerBase):
         if not self.serial_dev_name:
             self.serial_dev_name = self.ports[0]
 
-        self.device_picker.Update(values=self.ports,
-                                  value=self.serial_dev_name
-                                  )
+        try:
+            self.device_picker.Update(values=self.ports,
+                                      value=self.serial_dev_name
+                                      )
+        except AttributeError:
+            # self.device_picker not configured.
+            pass
 
     def connect(self) -> Literal[ConnectionState]:
         """ Try to open serial port. Set connection_status to CONNECTING. """

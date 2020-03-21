@@ -39,6 +39,8 @@ class Coordinator(_ComponentBase):
         self.controller_classes: Dict[str, Type[_ControllerBase]] = \
                 {controller.get_classname(): controller for controller in controller_classes}
         self.controllers: Dict[str, _ControllerBase] = {}
+        self.terminal_sub_components: Dict[str, Any] = {}
+
         self.debug_show_events = debug_show_events
 
         self.active_controller: Optional[_ControllerBase] = None
@@ -107,6 +109,15 @@ class Coordinator(_ComponentBase):
                   (terminal.label, terminal.get_classname()))
 
             terminal.setup(self.interfaces, self.controllers)
+       
+            # Add sub_components to the list of things to be updated by this
+            # controller.
+            for label, sub_component in terminal.sub_components.items():
+                assert label not in self.terminal_sub_components, \
+                       "Duplicate sub component name: %s" % label
+                self.terminal_sub_components[label] = sub_component
+        
+        self.all_components += list(self.terminal_sub_components.values())
 
     def _clear_events(self) -> None:
         """ Clear the event queue after all events have been delivered. """

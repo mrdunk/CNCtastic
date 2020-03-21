@@ -59,6 +59,7 @@ class _TerminalBase(_ComponentBase):
         
         self.interfaces: Dict[str, _InterfaceBase] = {}
         self.controllers: Dict[str, _ControllerBase] = {}
+        self.sub_components: Dict[str, Any] = {}
 
     def setup(self,
               interfaces: Dict[str, _InterfaceBase],
