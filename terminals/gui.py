@@ -20,6 +20,7 @@ from terminals._terminal_base import _TerminalBase, diff_dicts
 from interfaces._interface_base import _InterfaceBase
 from controllers._controller_base import _ControllerBase
 
+
 class Gui(_TerminalBase):
     """ Display GUI interface.
     Will display the widgets in any other component loaded as a plugin's "layout"
@@ -52,10 +53,9 @@ class Gui(_TerminalBase):
         """ Since this component relies on data from many other components,
         we cannot do all the setup in __init__.
         Call this once layout data exists. """
-        if self._setup_done:
-            print("WARNING: Attempting to run setup() more than once on %s" %
-                  self.label)
-            return
+
+        assert not self._setup_done, \
+            "WARNING: Attempting to run setup() more than once on %s" % self.label
 
         super().setup(interfaces, controllers)
 
@@ -63,9 +63,10 @@ class Gui(_TerminalBase):
         #sg.theme("BlueMono")
         sg.theme("DarkGrey")
 
-        class_pages = common.load_plugins("gui_pages")
-        self.sub_components = {page.label: page(interfaces, controllers)
-                               for _, page in class_pages}
+        if not self.sub_components:
+            class_pages = common.load_plugins("gui_pages")
+            self.sub_components = {page.label: page(interfaces, controllers)
+                                   for _, page in class_pages}
 
         self.layouts = {}
         for key, value in {**self.interfaces,
@@ -133,6 +134,8 @@ class Gui(_TerminalBase):
         if(not event == "__TIMEOUT__" or self._diffvalues) and self.debug_show_events:
             print(event, self._diffvalues)
 
+        self._publish_widgets()
+
         return event not in (None, ) and not event.startswith("Exit")
 
     def update(self) -> None:
@@ -140,18 +143,18 @@ class Gui(_TerminalBase):
         
         if not self._first_pass_done:
             self._first_pass_done = True
-            self.publish_one_by_value(self.key_gen("has_restarted"), True)
+            self.publish(self.key_gen("has_restarted"), True)
             
             if self.selected_tab_key:
                 tab = self.window[self.selected_tab_key]
                 self.window[self.selected_tab_key].select()
 
-    def publish(self, event_name: str = "", property_: Optional[str] = None) -> None:  
-        """ Publish all events listed in the self.events_to_publish collection. """
+    def _publish_widgets(self) -> None:  
+        """ Publish all button presses and other GUI widget updates. """
         for event_, value in self._diffvalues.items():
             #if isinstance(value, str):
             #    value = value.strip()
-            self.publish_one_by_value(event_, value)
+            self.publish(event_, value)
 
     def receive(self) -> None:
         """ Receive events this object is subscribed to. """

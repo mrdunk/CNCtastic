@@ -484,101 +484,144 @@ class TestEvents(unittest.TestCase):
         self.assertEqual(len(self.mock_controller._event_queue), 0)
 
     def test_publish_event_basic(self):
-        """ Export some variables on one component, subscribe on another, then
-        publish. """
-
-        # Set up some dummy data to export on one component.
-        self.mock_controller.testToExport = {}
-        self.mock_controller.testToExport["bunny"] = "give me carrot"
-        self.mock_controller.testToExport["onion"] = ["layer1", "layer2"]
-        self.mock_controller.events_to_publish = {
-            "testToExport1": "testToExport",
-            "testToExport2": "testToExport.bunny",
-            "testToExport3": "testToExport.onion",
-            "testToExport4": "testToExport.onion.0",
-            # Exporting an invalid member would assert.
-            #"testToExport5": "testToExport.onion.invalidInt2",
-            }
+        """ Subscribe to some events on one component, publish on another. """
 
         # Set up some subscriptions.
         self.mock_widget.event_subscriptions = {
-            "testToExport1": None,
-            "testToExport2": None,
-            "testToExport3": None,
-            "testToExport4": None,
+            "pubSub1": None,
+            "pubSub2": None,
+            "pubSub3": None,
+            "pubSub4": None,
             # Its fine to subscribe to things that don't arrive.
             "missing": None,
             }
 
-        # Now publish, populating the _event_queue.
-        self.mock_controller.publish()
-        self.assertEqual(len(self.mock_controller.events_to_publish),
-                         len(self.mock_controller._event_queue))
+        # Publish some things, populating the shared _event_queue.
+        self.mock_controller.publish("pubSub1", "root")
+        self.mock_controller.publish("pubSub1", "toot")
+        self.mock_controller.publish("pubSub2", True)
+        self.mock_controller.publish("pubSub3", 1)
+        self.mock_controller.publish("pubSub4", None)
+
+        self.assertEqual(len(self.mock_controller._event_queue), 5)
 
         # Now call the receive on the other component making it read the _event_queue.
         self.mock_widget.receive()
         # Nothing delivered to the sender.
         self.assertEqual(0, len(self.mock_controller._delivered))
         # Full set delivered to the receiver.
-        self.assertEqual(len(self.mock_controller.events_to_publish),
-                         len(self.mock_widget._delivered))
+        self.assertEqual(len(self.mock_widget._delivered), 5)
 
-    def test_publish_event_invalid_export_dict_args(self):
-        """ Export some variables which are incorrectly named. """
+    def test_publish_event_to_callback_missing(self):
+        """ Missing callback method/variable. """
 
-        # Set up some dummy data to export on one component.
-        self.mock_controller.testToExport = {}
-        self.mock_controller.testToExport["bunny"] = "give me carrot"
-        self.mock_controller.events_to_publish = {
-            "testToExport1": "testToExport.doggie",
+        # Set up some subscriptions.
+        self.mock_widget.event_subscriptions = {
+            "pubSub1": ("callback", None),
             }
 
-        # Now publish, populating the _event_queue.
-        with self.assertRaises(AttributeError):
-            self.mock_controller.publish()
-        # Nothing delivered anywhere.
+        # Publish some things, populating the shared _event_queue.
+        self.mock_controller.publish("pubSub1", "root")
+        self.mock_controller.publish("pubSub1", "toot")
+        self.assertEqual(len(self.mock_controller._event_queue), 2)
+
+        # Now call the receive on the other component making it read the _event_queue.
+        self.mock_widget.receive()
+        # Nothing delivered to the sender.
         self.assertEqual(0, len(self.mock_controller._delivered))
-        self.assertEqual(0, len(self.mock_widget._delivered))
+        # Full set delivered to the receiver.
+        self.assertEqual(len(self.mock_widget._delivered), 2)
 
-    def test_publish_event_invalid_export_list_args(self):
-        """ Export some variables which are incorrectly named. """
+        # Subscription to event should fire callback but callback method/variable
+        # is missing from self.mock_widget.
+        with self.assertRaises(AttributeError):
+            self.mock_widget._update()
 
-        # Set up some dummy data to export on one component.
-        self.mock_controller.testToExport = {}
-        self.mock_controller.testToExport["onion"] = ["layer1", "layer2"]
-        self.mock_controller.events_to_publish = {
-            "testToExport1": "testToExport.onion.1invalidInt",
+    def test_publish_event_to_callback_method(self):
+        """ Callback on receiving event. """
+
+        # Set callback method on self.mock_widget.
+        callback_received_1 = []
+        self.mock_widget.callback_1 = lambda in_: callback_received_1.append(in_)
+        callback_received_2 = []
+        self.mock_widget.callback_2 = lambda in_: callback_received_2.append(in_)
+
+        # Set up some subscriptions.
+        self.mock_widget.event_subscriptions = {
+            "pubSub1": ("callback_1", None),
+            "pubSub2": ("callback_2", "default"),
             }
 
-        # Now publish, populating the _event_queue.
-        with self.assertRaises(AttributeError):
-            self.mock_controller.publish()
-        # Nothing delivered anywhere.
+        # Publish some things, populating the shared _event_queue.
+        self.mock_controller.publish("pubSub1", "root")
+        self.mock_controller.publish("pubSub1", "toot")
+        self.mock_controller.publish("pubSub1", None)
+        self.mock_controller.publish("pubSub1", True)
+        self.mock_controller.publish("pubSub1", False)
+        self.mock_controller.publish("pubSub1", 1.1)
+
+        self.mock_controller.publish("pubSub2", "flibertygibblets")
+        self.mock_controller.publish("pubSub2", None)
+
+        self.assertEqual(len(self.mock_controller._event_queue), 8)
+
+        # Now call the receive on the other component making it read the _event_queue.
+        self.mock_widget.receive()
+        # Nothing delivered to the sender.
         self.assertEqual(0, len(self.mock_controller._delivered))
-        self.assertEqual(0, len(self.mock_widget._delivered))
+        # Full set delivered to the receiver.
+        self.assertEqual(len(self.mock_widget._delivered), 8)
 
-    def test_publish_event_missing_member_var(self):
-        """ Export some variables which are incorrectly named. """
+        # Callback fires when processing event.
+        self.mock_widget._update()
 
-        # Set up some dummy data to export on one component.
-        self.mock_controller.testToExport = {}
-        self.mock_controller.events_to_publish = {
-            "testToExport1": "missingMember",
+        self.assertEqual(len(callback_received_1), 6)
+        self.assertIn("root", callback_received_1)
+        self.assertIn("toot", callback_received_1)
+        self.assertIn(None, callback_received_1)
+        self.assertIn(True, callback_received_1)
+        self.assertIn(False, callback_received_1)
+        self.assertIn(1.1, callback_received_1)
+
+        self.assertEqual(len(callback_received_2), 2)
+        self.assertIn("flibertygibblets", callback_received_2)
+        # No value specified by `publish(...)` so use the one in `event_subscriptions`.
+        self.assertIn("default", callback_received_2)
+
+    def test_publish_event_to_variable(self):
+        """ Store in variable on receiving event. """
+
+        # Set variable to store value on self.mock_widget.
+        self.mock_widget.subscribed_value_1 = None
+        self.mock_widget.subscribed_value_2 = None
+
+        # Set up some subscriptions.
+        self.mock_widget.event_subscriptions = {
+            "pubSub1": ("subscribed_value_1", "default_1"),
+            "pubSub2": ("subscribed_value_2", "default_2"),
             }
 
-        # Now publish, populating the _event_queue.
-        with self.assertRaises(AttributeError):
-            self.mock_controller.publish()
-        # Nothing delivered anywhere.
+        # Publish some things, populating the shared _event_queue.
+        self.mock_controller.publish("pubSub1", "root")
+        self.mock_controller.publish("pubSub1", "toot")
+        self.mock_controller.publish("pubSub2", None)
+        self.assertEqual(len(self.mock_controller._event_queue), 3)
+
+        # Now call the receive on the other component making it read the _event_queue.
+        self.mock_widget.receive()
+        # Nothing delivered to the sender.
         self.assertEqual(0, len(self.mock_controller._delivered))
-        self.assertEqual(0, len(self.mock_widget._delivered))
+        # Full set delivered to the receiver.
+        self.assertEqual(len(self.mock_widget._delivered), 3)
 
-    def test_explicit_publish_by_value(self):
-        """ TODO """
+        # Callback fires when processing event.
+        self.mock_widget._update()
 
-    def test_explicit_publish_by_name(self):
-        """ TODO """
+        # Order events arrive in is undefined so could be either value.
+        self.assertIn(self.mock_widget.subscribed_value_1, ("root", "toot"))
 
+        # No value specified by `publish(...)` so use the one in `event_subscriptions`.
+        self.assertEqual(self.mock_widget.subscribed_value_2, "default_2")
 
 if __name__ == '__main__':
     unittest.main()

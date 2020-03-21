@@ -167,7 +167,7 @@ class DebugController(_ControllerBase):
                 debug_output = ""
                 for log_line in self.log:
                     debug_output += "%s\t%s\t%s\n" % log_line
-                self.publish_one_by_value(self.key_gen("gcode"), debug_output)
+                self.publish(self.key_gen("gcode"), debug_output)
 
             # Update the state machine to reflect the pygcode virtual machine.
             self.state.update()

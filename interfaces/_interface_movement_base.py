@@ -23,7 +23,7 @@ class _InterfaceMovementBase(_InterfaceBase):
                 z: The z coordinate.
                 f: The feed rate.
         """
-        self.publish_one_by_value("command:move_relative", argkv)
+        self.publish("command:move_relative", argkv)
 
     def move_absolute(self, **argkv: Union[str, float]) -> None:
         """ Move the machine head to a absolute position.
@@ -37,7 +37,7 @@ class _InterfaceMovementBase(_InterfaceBase):
                 z: The z coordinate.
                 f: The feed rate.
         """
-        self.publish_one_by_value("command:move_absolute", argkv)
+        self.publish("command:move_absolute", argkv)
 
     def g92_offsets(self, **argkv: Union[str, float]) -> None:
         """ Set work position offset.
@@ -45,4 +45,4 @@ class _InterfaceMovementBase(_InterfaceBase):
         """
         gcode = block.Block()
         gcode.gcodes.append(GCodeCoordSystemOffset(**argkv))
-        self.publish_one_by_value("command:gcode", gcode)
+        self.publish("command:gcode", gcode)

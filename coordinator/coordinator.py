@@ -225,7 +225,7 @@ class Coordinator(_ComponentBase):
         self.activate_controller()
 
         for controller_name, controller in self.controllers.items():
-            self.publish_one_by_value("%s:active" % controller_name, controller.active)
+            self.publish("%s:active" % controller_name, controller.active)
 
     def _copy_active_controller_events(self) -> None:
         """ Copy the active controller's events into the "active_controller:xxxx"
@@ -260,11 +260,6 @@ class Coordinator(_ComponentBase):
 
         for controller in self.controllers.values():
             controller.early_update()
-
-        # Publish all events.
-        self.publish()
-        for component in self.all_components:
-            component.publish()
 
         self._copy_active_controller_events()
 

@@ -53,7 +53,7 @@ class _ControllerBase(_ComponentBase):
     def publish_from_here(self, variable_name: str, variable_value: Any) -> None:
         """ A method wrapper to pass on to the StateMachineBase so it can
         publish events. """
-        self.publish_one_by_value(self.key_gen(variable_name), variable_value)
+        self.publish(self.key_gen(variable_name), variable_value)
 
     @property
     def active(self) -> bool:
@@ -79,12 +79,12 @@ class _ControllerBase(_ComponentBase):
         """ Set connection status we would like controller to be in.
         The controller should then attempt to transition to this state. """
         self.desired_connection_status = connection_status
-        self.publish_one_by_value(self.key_gen("desired_connection_status"), connection_status)
+        self.publish(self.key_gen("desired_connection_status"), connection_status)
 
     def set_connection_status(self, connection_status: Literal[ConnectionState]) -> None:
         """ Set connection status of controller. """
         self.connection_status = connection_status
-        self.publish_one_by_value(self.key_gen("connection_status"), connection_status)
+        self.publish(self.key_gen("connection_status"), connection_status)
 
     def connect(self) -> Literal[ConnectionState]:
         """ Make connection to controller. """

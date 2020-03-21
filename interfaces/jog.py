@@ -59,13 +59,13 @@ class JogWidget(_InterfaceMovementBase):
         self._xy_jog_step = round_1_sf(self._xy_jog_step * multiplier)
         # Need to explicitly push this here as the GUI also sends an update with
         # the old value. This publish will take effect later.
-        self.publish_one_by_value(self.key_gen("xyJogStep"), self._xy_jog_step)
+        self.publish(self.key_gen("xyJogStep"), self._xy_jog_step)
 
     def _z_jog_step_multiply(self, multiplier: float) -> None:
         self._z_jog_step = round_1_sf(self._z_jog_step * multiplier)
         # Need to explicitly push this here as the GUI also sends an update with
         # the old value. This publish will take effect later.
-        self.publish_one_by_value(self.key_gen("zJogStep"), self._z_jog_step)
+        self.publish(self.key_gen("zJogStep"), self._z_jog_step)
 
     def _move_handler(self, values: List[int]) -> None:
         self.move_relative(x=self._xy_jog_step * values[0],
@@ -76,17 +76,17 @@ class JogWidget(_InterfaceMovementBase):
     def _wpos_handler_x(self, value: float) -> None:
         """ Called in response to an active_controller:work_pos:x event. """
         self._w_pos["x"] = value
-        self.publish_one_by_value(self.key_gen("work_pos:x"), value)
+        self.publish(self.key_gen("work_pos:x"), value)
 
     def _wpos_handler_y(self, value: float) -> None:
         """ Called in response to an active_controller:work_pos:y event. """
         self._w_pos["y"] = value
-        self.publish_one_by_value(self.key_gen("work_pos:y"), value)
+        self.publish(self.key_gen("work_pos:y"), value)
 
     def _wpos_handler_z(self, value: float) -> None:
         """ Called in response to an active_controller:work_pos:z event. """
         self._w_pos["z"] = value
-        self.publish_one_by_value(self.key_gen("work_pos:z"), value)
+        self.publish(self.key_gen("work_pos:z"), value)
 
     def _wpos_handler_x_update(self, value: float) -> None:
         """ Called in response to a local :work_pos:x event. """

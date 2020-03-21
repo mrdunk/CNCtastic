@@ -196,7 +196,7 @@ class _SerialControllerBase(_ControllerBase):
         self._serial_port_in_use.discard(self.serial_dev_name)
         self._serial = None
 
-        self.publish_one_by_value(self.key_gen("state"),
+        self.publish(self.key_gen("state"),
                                   "Connection state: %s" %
                                   self.connection_status.name)
         #self.search_device("", None)
@@ -250,7 +250,7 @@ class _SerialControllerBase(_ControllerBase):
                                             ConnectionState.BLOCKED]:
                 # A serial port error occurred either # while opening a serial port or
                 # on an already open port.
-                self.publish_one_by_value(self.key_gen("state"),
+                self.publish(self.key_gen("state"),
                                           "Connection state: %s" %
                                           self.connection_status.name)
                 self.set_desired_connection_status(ConnectionState.NOT_CONNECTED)

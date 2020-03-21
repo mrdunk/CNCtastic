@@ -106,6 +106,6 @@ class Terminal(_InterfaceBase):
             line = Line(str(raw_gcode).strip())
         except GCodeWordStrError:
             return False
-        self.publish_one_by_value("command:gcode", line.block)
+        self.publish("command:gcode", line.block)
         print(line.block)
         return True

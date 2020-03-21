@@ -308,7 +308,7 @@ class Grbl1p1Controller(_SerialControllerBase):
         jog = task_string.startswith(b"$J=")
         if jog:
             if self.running_gcode:
-                self.publish_one_by_value(
+                self.publish(
                     "user_feedback:command_state",
                     "Can't start jog while performing gcode for: %s\n" %
                     task_string_human.decode('utf-8'))
@@ -320,7 +320,7 @@ class Grbl1p1Controller(_SerialControllerBase):
             self.running_mode_at = self._time.time()
         else:
             if self.running_jog:
-                self.publish_one_by_value(
+                self.publish(
                     "user_feedback:command_state",
                     "Cancelling active Jog action to perform Gcode action for: %s\n" \
                         % task_string_human.decode('utf-8'))
@@ -460,7 +460,7 @@ class Grbl1p1Controller(_SerialControllerBase):
         # Display debug info: Summary of machine state.
         if self.connection_status is ConnectionState.CONNECTED:
             if self.state.changes_made:
-                self.publish_one_by_value(self.key_gen("state"), self.state)
+                self.publish(self.key_gen("state"), self.state)
                 self.state.changes_made = False
 
     def on_connected(self) -> None:
