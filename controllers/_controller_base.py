@@ -22,6 +22,12 @@ class _ControllerBase(_ComponentBase):
     # Type of component. Used by the plugin loader.
     plugin_type = "controller"
 
+    data_to_sync = (
+            "connection_status",
+            "desired_connection_status",
+            "label"
+            )
+
     def __init__(self, label: str) -> None:
         super().__init__(label)
 
@@ -49,6 +55,14 @@ class _ControllerBase(_ComponentBase):
 
         self.set_connection_status(ConnectionState.UNKNOWN)
         self.set_desired_connection_status(ConnectionState.NOT_CONNECTED)
+
+        self.sync()
+
+    def sync(self) -> None:
+        for parameter in self.data_to_sync:
+            assert hasattr(self, parameter), \
+                   "Parameter: %s does not exist in: %s" % (parameter, self)
+            self.publish(self.key_gen(parameter), getattr(self, parameter))
 
     def publish_from_here(self, variable_name: str, variable_value: Any) -> None:
         """ A method wrapper to pass on to the StateMachineBase so it can

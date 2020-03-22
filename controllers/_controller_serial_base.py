@@ -58,7 +58,7 @@ class _SerialControllerBase(_ControllerBase):
                                 tooltip="Scan for serial ports.",
                                 )
 
-        #self.search_device("", None)
+        self.search_device()
 
         return [
             self.device_picker,
@@ -66,7 +66,7 @@ class _SerialControllerBase(_ControllerBase):
             ]
 
     def set_device(self, device: str) -> None:
-        """ Set serial port. """
+        """ Set serial port when selected by menu. """
         if not device:
             return
 
@@ -75,7 +75,7 @@ class _SerialControllerBase(_ControllerBase):
 
         self.serial_dev_name = device
 
-    def search_device(self, _: str, __: None) -> None:
+    def search_device(self, _: str = "", __: None = None) -> None:
         """ Search system for serial ports. """
         self.ports = [x.device for x in serial.tools.list_ports.comports() \
                   if x.vid is not None \
@@ -199,7 +199,7 @@ class _SerialControllerBase(_ControllerBase):
         self.publish(self.key_gen("state"),
                                   "Connection state: %s" %
                                   self.connection_status.name)
-        #self.search_device("", None)
+        #self.search_device()
 
     def _serial_write(self, data: bytes) -> bool:
         """ Send data to serial port. """
@@ -278,4 +278,4 @@ class _SerialControllerBase(_ControllerBase):
         super().update()
 
         if not self.ports:
-            self.search_device("", None)
+            self.search_device()

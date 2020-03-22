@@ -120,7 +120,7 @@ class Grbl1p1Controller(_SerialControllerBase):
         return [
             [sg.Text("Title:", size=(20, 1)),
              sg.Text("#Grbl1p1Controller", key="#Grbl1p1Controller:label", size=(20, 1)),
-             sg.Checkbox("Active", key="#Grbl1p1Controller:active")],
+             ],
             #device_picker,
             [sg.Text("Connection state:", size=(20, 1)),
              sg.Text(size=(18, 1), key="#Grbl1p1Controller:connection_status")],
@@ -146,7 +146,7 @@ class Grbl1p1Controller(_SerialControllerBase):
         layout = [
             [sg.Text("Title:", size=(20, 1)),
              sg.Text("unknown", key=self.key_gen("label"), size=(20, 1)),
-             sg.Checkbox("Active", default=self.active, key=self.key_gen("active"))],
+             ],
             device_picker,
             [sg.Text("Connection state:", size=(20, 1)),
              sg.Text(size=(18, 1), key=self.key_gen("connection_status"))],

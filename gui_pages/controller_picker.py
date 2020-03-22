@@ -1,4 +1,4 @@
-from typing import List, Dict, Type
+from typing import List, Dict, Type, Any
 from interfaces._interface_base import _InterfaceBase
 from controllers._controller_base import _ControllerBase
 from gui_pages._page_base import _GuiPageBase
@@ -17,6 +17,9 @@ class ControllerPicker(_GuiPageBase):
         self.controller_widgets: Dict[str, sg.Frame] = {}
         self.controller_buttons: Dict[str, sg.Button] = {}
         self.enabled: str = ""
+
+        # Repopulate GUI fields after a GUI restart.
+        self.event_subscriptions["gui:has_restarted"] = ("redraw", None)
 
     def _button(self, label: str) -> sg.Button:
         key = self.key_gen("select_%s" % label)
@@ -125,4 +128,8 @@ class ControllerPicker(_GuiPageBase):
     def _new_controller(self, event: str, label: str) -> None:
         self.enabled = "new"
         self.publish("gui:request_new_controller", label)
+
+    def redraw(self, event: str="", value: Any=None) -> None:
+        for label, controller in self.controllers.items():
+            controller.sync()
 

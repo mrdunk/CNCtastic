@@ -73,7 +73,7 @@ class DebugController(_ControllerBase):
         return [
             [sg.Text("Title:", size=(20, 1)),
              sg.Text("#Debug", key="#Debug:label", size=(20, 1)),
-             sg.Checkbox("Active", key="#Debug:active")],
+             ],
             [sg.Text("Connection state:", size=(20, 1)),
              sg.Text(size=(18, 1), key="#Debug:connection_status")],
             [sg.Text("Desired:", size=(20, 1)),
@@ -96,7 +96,7 @@ class DebugController(_ControllerBase):
         layout = [
             [sg.Text("Title:", size=(20, 1)),
              sg.Text(self.label, key=self.key_gen("label"), size=(20, 1)),
-             sg.Checkbox("Active", default=self.active, key=self.key_gen("active"))],
+             ],
             [sg.Text("Connection state:", size=(20, 1)),
              sg.Text(size=(18, 1), key=self.key_gen("connection_status"))],
             [sg.Text("Desired:", size=(20, 1)),
