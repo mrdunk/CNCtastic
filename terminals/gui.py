@@ -1,6 +1,6 @@
 """ Plugin to provide GUI using PySimpleGUI. """
 
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Type
 from enum import Enum
 import sys
 import os 
@@ -49,7 +49,8 @@ class Gui(_TerminalBase):
 
     def setup(self,
               interfaces: Dict[str, _InterfaceBase],
-              controllers: Dict[str, _ControllerBase]) -> None:
+              controllers: Dict[str, _ControllerBase],
+              controller_classes: Dict[str, Type[_ControllerBase]]) -> None:
         """ Since this component relies on data from many other components,
         we cannot do all the setup in __init__.
         Call this once layout data exists. """
@@ -57,7 +58,7 @@ class Gui(_TerminalBase):
         assert not self._setup_done, \
             "WARNING: Attempting to run setup() more than once on %s" % self.label
 
-        super().setup(interfaces, controllers)
+        super().setup(interfaces, controllers, controller_classes)
 
         sg.SetOptions(element_padding=(1, 1))
         #sg.theme("BlueMono")
@@ -65,7 +66,7 @@ class Gui(_TerminalBase):
 
         if not self.sub_components:
             class_pages = common.load_plugins("gui_pages")
-            self.sub_components = {page.label: page(interfaces, controllers)
+            self.sub_components = {page.label: page(interfaces, controllers, controller_classes)
                                    for _, page in class_pages}
 
         self.layouts = {}
@@ -97,7 +98,9 @@ class Gui(_TerminalBase):
         # Subscribe to events matching GUI widget keys.
         for event in self.window.AllKeysDict:
             self.event_subscriptions[event] = None
+
         self.event_subscriptions[self.key_gen("restart")] = ("_restart", None)
+        self.event_subscriptions["__coordinator__:new_controller"] = ("_restart", None)
 
         self._setup_done = True
         self._first_pass_done = False
@@ -121,9 +124,7 @@ class Gui(_TerminalBase):
         # Combine events with the values. Put the event key in there with empty value.
         if not event == "__TIMEOUT__":
             key_value = None
-            if event == self.key_gen("restart"):
-                self._restart()
-            elif len(event) == 1 or event.startswith("special "):
+            if len(event) == 1 or event.startswith("special "):
                 # This is a key-press of a regular "qwerty" key.
                 key_value = event
                 event = "gui:keypress"
@@ -166,6 +167,11 @@ class Gui(_TerminalBase):
         # that in turn sends an event.
         while self._delivered:
             event, value = self._delivered.popleft()
+            
+            if event in (self.key_gen("restart"), "__coordinator__:new_controller"):
+                self._restart()
+                continue
+
             if(hasattr(self.window[event], "metadata") and
                self.window[event].metadata and
                self.window[event].metadata.get("skip_update", False)):
@@ -199,7 +205,7 @@ class Gui(_TerminalBase):
               self.size,
               self.selected_tab_key)
         self.close()
-        self.setup(self.interfaces, self.controllers)
+        self.setup(self.interfaces, self.controllers, self.controller_classes)
 
     def close(self) -> None:
         """ Close GUI window. """

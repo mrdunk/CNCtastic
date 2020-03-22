@@ -46,9 +46,11 @@ class Coordinator(_ComponentBase):
         self.active_controller: Optional[_ControllerBase] = None
         self.config: Dict[str, Any] = {}
 
-        self.all_components: List[_ComponentBase] = [self]
+        self.all_components: List[_ComponentBase] = []
         self.all_components += list(terminals)
         self.all_components += list(interfaces)
+        
+        self.event_subscriptions = {}
 
         self._load_config("config.yaml")
         self._setup_controllers()
@@ -57,11 +59,10 @@ class Coordinator(_ComponentBase):
 
         self.running = True
 
-        self.event_subscriptions = {}
         # Change which controller is active in response to event.
         for controller in self.controllers:
-            self.event_subscriptions["%s:active" % controller] = (
-                "_on_activate_controller", controller)
+            self.event_subscriptions["%s:active" % controller] = \
+                ("_on_activate_controller", controller)
 
     def _setup_controllers(self) -> None:
         self.controllers = {}
@@ -108,7 +109,7 @@ class Coordinator(_ComponentBase):
             print("Terminal %s of type %s is being activated." %
                   (terminal.label, terminal.get_classname()))
 
-            terminal.setup(self.interfaces, self.controllers)
+            terminal.setup(self.interfaces, self.controllers, self.controller_classes)
        
             # Add sub_components to the list of things to be updated by this
             # controller.
@@ -118,6 +119,10 @@ class Coordinator(_ComponentBase):
                 self.terminal_sub_components[label] = sub_component
         
         self.all_components += list(self.terminal_sub_components.values())
+
+        for terminal in self.terminals:
+            self.event_subscriptions["%s:request_new_controller" % terminal] = \
+                ("_new_controller", None)
 
     def _clear_events(self) -> None:
         """ Clear the event queue after all events have been delivered. """
@@ -291,3 +296,11 @@ class Coordinator(_ComponentBase):
             controller.disconnect()
         for terminal in self.terminals.values():
             terminal.close()
+
+    def _new_controller(self, event: str, controller_class: str) -> None:
+        print("_new_controller", event, controller_class)
+        instance = self.controller_classes[controller_class]("new")
+        self.controllers[instance.label] = instance
+        self.all_components.append(instance)
+        self.activate_controller(controller=instance)
+        self.publish(self.key_gen("new_controller"), instance.label)

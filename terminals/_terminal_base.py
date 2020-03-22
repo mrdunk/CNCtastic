@@ -1,7 +1,7 @@
 """ Terminals are the plugins used for providing input and receiving output.
     This contains code common to all terminals. """
 
-from typing import Dict, Any
+from typing import Dict, Any, Type
 
 from component import _ComponentBase
 from interfaces._interface_base import _InterfaceBase
@@ -59,15 +59,18 @@ class _TerminalBase(_ComponentBase):
         
         self.interfaces: Dict[str, _InterfaceBase] = {}
         self.controllers: Dict[str, _ControllerBase] = {}
+        self.controller_classes: Dict[str, Type[_ControllerBase]] = {}
         self.sub_components: Dict[str, Any] = {}
 
     def setup(self,
               interfaces: Dict[str, _InterfaceBase],
-              controllers: Dict[str, _ControllerBase]) -> None:
+              controllers: Dict[str, _ControllerBase],
+              controller_classes: Dict[str, Type[_ControllerBase]]) -> None:
         """ Any configuration to be done after __init__ once other components
         are active. """
         self.interfaces = interfaces
         self.controllers = controllers
+        self.controller_classes = controller_classes
 
     def early_update(self) -> bool:
         """ To be called once per frame.
