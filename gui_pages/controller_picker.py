@@ -2,7 +2,7 @@ from typing import List, Dict, Type, Any
 from interfaces._interface_base import _InterfaceBase
 from controllers._controller_base import _ControllerBase
 from gui_pages._page_base import _GuiPageBase
-from terminals.gui import sg
+from PySimpleGUIQt_loader import sg
 
 class ControllerPicker(_GuiPageBase):
     is_valid_plugin = True

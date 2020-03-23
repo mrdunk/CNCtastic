@@ -1,6 +1,6 @@
 """ Base class for all CNC machine control hardware. """
 
-from typing import Any, Deque, Set, Optional
+from typing import Any, Deque, Set, Optional, List, Dict
 try:
     from typing import Literal              # type: ignore
 except ImportError:
@@ -8,6 +8,8 @@ except ImportError:
 from collections import deque
 
 from pygcode import Block, GCode, Line
+
+from PySimpleGUIQt_loader import sg
 
 from component import _ComponentBase
 from definitions import ConnectionState
@@ -40,6 +42,8 @@ class _ControllerBase(_ComponentBase):
         self._new_move_relative = None
         self._queued_updates: Deque[Any] = deque()
         self.state = StateMachineBase(self.publish_from_here)
+        self._pending_config = {}
+        self.__edit_buttons = []
 
         # Map incoming events to local member variables and callback methods.
         self.label = label
@@ -57,6 +61,93 @@ class _ControllerBase(_ComponentBase):
         self.set_desired_connection_status(ConnectionState.NOT_CONNECTED)
 
         self.sync()
+
+    def gui_layout(self) -> List[List[sg.Element]]:
+        """ Layout information for the PySimpleGUI interface. """
+        tabs = []
+        if self.label != "new":
+            tabs.append(sg.Tab("View", self.gui_layout_view(), key=self.key_gen("view")))
+
+        tabs.append(sg.Tab("Edit", self.gui_layout_edit(), key=self.key_gen("edit")))
+
+        return [[sg.TabGroup([tabs], key="controller_%s_tabs" % self.label)]]
+        
+    def gui_layout_components(self) -> Dict[str, List[sg.Element]]:
+        button_col = sg.LOOK_AND_FEEL_TABLE[sg.theme()]["BUTTON"]
+        disabled_button_col = ("grey", button_col[1])
+
+        components = {}
+        components["view_label"] = [
+                sg.Text("Title:", size=(20, 1)),
+                sg.Text(self.label, key=self.key_gen("label"), size=(20, 1)),
+                ]
+        components["edit_label"] = [
+                sg.Text("Title:", size=(20, 1)),
+                sg.InputText(self.label, key=self.key_gen("label_edit"), size=(20, 1)),
+                ]
+        components["view_buttons"] = [
+                sg.Button("Connect", key=self.key_gen("connect"), size=(10, 1), pad=(2, 2)),
+                sg.Button('Disconnect', key=self.key_gen("disconnect"), size=(10, 1), pad=(2, 2)),
+                ]
+        components["edit_buttons"] = [
+                sg.Button("Save",
+                          key=self.key_gen("save_edit"),
+                          size=(10, 1),
+                          pad=(2, 2),
+                          disabled=True,
+                          button_color=disabled_button_col),
+                sg.Button("Cancel",
+                          key=self.key_gen("cancel_edit"),
+                          size=(10, 1),
+                          pad=(2, 2),
+                          disabled=True,
+                          button_color=disabled_button_col),
+                sg.Button("Delete", size=(10, 1), pad=(2, 2)),
+                ]
+        components["view_connection"] = [
+                sg.Text("Connection state (desired/actual):", size=(20, 1)),
+                sg.Text(key=self.key_gen("desired_connection_status"), pad=(0, 0)),
+                sg.Text(key=self.key_gen("connection_status"), pad=(0, 0), justification="left"),
+                ]
+
+        self.__edit_buttons = components["edit_buttons"]
+
+        self.event_subscriptions[self.key_gen("label_edit")] = ("_modify_controller", None)
+        self.event_subscriptions[self.key_gen("cancel_edit")] = ("_undo_modify_controller", None)
+        return components
+
+    def _modify_controller(self, event: str, value: Any) -> None:
+        print("_modify_controller", event, value)
+        event_label, parameter = event.split(":")
+        parameter = parameter.rsplit("_edit")[0]
+        
+        assert event_label == self.label, "Unexpected event passed to _modify_controller."
+        assert hasattr(self, parameter), "Trying to modify an invalid property: %s" % parameter
+
+        if isinstance(value, str):
+            value = value.strip()
+        original_value = getattr(self, parameter).strip()
+        if value == original_value:
+            return
+
+        self._pending_config[parameter] = value
+        print("_modify_controller", self._pending_config)
+
+        button_col = sg.LOOK_AND_FEEL_TABLE[sg.theme()]["BUTTON"]
+        self.__edit_buttons[0].Update(button_color=button_col, disabled=False)
+        self.__edit_buttons[1].Update(button_color=button_col, disabled=False)
+
+    def _undo_modify_controller(self, event: str, value: Any) -> None:
+        for parameter in self._pending_config:
+            key = "%s_edit" % self.key_gen(parameter)
+            self.publish(key, getattr(self, parameter))
+
+        self._pending_config = {}
+
+        button_col = sg.LOOK_AND_FEEL_TABLE[sg.theme()]["BUTTON"]
+        disabled_button_col = ("grey", button_col[1])
+        self.__edit_buttons[0].Update(button_color=disabled_button_col, disabled=True)
+        self.__edit_buttons[1].Update(button_color=disabled_button_col, disabled=True)
 
     def sync(self) -> None:
         for parameter in self.data_to_sync:

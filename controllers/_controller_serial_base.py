@@ -14,8 +14,7 @@ import threading
 import serial
 import serial.tools.list_ports
 
-#import PySimpleGUIQt as sg
-from terminals.gui import sg
+from PySimpleGUIQt_loader import sg
 
 from controllers._controller_base import _ControllerBase
 from definitions import ConnectionState
@@ -32,24 +31,28 @@ class _SerialControllerBase(_ControllerBase):
 
     def __init__(self, label: str = "serialController") -> None:
         super().__init__(label)
-        #self.serial_dev_name = "spy:///tmp/ttyFAKE?file=/tmp/serialspy.txt"
-        self.serial_dev_name: str = ""
+        #self.serial_port = "spy:///tmp/ttyFAKE?file=/tmp/serialspy.txt"
+        self.serial_port: str = ""
         self.serial_baud = 115200
         self._serial = None
         self.testing: bool = False  # Prevent _periodic_io() from blocking during tests.
         self._serial_thread: Optional[threading.Thread] = None
         
         self.event_subscriptions[self.key_gen("device_picker")] = ("set_device", None)
+        self.event_subscriptions[self.key_gen("serial_port_edit")] = ("set_device", None)
         self.event_subscriptions[self.key_gen("device_scan")] = ("search_device", None)
         
         self.ports: List[str] = []
         self.device_picker: sg.Combo = None
 
-    def gui_layout(self) -> List[List[sg.Element]]:
+    def gui_layout_components(self) -> List[List[sg.Element]]:
         """ GUI layout common to all derived classes. """
+        components = super().gui_layout_components()
+
         self.device_picker = sg.Combo(values=["to_populate"],
                                       size=(25, 1),
                                       key=self.key_gen("device_picker"),
+                                      default_value=self.serial_port,
                                       enable_events=True,
                                       )
         device_scan = sg.Button("Scan",
@@ -60,20 +63,26 @@ class _SerialControllerBase(_ControllerBase):
 
         self.search_device()
 
-        return [
-            self.device_picker,
-            device_scan,
-            ]
+        components["view_serial_port"] = [sg.Text("Serial port:"),
+                                          sg.Text(self.serial_port,
+                                                  key=self.key_gen("serial_port"))]
+        components["edit_serial_port"] = [sg.Text("Serial port:"),
+                                          self.device_picker, device_scan]
+        
+        return components
 
     def set_device(self, device: str) -> None:
         """ Set serial port when selected by menu. """
+        print("set_device", device)
         if not device:
             return
 
         # Disconnect from any other serial port.
+        # TODO: Move this to the Save method?
         self.disconnect()
 
-        self.serial_dev_name = device
+        self.device_picker.Update(value = device)
+        self._modify_controller(self.key_gen("serial_port_edit"), device)
 
     def search_device(self, _: str = "", __: None = None) -> None:
         """ Search system for serial ports. """
@@ -83,20 +92,24 @@ class _SerialControllerBase(_ControllerBase):
                   and x.device is not None]
 
         if os.path.exists(FAKE_SERIAL):
-            self.ports += [FAKE_SERIAL]
+            self.ports.append(FAKE_SERIAL)
 
         if not self.ports:
             self.ports.append("No serial ports autodetected")
 
         # print("Found ports {}".format(self.ports))
+        
+        if self.serial_port not in self.ports:
+            self.ports.append(self.serial_port)
 
-        if not self.serial_dev_name:
-            self.serial_dev_name = self.ports[0]
+        if not self.serial_port:
+            self.serial_port = self.ports[0]
 
         try:
             self.device_picker.Update(values=self.ports,
-                                      value=self.serial_dev_name
+                                      value=self.serial_port
                                       )
+            print("search_device", self.serial_port)
         except AttributeError:
             # self.device_picker not configured.
             pass
@@ -110,7 +123,7 @@ class _SerialControllerBase(_ControllerBase):
                 ConnectionState.MISSING_RESOURCE]:
             return self.connection_status
 
-        if self.serial_dev_name in self._serial_port_in_use:
+        if self.serial_port in self._serial_port_in_use:
             self.connection_status = ConnectionState.BLOCKED
             return self.connection_status
 
@@ -118,17 +131,17 @@ class _SerialControllerBase(_ControllerBase):
 
         try:
             self._serial = serial.serial_for_url(
-                self.serial_dev_name, self.serial_baud, timeout=0)
+                self.serial_port, self.serial_baud, timeout=0)
         except AttributeError:
             try:
                 self._serial = serial.Serial(
-                    self.serial_dev_name, self.serial_baud, timeout=0)
+                    self.serial_port, self.serial_baud, timeout=0)
             except serial.serialutil.SerialException:
                 self.set_connection_status(ConnectionState.MISSING_RESOURCE)
         except serial.serialutil.SerialException:
             self.set_connection_status(ConnectionState.MISSING_RESOURCE)
 
-        self._serial_port_in_use.add(self.serial_dev_name)
+        self._serial_port_in_use.add(self.serial_port)
         return self.connection_status
 
     def disconnect(self) -> Literal[ConnectionState]:
@@ -141,7 +154,7 @@ class _SerialControllerBase(_ControllerBase):
         if self.connection_status in [
                 ConnectionState.CONNECTED,
                 ConnectionState.CONNECTING]:
-            print("Disconnecting %s %s" % (self.label, self.serial_dev_name))
+            print("Disconnecting %s %s" % (self.label, self.serial_port))
 
         self.set_desired_connection_status(ConnectionState.NOT_CONNECTED)
         self.ready_for_data = False
@@ -169,7 +182,7 @@ class _SerialControllerBase(_ControllerBase):
         if not self._serial.is_open:
             return
 
-        print("Connected %s %s" % (self.label, self.serial_dev_name))
+        print("Connected %s %s" % (self.label, self.serial_port))
         self.set_connection_status(ConnectionState.CONNECTED)
 
         # Drain the buffer of any noise.
@@ -193,7 +206,7 @@ class _SerialControllerBase(_ControllerBase):
 
         print("Serial disconnected.")
         self.set_connection_status(ConnectionState.NOT_CONNECTED)
-        self._serial_port_in_use.discard(self.serial_dev_name)
+        self._serial_port_in_use.discard(self.serial_port)
         self._serial = None
 
         self.publish(self.key_gen("state"),

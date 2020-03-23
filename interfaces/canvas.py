@@ -5,8 +5,7 @@
 from typing import List, Tuple, Dict, Union, Optional
 
 import numpy as np
-#import PySimpleGUIQt as sg
-from terminals.gui import sg
+from PySimpleGUIQt_loader import sg
 
 from interfaces._interface_base import _InterfaceBase
 

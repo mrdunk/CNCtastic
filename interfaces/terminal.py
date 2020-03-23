@@ -9,8 +9,7 @@ from collections import deque
 from pygcode import Line
 from pygcode.exceptions import GCodeWordStrError
 
-#import PySimpleGUIQt as sg
-from terminals.gui import sg
+from PySimpleGUIQt_loader import sg
 
 from interfaces._interface_base import _InterfaceBase
 

@@ -82,6 +82,15 @@ class Coordinator(_ComponentBase):
                     % controller["type"]
                 class_ = self.controller_classes[controller["type"]]
                 instance = class_(label)
+
+                for property_, value in controller.items():
+                    if hasattr(instance, property_):
+                        setattr(instance, property_, value)
+                    elif property_ not in ["type"]:  # Ignore any in the list.
+                        print("Unrecognised config parameter "
+                              "[controller, property, value]: %s, %s, %s" % 
+                              (label, property_, value))
+
                 self.controllers[label] = instance
                 self.all_components.append(instance)
 
@@ -95,7 +104,8 @@ class Coordinator(_ComponentBase):
         except YAMLError as error:
             print("--------")
             print("Problem in configuration file: %s" % error.problem_mark.name)
-            print("  line: %s  column: %s" % (error.problem_mark.line, error.problem_mark.column))
+            print("  line: %s  column: %s" % 
+                  (error.problem_mark.line, error.problem_mark.column))
             print("--------")
             sys.exit(0)
 

@@ -6,8 +6,7 @@
 from typing import Dict, List
 from math import log10, floor
 
-#import PySimpleGUIQt as sg
-from terminals.gui import sg
+from PySimpleGUIQt_loader import sg
 
 from interfaces._interface_movement_base import _InterfaceMovementBase
 

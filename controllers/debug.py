@@ -14,8 +14,7 @@ from collections import deque
 from pygcode import Machine, GCodeCoordSystemOffset, \
                     GCodeResetCoordSystemOffset, Block
 
-#import PySimpleGUIQt as sg
-from terminals.gui import sg
+from PySimpleGUIQt_loader import sg
 
 from definitions import ConnectionState
 from controllers._controller_base import _ControllerBase
@@ -64,50 +63,30 @@ class DebugController(_ControllerBase):
         # Allow replacing with a mock version when testing.
         self._time: Any = time
 
-    """@classmethod
-    def gui_layout_status(cls) -> List[List[sg.Element]]:
-        return [[]]
-
-    @classmethod
-    def gui_layout_config(cls) -> List[List[sg.Element]]:
-        return [
-            [sg.Text("Title:", size=(20, 1)),
-             sg.Text("#Debug", key="#Debug:label", size=(20, 1)),
-             ],
-            [sg.Text("Connection state:", size=(20, 1)),
-             sg.Text(size=(18, 1), key="#Debug:connection_status")],
-            [sg.Text("Desired:", size=(20, 1)),
-             sg.Text(size=(18, 1), key="#Debug:desired_connection_status")],
-            [sg.Multiline(default_text="gcode", size=(60, 10), key="#Debug:gcode",
-                          autoscroll=True, disabled=True)],
-            [sg.Button('Connect', key="#Debug:connect", size=(10, 1), pad=(2, 2)),
-             sg.Button('Disconnect', key="#Debug:disconnect", size=(10, 1), pad=(2, 2)),
-             sg.Exit(size=(10, 1), pad=(2, 2))
-             ],
-        ]
-
-    @classmethod
-    def gui_layout_2(cls) -> Dict[str, List[List[sg.Element]]]:
-        return {"status": cls.gui_layout_status(),
-                "config": cls.gui_layout_config()}"""
-
-    def gui_layout(self) -> List[List[sg.Element]]:
+    def gui_layout_view(self) -> List[List[sg.Element]]:
         """ Layout information for the PySimpleGUI interface. """
+        
+        components = self.gui_layout_components()
         layout = [
-            [sg.Text("Title:", size=(20, 1)),
-             sg.Text(self.label, key=self.key_gen("label"), size=(20, 1)),
-             ],
-            [sg.Text("Connection state:", size=(20, 1)),
-             sg.Text(size=(18, 1), key=self.key_gen("connection_status"))],
-            [sg.Text("Desired:", size=(20, 1)),
-             sg.Text(size=(18, 1), key=self.key_gen("desired_connection_status"))],
-            [sg.Multiline(default_text="gcode", size=(60, 10), key=self.key_gen("gcode"),
-                          autoscroll=True, disabled=True)],
-            [sg.Button('Connect', key=self.key_gen("connect"), size=(10, 1), pad=(2, 2)),
-             sg.Button('Disconnect', key=self.key_gen("disconnect"), size=(10, 1), pad=(2, 2)),
-             sg.Exit(size=(10, 1), pad=(2, 2))
-             ],
-            ]
+                    components["view_label"],
+                    [sg.Multiline(default_text="gcode",
+                                  size=(60, 10),
+                                  key=self.key_gen("gcode"),
+                                  autoscroll=True,
+                                  disabled=True)],
+                    components["view_connection"],
+                    components["view_buttons"],
+                ]
+        return layout
+
+    def gui_layout_edit(self) -> List[List[sg.Element]]:
+        """ Layout information for the PySimpleGUI interface. """
+        
+        components = self.gui_layout_components()
+        layout = [
+                    components["edit_label"],
+                    components["edit_buttons"],
+                ]
         return layout
 
     def connect(self) -> Literal[ConnectionState]:
