@@ -6,9 +6,10 @@ subscribers. """
 from typing import List, Dict, Optional, Deque, Tuple, Any, Type
 from collections import deque
 import sys
-from ruamel.yaml import YAML, YAMLError  # type: ignore
 from pathlib import Path
 import pprint
+# pylint: disable=E1101  # Module 'PySimpleGUIQt' has no 'XXXX' member (no-member)
+from ruamel.yaml import YAML, YAMLError  # type: ignore
 
 from component import _ComponentBase
 from terminals._terminal_base import _TerminalBase
@@ -49,7 +50,7 @@ class Coordinator(_ComponentBase):
         self.all_components: List[_ComponentBase] = []
         self.all_components += list(terminals)
         self.all_components += list(interfaces)
-        
+
         self.event_subscriptions = {}
 
         self._load_config("config.yaml")
@@ -67,8 +68,8 @@ class Coordinator(_ComponentBase):
     def _setup_controllers(self) -> None:
         self.controllers = {}
         self.all_components = list(
-                filter(lambda i: isinstance(i, _ControllerBase) is False,
-                       self.all_components))
+            filter(lambda i: isinstance(i, _ControllerBase) is False,
+                   self.all_components))
 
         if "DebugController" in self.controller_classes:
             instance = self.controller_classes["DebugController"]("debug")
@@ -88,7 +89,7 @@ class Coordinator(_ComponentBase):
                         setattr(instance, property_, value)
                     elif property_ not in ["type"]:  # Ignore any in the list.
                         print("Unrecognised config parameter "
-                              "[controller, property, value]: %s, %s, %s" % 
+                              "[controller, property, value]: %s, %s, %s" %
                               (label, property_, value))
 
                 self.controllers[label] = instance
@@ -98,13 +99,13 @@ class Coordinator(_ComponentBase):
 
     def _load_config(self, filename: str) -> None:
         path = Path(filename)
-        yaml=YAML(typ='safe')
+        yaml = YAML(typ='safe')
         try:
             self.config = yaml.load(path)
         except YAMLError as error:
             print("--------")
             print("Problem in configuration file: %s" % error.problem_mark.name)
-            print("  line: %s  column: %s" % 
+            print("  line: %s  column: %s" %
                   (error.problem_mark.line, error.problem_mark.column))
             print("--------")
             sys.exit(0)
@@ -120,14 +121,14 @@ class Coordinator(_ComponentBase):
                   (terminal.label, terminal.get_classname()))
 
             terminal.setup(self.interfaces, self.controllers, self.controller_classes)
-       
+
             # Add sub_components to the list of things to be updated by this
             # controller.
             for label, sub_component in terminal.sub_components.items():
                 assert label not in self.terminal_sub_components, \
                        "Duplicate sub component name: %s" % label
                 self.terminal_sub_components[label] = sub_component
-        
+
         self.all_components += list(self.terminal_sub_components.values())
 
         for terminal in self.terminals:

@@ -9,6 +9,7 @@ from collections import deque
 
 from pygcode import Block, GCode, Line
 
+# pylint: disable=E1101  # Module 'PySimpleGUIQt' has no 'XXXX' member (no-member)
 from PySimpleGUIQt_loader import sg
 
 from component import _ComponentBase
@@ -25,10 +26,10 @@ class _ControllerBase(_ComponentBase):
     plugin_type = "controller"
 
     data_to_sync = (
-            "connection_status",
-            "desired_connection_status",
-            "label"
-            )
+        "connection_status",
+        "desired_connection_status",
+        "label"
+        )
 
     def __init__(self, label: str) -> None:
         super().__init__(label)
@@ -71,44 +72,45 @@ class _ControllerBase(_ComponentBase):
         tabs.append(sg.Tab("Edit", self.gui_layout_edit(), key=self.key_gen("edit")))
 
         return [[sg.TabGroup([tabs], key="controller_%s_tabs" % self.label)]]
-        
+
     def gui_layout_components(self) -> Dict[str, List[sg.Element]]:
+        """ Return a dict of GUI widgets to be included in controller related pages. """
         button_col = sg.LOOK_AND_FEEL_TABLE[sg.theme()]["BUTTON"]
         disabled_button_col = ("grey", button_col[1])
 
         components = {}
         components["view_label"] = [
-                sg.Text("Title:", size=(20, 1)),
-                sg.Text(self.label, key=self.key_gen("label"), size=(20, 1)),
-                ]
+            sg.Text("Title:", size=(12, 1)),
+            sg.Text(self.label, key=self.key_gen("label"), size=(20, 1)),
+            ]
         components["edit_label"] = [
-                sg.Text("Title:", size=(20, 1)),
-                sg.InputText(self.label, key=self.key_gen("label_edit"), size=(20, 1)),
-                ]
+            sg.Text("Title:", size=(12, 1)),
+            sg.InputText(self.label, key=self.key_gen("label_edit"), size=(20, 1)),
+            ]
         components["view_buttons"] = [
-                sg.Button("Connect", key=self.key_gen("connect"), size=(10, 1), pad=(2, 2)),
-                sg.Button('Disconnect', key=self.key_gen("disconnect"), size=(10, 1), pad=(2, 2)),
-                ]
+            sg.Button("Connect", key=self.key_gen("connect"), size=(10, 1), pad=(2, 2)),
+            sg.Button('Disconnect', key=self.key_gen("disconnect"), size=(10, 1), pad=(2, 2)),
+            ]
         components["edit_buttons"] = [
-                sg.Button("Save",
-                          key=self.key_gen("save_edit"),
-                          size=(10, 1),
-                          pad=(2, 2),
-                          disabled=True,
-                          button_color=disabled_button_col),
-                sg.Button("Cancel",
-                          key=self.key_gen("cancel_edit"),
-                          size=(10, 1),
-                          pad=(2, 2),
-                          disabled=True,
-                          button_color=disabled_button_col),
-                sg.Button("Delete", size=(10, 1), pad=(2, 2)),
-                ]
+            sg.Button("Save",
+                      key=self.key_gen("save_edit"),
+                      size=(10, 1),
+                      pad=(2, 2),
+                      disabled=True,
+                      button_color=disabled_button_col),
+            sg.Button("Cancel",
+                      key=self.key_gen("cancel_edit"),
+                      size=(10, 1),
+                      pad=(2, 2),
+                      disabled=True,
+                      button_color=disabled_button_col),
+            sg.Button("Delete", size=(10, 1), pad=(2, 2)),
+            ]
         components["view_connection"] = [
-                sg.Text("Connection state (desired/actual):", size=(20, 1)),
-                sg.Text(key=self.key_gen("desired_connection_status"), pad=(0, 0)),
-                sg.Text(key=self.key_gen("connection_status"), pad=(0, 0), justification="left"),
-                ]
+            sg.Text("Connection state (desired/actual):", size=(20, 1)),
+            sg.Text(key=self.key_gen("desired_connection_status"), pad=(0, 0)),
+            sg.Text(key=self.key_gen("connection_status"), pad=(0, 0), justification="left"),
+            ]
 
         self.__edit_buttons = components["edit_buttons"]
 
@@ -120,7 +122,7 @@ class _ControllerBase(_ComponentBase):
         print("_modify_controller", event, value)
         event_label, parameter = event.split(":")
         parameter = parameter.rsplit("_edit")[0]
-        
+
         assert event_label == self.label, "Unexpected event passed to _modify_controller."
         assert hasattr(self, parameter), "Trying to modify an invalid property: %s" % parameter
 
@@ -137,7 +139,7 @@ class _ControllerBase(_ComponentBase):
         self.__edit_buttons[0].Update(button_color=button_col, disabled=False)
         self.__edit_buttons[1].Update(button_color=button_col, disabled=False)
 
-    def _undo_modify_controller(self, event: str, value: Any) -> None:
+    def _undo_modify_controller(self, _: str, __: Any) -> None:
         for parameter in self._pending_config:
             key = "%s_edit" % self.key_gen(parameter)
             self.publish(key, getattr(self, parameter))
@@ -150,6 +152,7 @@ class _ControllerBase(_ComponentBase):
         self.__edit_buttons[1].Update(button_color=disabled_button_col, disabled=True)
 
     def sync(self) -> None:
+        """ Publish all paramiters listed in self.data_to_sync. """
         for parameter in self.data_to_sync:
             assert hasattr(self, parameter), \
                    "Parameter: %s does not exist in: %s" % (parameter, self)

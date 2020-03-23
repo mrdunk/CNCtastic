@@ -1,3 +1,5 @@
+""" Base class for top level GUI pages. Each page gets it's own tab. """
+
 from typing import Dict, Type
 from component import _ComponentBase
 from interfaces._interface_base import _InterfaceBase

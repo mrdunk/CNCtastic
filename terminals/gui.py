@@ -1,8 +1,9 @@
 """ Plugin to provide GUI using PySimpleGUI. """
 
-from typing import List, Dict, Any, Optional, Type
+from typing import List, Dict, Any, Type
 from enum import Enum
 
+# pylint: disable=E1101  # Module 'PySimpleGUIQt' has no 'XXXX' member (no-member)
 from PySimpleGUIQt_loader import sg
 
 import common
@@ -59,14 +60,14 @@ class Gui(_TerminalBase):
             self.sub_components = {page.label: page(interfaces, controllers, controller_classes)
                                    for _, page in class_pages}
 
-        self.layouts = {}
+        layouts = {}
         for key, value in {**self.interfaces,
                            **self.sub_components}.items():
             if hasattr(value, "gui_layout"):
-                self.layouts[key] = value.gui_layout()
+                layouts[key] = value.gui_layout()
 
         tabs = []
-        for label, layout in self.layouts.items():
+        for label, layout in layouts.items():
             tabs.append(sg.Tab(label, layout, key="tabs_%s" % len(tabs)))
 
         self.layout = [[sg.TabGroup([tabs], key="tabs")]]
@@ -122,7 +123,7 @@ class Gui(_TerminalBase):
             if event not in self._diffvalues:
                 self._diffvalues[event] = key_value or None
 
-        if(not event == "__TIMEOUT__" or self._diffvalues) and self.debug_show_events:
+        if(event != "__TIMEOUT__" or self._diffvalues) and self.debug_show_events:
             print(event, self._diffvalues)
 
         self._publish_widgets()
@@ -131,16 +132,15 @@ class Gui(_TerminalBase):
 
     def update(self) -> None:
         super().update()
-        
+
         if not self._first_pass_done:
             self._first_pass_done = True
             self.publish(self.key_gen("has_restarted"), True)
-            
+
             if self.selected_tab_key:
-                tab = self.window[self.selected_tab_key]
                 self.window[self.selected_tab_key].select()
 
-    def _publish_widgets(self) -> None:  
+    def _publish_widgets(self) -> None:
         """ Publish all button presses and other GUI widget updates. """
         for event_, value in self._diffvalues.items():
             #if isinstance(value, str):
@@ -157,7 +157,7 @@ class Gui(_TerminalBase):
         # that in turn sends an event.
         while self._delivered:
             event, value = self._delivered.popleft()
-            
+
             if event in (self.key_gen("restart"), "__coordinator__:new_controller"):
                 self._restart()
                 continue

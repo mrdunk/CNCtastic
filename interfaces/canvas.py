@@ -312,7 +312,7 @@ class CanvasWidget(_InterfaceBase):
                 -(combined_minimums[1] + combined_maximums[1]) / 2,
                 -(combined_minimums[2] + combined_maximums[2]) / 2)
 
-    def redraw(self, *unused) -> None:
+    def redraw(self, *_) -> None:
         """ Redraw all geometry to screen. """
         for structure in self.structures.values():
             structure.redraw()

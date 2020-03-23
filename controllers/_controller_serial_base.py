@@ -14,6 +14,7 @@ import threading
 import serial
 import serial.tools.list_ports
 
+# pylint: disable=E1101  # Module 'PySimpleGUIQt' has no 'XXXX' member (no-member)
 from PySimpleGUIQt_loader import sg
 
 from controllers._controller_base import _ControllerBase
@@ -37,11 +38,11 @@ class _SerialControllerBase(_ControllerBase):
         self._serial = None
         self.testing: bool = False  # Prevent _periodic_io() from blocking during tests.
         self._serial_thread: Optional[threading.Thread] = None
-        
+
         self.event_subscriptions[self.key_gen("device_picker")] = ("set_device", None)
         self.event_subscriptions[self.key_gen("serial_port_edit")] = ("set_device", None)
         self.event_subscriptions[self.key_gen("device_scan")] = ("search_device", None)
-        
+
         self.ports: List[str] = []
         self.device_picker: sg.Combo = None
 
@@ -63,12 +64,14 @@ class _SerialControllerBase(_ControllerBase):
 
         self.search_device()
 
-        components["view_serial_port"] = [sg.Text("Serial port:"),
+        components["view_serial_port"] = [sg.Text("Serial port:",
+                                                  size=(12, 1)),
                                           sg.Text(self.serial_port,
                                                   key=self.key_gen("serial_port"))]
-        components["edit_serial_port"] = [sg.Text("Serial port:"),
+        components["edit_serial_port"] = [sg.Text("Serial port:",
+                                                  size=(12, 1)),
                                           self.device_picker, device_scan]
-        
+
         return components
 
     def set_device(self, device: str) -> None:
@@ -81,7 +84,7 @@ class _SerialControllerBase(_ControllerBase):
         # TODO: Move this to the Save method?
         self.disconnect()
 
-        self.device_picker.Update(value = device)
+        self.device_picker.Update(value=device)
         self._modify_controller(self.key_gen("serial_port_edit"), device)
 
     def search_device(self, _: str = "", __: None = None) -> None:
@@ -98,7 +101,7 @@ class _SerialControllerBase(_ControllerBase):
             self.ports.append("No serial ports autodetected")
 
         # print("Found ports {}".format(self.ports))
-        
+
         if self.serial_port not in self.ports:
             self.ports.append(self.serial_port)
 
@@ -210,8 +213,8 @@ class _SerialControllerBase(_ControllerBase):
         self._serial = None
 
         self.publish(self.key_gen("state"),
-                                  "Connection state: %s" %
-                                  self.connection_status.name)
+                     "Connection state: %s" %
+                     self.connection_status.name)
         #self.search_device()
 
     def _serial_write(self, data: bytes) -> bool:
@@ -264,8 +267,8 @@ class _SerialControllerBase(_ControllerBase):
                 # A serial port error occurred either # while opening a serial port or
                 # on an already open port.
                 self.publish(self.key_gen("state"),
-                                          "Connection state: %s" %
-                                          self.connection_status.name)
+                             "Connection state: %s" %
+                             self.connection_status.name)
                 self.set_desired_connection_status(ConnectionState.NOT_CONNECTED)
                 self.set_connection_status(ConnectionState.CLEANUP)
 

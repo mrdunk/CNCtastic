@@ -65,28 +65,28 @@ class DebugController(_ControllerBase):
 
     def gui_layout_view(self) -> List[List[sg.Element]]:
         """ Layout information for the PySimpleGUI interface. """
-        
+
         components = self.gui_layout_components()
         layout = [
-                    components["view_label"],
-                    [sg.Multiline(default_text="gcode",
-                                  size=(60, 10),
-                                  key=self.key_gen("gcode"),
-                                  autoscroll=True,
-                                  disabled=True)],
-                    components["view_connection"],
-                    components["view_buttons"],
-                ]
+            components["view_label"],
+            [sg.Multiline(default_text="gcode",
+                          size=(60, 10),
+                          key=self.key_gen("gcode"),
+                          autoscroll=True,
+                          disabled=True)],
+            components["view_connection"],
+            components["view_buttons"],
+            ]
         return layout
 
     def gui_layout_edit(self) -> List[List[sg.Element]]:
         """ Layout information for the PySimpleGUI interface. """
-        
+
         components = self.gui_layout_components()
         layout = [
-                    components["edit_label"],
-                    components["edit_buttons"],
-                ]
+            components["edit_label"],
+            components["edit_buttons"],
+            ]
         return layout
 
     def connect(self) -> Literal[ConnectionState]:

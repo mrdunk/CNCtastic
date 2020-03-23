@@ -3,7 +3,7 @@
 
 """ A plugin to support Grbl 1.1 controller hardware. """
 
-from typing import List, Any, Optional, Deque, Tuple, Dict
+from typing import List, Any, Optional, Deque, Tuple
 
 import time
 from queue import Queue, Empty
@@ -112,29 +112,29 @@ class Grbl1p1Controller(_SerialControllerBase):
 
     def gui_layout_view(self) -> List[List[sg.Element]]:
         """ Layout information for the PySimpleGUI interface. """
-        
+
         components = self.gui_layout_components()
         layout = [
-                    components["view_label"],
-                    components["view_serial_port"],
-                    [sg.Multiline(default_text="Machine state",
-                        size=(60, 10),
-                        key=self.key_gen("state"),
-                        autoscroll=True, disabled=True)],
-                    components["view_connection"],
-                    components["view_buttons"],
-                ]
+            components["view_label"],
+            components["view_serial_port"],
+            [sg.Multiline(default_text="Machine state",
+                          size=(60, 10),
+                          key=self.key_gen("state"),
+                          autoscroll=True, disabled=True)],
+            components["view_connection"],
+            components["view_buttons"],
+            ]
         return layout
 
     def gui_layout_edit(self) -> List[List[sg.Element]]:
         """ Layout information for the PySimpleGUI interface. """
-        
+
         components = self.gui_layout_components()
         layout = [
-                    components["edit_label"],
-                    components["edit_serial_port"],
-                    components["edit_buttons"],
-                ]
+            components["edit_label"],
+            components["edit_serial_port"],
+            components["edit_buttons"],
+            ]
         return layout
 
     def parse_incoming(self, incoming: Optional[bytes]) -> None:

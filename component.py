@@ -1,6 +1,6 @@
 """ Code required by all components. """
 
-from typing import List, Dict, Any, Tuple, Deque, Optional
+from typing import Dict, Any, Tuple, Deque, Optional
 from collections import deque
 
 class _ComponentBase:
@@ -45,6 +45,7 @@ class _ComponentBase:
         eg: "componentName:event_name". """
         return "%s:%s" % (self.label, tag)
 
+    # pylint: disable=R0201 # Method could be a function (no-self-use)
     def early_update(self) -> bool:
         """ To be called periodically.
         Any housekeeping tasks should happen here. """
