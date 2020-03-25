@@ -3,7 +3,7 @@
 
 """ Interface to allow text entry of raw Gcode. """
 
-from typing import List
+from typing import List, Deque, Optional
 from collections import deque
 
 from pygcode import Line
@@ -29,21 +29,24 @@ class Terminal(_InterfaceBase):
             "user_feedback:command_state": ("_user_feedback", None)
         }
 
-        self.widget_log = None
-        self.widget_newline = None
+        self.widget_log: Optional[sg.Multiline] = None
+        self.widget_newline: Optional[sg.Input] = None
         self.newline: str = ""
         # TODO Workaround for https://github.com/PySimpleGUI/PySimpleGUI/issues/2623
         # Remove this when the `autoscroll` parameter works.
-        self.log: deque[str] = deque()
+        self.log: Deque[str] = deque()
 
-    def _user_feedback(self, value) -> None:
-        self.log.append((value, False))
+    def _user_feedback(self, value: str) -> None:
+        self.log.append(str((value, False)))
         self._update_content()
 
-    def _gcode_update(self, gcode) -> None:
+    def _gcode_update(self, gcode: str) -> None:
         self.newline = gcode
 
-    def _gcode_submit(self, key, value) -> None:
+    def _gcode_submit(self, key: str, value: str) -> None:
+        if not self.widget_newline:
+            return
+
         self.widget_newline.Update(value="")
 
         # TODO The rest of this method is a workaround for
@@ -54,13 +57,16 @@ class Terminal(_InterfaceBase):
         valid = self._raw_gcode(self.newline)
         newline = "> %s\n" % (str(self.newline) if valid else self.newline)
 
-        self.log.append((newline, valid))
+        self.log.append(str((newline, valid)))
         self.newline = ""
 
         self._update_content()
 
     def _update_content(self) -> None:
         """ Redraw the terminal window contents. """
+        if not self.widget_log:
+            return
+
         while len(self.log) > self.widget_log.metadata["size"][1]:
             self.log.popleft()
         self.widget_log.Update(value="")

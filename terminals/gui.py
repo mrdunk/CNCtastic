@@ -66,7 +66,7 @@ class Gui(_TerminalBase):
             if hasattr(value, "gui_layout"):
                 layouts[key] = value.gui_layout()
 
-        tabs = []
+        tabs: List[List[sg.Element]] = []
         for label, layout in layouts.items():
             tabs.append(sg.Tab(label, layout, key="tabs_%s" % len(tabs)))
 

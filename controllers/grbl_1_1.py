@@ -3,7 +3,7 @@
 
 """ A plugin to support Grbl 1.1 controller hardware. """
 
-from typing import List, Any, Optional, Deque, Tuple
+from typing import List, Any, Optional, Deque, Tuple, Dict
 
 import time
 from queue import Queue, Empty
@@ -113,8 +113,8 @@ class Grbl1p1Controller(_SerialControllerBase):
     def gui_layout_view(self) -> List[List[sg.Element]]:
         """ Layout information for the PySimpleGUI interface. """
 
-        components = self.gui_layout_components()
-        layout = [
+        components: Dict[str, Any] = self.gui_layout_components()
+        layout: List[Any] = [
             components["view_label"],
             components["view_serial_port"],
             [sg.Multiline(default_text="Machine state",
@@ -418,7 +418,7 @@ class Grbl1p1Controller(_SerialControllerBase):
         self._send_buf_actns.clear()
         self.running_jog = False
 
-    def early_update(self) -> None:
+    def early_update(self) -> bool:
         """ Called early in the event loop, before events have been received. """
         super().early_update()
 
@@ -437,6 +437,8 @@ class Grbl1p1Controller(_SerialControllerBase):
             if self.state.changes_made:
                 self.publish(self.key_gen("state"), self.state)
                 self.state.changes_made = False
+
+        return True
 
     def on_connected(self) -> None:
         """ Executed when serial port first comes up. """

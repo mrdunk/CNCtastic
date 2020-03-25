@@ -113,7 +113,7 @@ class DebugController(_ControllerBase):
 
         return self.connection_status
 
-    def early_update(self) -> None:
+    def early_update(self) -> bool:
         if self.connection_status != self.desired_connection_status:
             if self._time.time() - self._connect_time >= CONNECT_DELAY:
                 if self.connection_status == ConnectionState.CONNECTING:
@@ -131,6 +131,8 @@ class DebugController(_ControllerBase):
                 self.ready_for_data = True
         else:
             self.ready_for_data = False
+        
+        return True
 
     def update(self) -> None:
         super().update()

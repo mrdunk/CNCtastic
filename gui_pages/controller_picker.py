@@ -45,7 +45,7 @@ class ControllerPicker(_GuiPageBase):
 
         return button
 
-    def _configure_widget(self, label: str, controller) -> sg.Frame:
+    def _configure_widget(self, label: str, controller: _ControllerBase) -> sg.Frame:
         """ Return a widget for configuring a controller. """
         visible = bool(label == self.enabled)
 

@@ -3,7 +3,7 @@
 # overridden (abstract-method)
 """ Base class for hardware controllers that use a serial port to connect. """
 
-from typing import Optional, List, Set
+from typing import Optional, List, Set, Dict
 try:
     from typing import Literal              # type: ignore
 except ImportError:
@@ -46,7 +46,7 @@ class _SerialControllerBase(_ControllerBase):
         self.ports: List[str] = []
         self.device_picker: sg.Combo = None
 
-    def gui_layout_components(self) -> List[List[sg.Element]]:
+    def gui_layout_components(self) -> Dict[str, List[sg.Element]]:
         """ GUI layout common to all derived classes. """
         components = super().gui_layout_components()
 
@@ -249,7 +249,7 @@ class _SerialControllerBase(_ControllerBase):
             self.set_connection_status(ConnectionState.FAIL)
         return line
 
-    def early_update(self) -> None:
+    def early_update(self) -> bool:
         """ Called early in the event loop, before events have been received. """
         if self.connection_status != self.desired_connection_status:
             # Transition between connection states.
@@ -279,6 +279,8 @@ class _SerialControllerBase(_ControllerBase):
             elif self.desired_connection_status is ConnectionState.NOT_CONNECTED:
                 # Start disconnection.
                 self.disconnect()
+
+        return True
 
     def _periodic_io(self) -> None:
         """ Read from and write to serial port.

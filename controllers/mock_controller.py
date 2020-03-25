@@ -9,7 +9,7 @@ class MockController(DebugController):
     # Set False as we don't want it to be used as a plugin.
     is_valid_plugin = False
 
-    def early_update(self) -> None:
+    def early_update(self) -> bool:
         """ Called early in the event loop, before events have been received. """
         if self.connection_status == ConnectionState.CONNECTING:
             self.connection_status = ConnectionState.CONNECTED
@@ -20,3 +20,5 @@ class MockController(DebugController):
             self.ready_for_data = True
         else:
             self.ready_for_data = False
+
+        return True

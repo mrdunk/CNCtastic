@@ -43,8 +43,8 @@ class _ControllerBase(_ComponentBase):
         self._new_move_relative = None
         self._queued_updates: Deque[Any] = deque()
         self.state = StateMachineBase(self.publish_from_here)
-        self._pending_config = {}
-        self.__edit_buttons = []
+        self._pending_config: Dict[str, Any] = {}
+        self.__edit_buttons: List[sg.Button] = []
 
         # Map incoming events to local member variables and callback methods.
         self.label = label
@@ -62,6 +62,15 @@ class _ControllerBase(_ComponentBase):
         self.set_desired_connection_status(ConnectionState.NOT_CONNECTED)
 
         self.sync()
+
+    def gui_layout_view(self) -> List[List[sg.Element]]:
+        """ Layout information for the PySimpleGUI interface. """
+        return []
+
+    def gui_layout_edit(self) -> List[List[sg.Element]]:
+        """ Layout information for the PySimpleGUI interface. """
+
+        return []
 
     def gui_layout(self) -> List[List[sg.Element]]:
         """ Layout information for the PySimpleGUI interface. """

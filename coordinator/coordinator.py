@@ -131,8 +131,8 @@ class Coordinator(_ComponentBase):
 
         self.all_components += list(self.terminal_sub_components.values())
 
-        for terminal in self.terminals:
-            self.event_subscriptions["%s:request_new_controller" % terminal] = \
+        for terminal_label in self.terminals:
+            self.event_subscriptions["%s:request_new_controller" % terminal_label] = \
                 ("_new_controller", None)
 
     def _clear_events(self) -> None:
