@@ -11,11 +11,11 @@ from controllers.grbl_1_1 import Grbl1p1Controller
 
 
 class MockSerial:
-    """ Mock version of "serial" library. """
+    """ Mock version of serial port. """
 
     def __init__(self):
         self.dummy_data = []
-        self.received_data = []
+        self.written_data = []
 
     def readline(self):  # pylint: disable=C0103
         """ Do nothing or return specified value for method. """
@@ -25,10 +25,10 @@ class MockSerial:
 
     def write(self, data):
         """ Record paramiter for method. """
-        self.received_data.append(data)
+        self.written_data.append(data)
 
     def inWaiting(self) -> bool:  # pylint: disable=C0103
-        """ Do nothing or return specified value for method. """
+        """ Mock version of method. """
         return bool(self.dummy_data)
 
 
@@ -59,6 +59,7 @@ class TestControllerReceiveDataFromSerial(unittest.TestCase):
         self.controller.connection_status = ConnectionState.CONNECTED
         self.controller.desired_connection_status = ConnectionState.CONNECTED
         self.controller.state.changes_made = False
+        self.controller.first_receive = False
         self.controller.testing = True
 
         self.assertTrue(self.controller._command_immediate.empty())
@@ -152,6 +153,7 @@ class TestControllerReceiveDataFromSerial(unittest.TestCase):
         self.controller._send_buf_actns.append((b"dummy", None))
 
         self.controller._periodic_io()
+
         # 1 "ok" processed. Entry removed from _bufferLengths.
         self.assertEqual(len(self.controller._send_buf_lens), 1)
         self.assertEqual(self.controller._ok_count, 2)
@@ -176,7 +178,7 @@ class TestControllerReceiveDataFromSerial(unittest.TestCase):
         # Errors are passed to the parent thread as well as being dealt with here.
         self.assertEqual(self.controller._received_data.qsize(), 4)
 
-        self.assertEqual(self.controller._serial.received_data[-1], b"!")
+        self.assertEqual(self.controller._serial.written_data[-1], b"!")
         self.assertEqual(self.controller._received_data.get(), b"test")
         self.assertEqual(self.controller._received_data.get(), b"error:12")
         self.assertEqual(self.controller._received_data.get(), b"test2")
@@ -206,12 +208,12 @@ class TestControllerSendDataToSerial(unittest.TestCase):
     """ Send data to controller over serial port. """
 
     def setUp(self):
-        self.controller = Grbl1p1Controller()
+        self.controller = Grbl1p1Controller(_time = MockTime())
         self.controller._serial = MockSerial()
-        self.controller._time = MockTime()
         self.controller.connection_status = ConnectionState.CONNECTED
         self.controller.desired_connection_status = ConnectionState.CONNECTED
         self.controller.state.changes_made = False
+        self.controller.first_receive = False
         self.controller.testing = True
 
         self.assertTrue(self.controller._command_immediate.empty())
@@ -220,14 +222,121 @@ class TestControllerSendDataToSerial(unittest.TestCase):
         self.assertEqual(self.controller._error_count, 0)
         self.assertEqual(self.controller._ok_count, 0)
 
-    def test_basic(self):
-        """ Basic input as would be seen when everything is going perfectly. """
-        self.controller._serial.dummy_data = []
-        # toSend = [b"G0 F100 X10 Y-10", b"!"]
+    def test_immediate(self):
+        """ Some commands should be processed as soon as they arrive on the serial
+            port. """
+        self.controller._command_immediate.put("test command")
+        self.controller._command_immediate.put("test command 2")
+        self.assertFalse(self.controller._command_streaming.qsize())
+        self.controller._serial.written_data = []
+
+        # Process everything in the buffer.
+        self.controller._periodic_io()
+        self.controller._periodic_io()
+        self.controller._periodic_io()
+
+        # Commands have been sent out serial port.
+        self.assertEqual(self.controller._serial.written_data[-2], "test command")
+        self.assertEqual(self.controller._serial.written_data[-1], "test command 2")
+
+    def test_streaming_mode_fail(self):
+        """ Controller may not be in both running_gcode and running_jog mode at
+        the same time. """
+        self.controller.running_gcode = True
+        self.controller.running_jog = True
+
+        with self.assertRaises(AssertionError):
+            self.controller._periodic_io()
+
+    def test_streaming_mode_transition_to_gcode(self):
+        self.controller.running_gcode = False
+        self.controller.running_jog = False
+        self.controller._command_streaming.put(b"G0 X0 Y0 F10")
+        self.controller.state.machine_state = b"Idle"
 
         self.controller._periodic_io()
-        # TODO
 
+        self.assertTrue(self.controller.running_gcode)
+        self.assertFalse(self.controller.running_jog)
+        self.assertEqual(self.controller._serial.written_data[-1], b"G0X0Y0F10\n")
+        self.assertEqual(len(self.controller._serial.written_data), 1)
 
-if __name__ == '__main__':
+    def test_streaming_mode_transition_to_gcode_from_jog_1(self):
+        self.controller.running_gcode = False
+        self.controller.running_jog = True
+        self.controller._command_streaming.put(b"G0 X0 Y0 F10")
+        self.controller.state.machine_state = b"Jog"
+
+        self.controller._periodic_io()
+
+        self.assertTrue(self.controller.running_gcode)
+        self.assertFalse(self.controller.running_jog)
+        # Cancel Jog = b"\x85"
+        self.assertEqual(self.controller._serial.written_data[-2], b"\x85")
+        self.assertEqual(self.controller._serial.written_data[-1], b"G0X0Y0F10\n")
+        self.assertEqual(len(self.controller._serial.written_data), 2)
+
+    def test_streaming_mode_transition_to_gcode_from_jog_2(self):
+        self.controller.running_gcode = False
+        self.controller.running_jog = True
+        self.controller._command_streaming.put(b"G0 X0 Y0 F10")
+        self.controller.state.machine_state = b"Idle"
+
+        self.controller._periodic_io()
+
+        self.assertTrue(self.controller.running_gcode)
+        self.assertFalse(self.controller.running_jog)
+        # It is possible a jog command has been issued since
+        # controller.state.machine_state has been updated.
+        # Best to clear any jog command with b"\x85".
+        self.assertEqual(self.controller._serial.written_data[-2], b"\x85")
+        self.assertEqual(self.controller._serial.written_data[-1], b"G0X0Y0F10\n")
+        self.assertEqual(len(self.controller._serial.written_data), 2)
+
+    def test_streaming_mode_transition_to_jog(self):
+        self.controller.running_gcode = False
+        self.controller.running_jog = False
+        # "$J=..." is a GRBL Jog command.
+        self.controller._command_streaming.put(b"$J=X0Y0")
+        self.controller.state.machine_state = b"Idle"
+
+        self.controller._periodic_io()
+
+        self.assertFalse(self.controller.running_gcode)
+        self.assertTrue(self.controller.running_jog)
+        self.assertEqual(self.controller._serial.written_data[-1], b"$J=X0Y0\n")
+        self.assertEqual(len(self.controller._serial.written_data), 1)
+
+    def test_streaming_mode_transition_to_jog_fail(self):
+        self.controller.running_gcode = True
+        self.controller.running_jog = False
+        # "$J=..." is a GRBL Jog command.
+        self.controller._command_streaming.put(b"$J=X0Y0")
+        self.controller.state.machine_state = b"Idle"
+
+        self.controller._periodic_io()
+
+        self.assertTrue(self.controller.running_gcode)
+        self.assertFalse(self.controller.running_jog)
+        self.assertEqual(len(self.controller._serial.written_data), 0)
+
+    def test_streaming_mode_timeout(self):
+        REPORT_INTERVAL = 1.0
+
+        self.controller.running_gcode = True
+        self.controller.running_jog = False
+        self.running_mode_at = 1.0
+        self.controller._time.return_values = [(1 + (3 * REPORT_INTERVAL))] * 2
+        self.controller.state.machine_state = b"Idle"
+
+        self.controller._periodic_io()
+
+        self.assertFalse(self.controller.running_gcode)
+        self.assertFalse(self.controller.running_jog)
+        self.assertEqual(len(self.controller._serial.written_data), 0)
+
+    def test_streaming_flush_before_continue(self):
+        self.assertTrue(False)
+
+if __name__ == "__main__":
     unittest.main()

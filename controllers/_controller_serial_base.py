@@ -84,7 +84,8 @@ class _SerialControllerBase(_ControllerBase):
         # TODO: Move this to the Save method?
         self.disconnect()
 
-        self.device_picker.Update(value=device)
+        if self.device_picker:
+            self.device_picker.Update(value=device)
         self._modify_controller(self.key_gen("serial_port_edit"), device)
 
     def search_device(self, _: str = "", __: None = None) -> None:
@@ -103,19 +104,21 @@ class _SerialControllerBase(_ControllerBase):
         # print("Found ports {}".format(self.ports))
 
         if self.serial_port not in self.ports:
+            # Likely got this port name from the config file.
             self.ports.append(self.serial_port)
 
         if not self.serial_port:
             self.serial_port = self.ports[0]
 
-        try:
-            self.device_picker.Update(values=self.ports,
-                                      value=self.serial_port
-                                      )
-            print("search_device", self.serial_port)
-        except AttributeError:
-            # self.device_picker not configured.
-            pass
+        if self.device_picker:
+            try:
+                self.device_picker.Update(values=self.ports,
+                                          value=self.serial_port
+                                          )
+                print("search_device", self.serial_port)
+            except AttributeError:
+                # self.device_picker not configured.
+                pass
 
     def connect(self) -> Literal[ConnectionState]:
         """ Try to open serial port. Set connection_status to CONNECTING. """

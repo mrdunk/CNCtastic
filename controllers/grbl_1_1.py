@@ -61,13 +61,13 @@ class Grbl1p1Controller(_SerialControllerBase):
                     b"$Nx=", b"$RST=", b"G54 ", b"G55 ", b"G56 ", b"G57 ", b"G58 ",
                     b"G59 ", b"G28 ", b"G30 ", b"$$", b"$I", b"$N", b"$#"]
 
-    def __init__(self, label: str = "grbl1.1") -> None:
+    def __init__(self, label: str = "grbl1.1", _time = time) -> None:
         # pylint: disable=E1136  # Value 'Queue' is unsubscriptable
 
         super().__init__(label)
 
         # Allow replacing with a mock version when testing.
-        self._time: Any = time
+        self._time: Any = _time
 
         # State machine to track current GRBL state.
         self.state: State = State(self.publish_from_here)
@@ -87,11 +87,10 @@ class Grbl1p1Controller(_SerialControllerBase):
         self._send_buf_lens: Deque[int] = deque()
         self._send_buf_actns: Deque[Tuple[bytes, Any]] = deque()
 
-        self.preivious_machine_state: bytes = b"Unknown"
         self.running_jog: bool = False
         self.running_gcode: bool = False
         self.running_mode_at: float = self._time.time()
-        self.first_receive: bool = False
+        self.first_receive: bool = True
 
         # Certain gcode commands write to EPROM which disabled interrupts which
         # would interfere with serial IO. When one of these commands is executed we
@@ -171,8 +170,10 @@ class Grbl1p1Controller(_SerialControllerBase):
         else:
             self._received_data.put(incoming)
 
-        if not self.first_receive:
-            self.first_receive = True
+        if self.first_receive:
+            # Since we are definitely connected, let's request a status report.
+
+            self.first_receive = False
             # Request a report on the modal state of the GRBL controller.
             self._command_streaming.put(b"$G")
             # Grbl settings report.
@@ -243,6 +244,8 @@ class Grbl1p1Controller(_SerialControllerBase):
     def _write_streaming(self) -> bool:
         """ Write entries in the _command_streaming buffer to serial port. """
 
+        # GRBL can not queue gcode commands while jogging
+        # and cannot queue jog commands while executing gcode.
         assert not (self.running_gcode and self.running_jog), \
                "Invalid state: Jog and Gcode modes active at same time."
 
@@ -257,19 +260,12 @@ class Grbl1p1Controller(_SerialControllerBase):
             # Input buffer full. Come back later.
             return False
 
-        if not self.state.machine_state == self.preivious_machine_state:
-            #print("!!! Transition !!!", self.preivious_machine_state, self.state.machine_state)
-            if self.state.machine_state in (b"Idle", b"CancelJog"):
-                # Has returned to Idle.
-                self.running_gcode = False
-                self.running_jog = False
-            self.preivious_machine_state = self.state.machine_state
-
-        if self.state.machine_state == b"Idle" and \
+        if self.state.machine_state in (b"Idle", b"ClearJog") and \
            self._time.time() - self.running_mode_at > 2 * REPORT_INTERVAL and \
            (self.running_gcode or self.running_jog):
-            #print("!!! Timeout !!!  running_gcode: %s  running_jog: %s" % \
-            #        (self.running_gcode, self.running_jog))
+            
+            # print("!!! Timeout !!!  running_gcode: %s  running_jog: %s" % \
+            #         (self.running_gcode, self.running_jog))
             self.running_gcode = False
             self.running_jog = False
 
@@ -446,14 +442,13 @@ class Grbl1p1Controller(_SerialControllerBase):
         self.ready_for_data = True
 
         # Clear any state from before a disconnect.
-        self.preivious_machine_state = b"Unknown"
         self.running_jog = False
         self.running_gcode = False
         self.running_mode_at = self._time.time()
         self.flush_before_continue = False
         self._send_buf_lens.clear()
         self._send_buf_actns.clear()
-        self.first_receive = False
+        self.first_receive = True
 
         # Perform a soft reset of Grbl.
         # With a lot of testing we could avoid needing this reset and keep state
