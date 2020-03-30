@@ -18,7 +18,7 @@ from controllers.state_machine import StateMachineGrbl as State
 
 REPORT_INTERVAL = 1.0 # seconds
 SERIAL_INTERVAL = 0.02 # seconds
-RX_BUFFER_SIZE = 128
+RX_BUFFER_SIZE = 127
 
 def sort_gcode(block: Block) -> str:
     """ Reorder gcode to a manner that is friendly to clients.
@@ -57,9 +57,9 @@ class Grbl1p1Controller(_SerialControllerBase):
         b"F", b"T", b"S"
         ))
 
-    SLOWCOMMANDS = [b"G10 L2 ", b"G10 L20 ", b"G28.1 ", b"G30.1 ", b"$x=", b"$I=",
-                    b"$Nx=", b"$RST=", b"G54 ", b"G55 ", b"G56 ", b"G57 ", b"G58 ",
-                    b"G59 ", b"G28 ", b"G30 ", b"$$", b"$I", b"$N", b"$#"]
+    SLOWCOMMANDS = (b"G10L2", b"G10L20", b"G28.1", b"G30.1", b"$x=", b"$I=",
+                    b"$Nx=", b"$RST=", b"G54", b"G55", b"G56", b"G57", b"G58",
+                    b"G59", b"G28", b"G30", b"$$", b"$I", b"$N", b"$#")
 
     def __init__(self, label: str = "grbl1.1", _time = time) -> None:
         # pylint: disable=E1136  # Value 'Queue' is unsubscriptable
@@ -212,18 +212,6 @@ class Grbl1p1Controller(_SerialControllerBase):
         #print("_write_immediate", task)
         return self._serial_write(task)
 
-    def _last_in_command_queue(self) -> Any:
-        task = None
-        # Cheat and take a look at the next value in the Queue without
-        # de-queueing it.
-        with self._command_streaming.mutex:
-            if not self._command_streaming.queue:
-                return None
-            task = self._command_streaming.queue[0]
-        assert task, "task went missing."
-
-        return task
-
     def _pop_task(self) -> Tuple[Any, bytes, bytes]:
         """ Pop a task from the command queue. """
         task = None
@@ -256,7 +244,7 @@ class Grbl1p1Controller(_SerialControllerBase):
                 return False
             self.flush_before_continue = False
 
-        if sum(self._send_buf_lens) >= RX_BUFFER_SIZE - 1:
+        if sum(self._send_buf_lens) >= RX_BUFFER_SIZE:
             # Input buffer full. Come back later.
             return False
 
@@ -273,8 +261,8 @@ class Grbl1p1Controller(_SerialControllerBase):
         if not task:
             return False
 
-        print("_write_streaming: %s  running_jog: %s  running_gcode: %s" %
-              (task_string.decode('utf-8'), self.running_jog, self.running_gcode))
+        # print("_write_streaming: %s  running_jog: %s  running_gcode: %s" %
+        #       (task_string.decode('utf-8'), self.running_jog, self.running_gcode))
 
         jog = task_string.startswith(b"$J=")
         if jog:

@@ -7,7 +7,7 @@
 import unittest
 import loader  # pylint: disable=E0401,W0611
 from definitions import ConnectionState
-from controllers.grbl_1_1 import Grbl1p1Controller
+from controllers.grbl_1_1 import Grbl1p1Controller, RX_BUFFER_SIZE, REPORT_INTERVAL
 
 
 class MockSerial:
@@ -238,6 +238,7 @@ class TestControllerSendDataToSerial(unittest.TestCase):
         # Commands have been sent out serial port.
         self.assertEqual(self.controller._serial.written_data[-2], "test command")
         self.assertEqual(self.controller._serial.written_data[-1], "test command 2")
+        self.assertEqual(len(self.controller._serial.written_data), 2)
 
     def test_streaming_mode_fail(self):
         """ Controller may not be in both running_gcode and running_jog mode at
@@ -249,6 +250,7 @@ class TestControllerSendDataToSerial(unittest.TestCase):
             self.controller._periodic_io()
 
     def test_streaming_mode_transition_to_gcode(self):
+        """ If no mode selected, allow transition to gcode mode. """
         self.controller.running_gcode = False
         self.controller.running_jog = False
         self.controller._command_streaming.put(b"G0 X0 Y0 F10")
@@ -262,6 +264,8 @@ class TestControllerSendDataToSerial(unittest.TestCase):
         self.assertEqual(len(self.controller._serial.written_data), 1)
 
     def test_streaming_mode_transition_to_gcode_from_jog_1(self):
+        """ if in jog mode, cancel any active Jog command and transition to gcode
+        mode. """
         self.controller.running_gcode = False
         self.controller.running_jog = True
         self.controller._command_streaming.put(b"G0 X0 Y0 F10")
@@ -277,6 +281,8 @@ class TestControllerSendDataToSerial(unittest.TestCase):
         self.assertEqual(len(self.controller._serial.written_data), 2)
 
     def test_streaming_mode_transition_to_gcode_from_jog_2(self):
+        """ if in jog mode, cancel any active Jog command and transition to gcode
+        mode. """
         self.controller.running_gcode = False
         self.controller.running_jog = True
         self.controller._command_streaming.put(b"G0 X0 Y0 F10")
@@ -294,6 +300,7 @@ class TestControllerSendDataToSerial(unittest.TestCase):
         self.assertEqual(len(self.controller._serial.written_data), 2)
 
     def test_streaming_mode_transition_to_jog(self):
+        """ If no mode selected, allow transition to jog mode. """
         self.controller.running_gcode = False
         self.controller.running_jog = False
         # "$J=..." is a GRBL Jog command.
@@ -308,6 +315,7 @@ class TestControllerSendDataToSerial(unittest.TestCase):
         self.assertEqual(len(self.controller._serial.written_data), 1)
 
     def test_streaming_mode_transition_to_jog_fail(self):
+        """ if in gcode mode, do not allow transition to jog mode. """
         self.controller.running_gcode = True
         self.controller.running_jog = False
         # "$J=..." is a GRBL Jog command.
@@ -321,8 +329,7 @@ class TestControllerSendDataToSerial(unittest.TestCase):
         self.assertEqual(len(self.controller._serial.written_data), 0)
 
     def test_streaming_mode_timeout(self):
-        REPORT_INTERVAL = 1.0
-
+        """ if in gcode mode but inactive for a while, allow transition to jog mode. """
         self.controller.running_gcode = True
         self.controller.running_jog = False
         self.running_mode_at = 1.0
@@ -336,7 +343,177 @@ class TestControllerSendDataToSerial(unittest.TestCase):
         self.assertEqual(len(self.controller._serial.written_data), 0)
 
     def test_streaming_flush_before_continue(self):
-        self.assertTrue(False)
+        """ Any command in SLOWCOMMANDS should block until an acknowledgement has
+        been received from the Grbl hardware. """
+        self.controller._command_streaming.put(b"test command 1")
+        self.controller._command_streaming.put(b"G59 A slow command")
+        self.controller._command_streaming.put(b"test command 2")
+        self.controller._serial.written_data = []
+
+        # Process everything in the buffer.
+        self.controller._periodic_io()
+        self.controller._periodic_io()
+        self.controller._periodic_io()
+
+        # Commands up to the slow command has been sent out serial port but
+        # remaining command is still queued until the GRBL send buffer has been
+        # drained.
+        self.assertEqual(self.controller._serial.written_data[-2], b"testcommand1\n")
+        self.assertEqual(self.controller._serial.written_data[-1], b"G59Aslowcommand\n")
+        self.assertEqual(len(self.controller._serial.written_data), 2)
+
+        # 2 commands have been sent and 2 have not been acknowledged yet.
+        self.assertEqual(self.controller._ok_count, 0)
+        self.assertEqual(len(self.controller._send_buf_lens), 2)
+
+        # Simulate an "OK" being received acknowledges the 1st sent command
+        self.controller._incoming_ok()
+        self.controller._periodic_io()
+
+        # 2 commands have been sent and 1 has not been acknowledged yet.
+        self.assertEqual(self.controller._ok_count, 1)
+        self.assertEqual(len(self.controller._send_buf_lens), 1)
+
+        # Slow command still blocking the last command.
+        self.assertEqual(self.controller._serial.written_data[-2], b"testcommand1\n")
+        self.assertEqual(self.controller._serial.written_data[-1], b"G59Aslowcommand\n")
+        self.assertEqual(len(self.controller._serial.written_data), 2)
+
+        # Simulate an "OK" being received acknowledges the sent slow command
+        self.controller._incoming_ok()
+        self.controller._periodic_io()
+
+        # Receiving the "OK" acknowledging the slow command unblocks the last command.
+        # Now we should see all 3 commands having been sent.
+        self.assertEqual(self.controller._serial.written_data[-3], b"testcommand1\n")
+        self.assertEqual(self.controller._serial.written_data[-2], b"G59Aslowcommand\n")
+        self.assertEqual(self.controller._serial.written_data[-1], b"testcommand2\n")
+        self.assertEqual(len(self.controller._serial.written_data), 3)
+
+        # Last command has been sent but has not been acknowledged yet.
+        self.assertEqual(self.controller._ok_count, 2)
+        self.assertEqual(len(self.controller._send_buf_lens), 1)
+
+        # Simulate an "OK" being received acknowledges the last command
+        self.controller._incoming_ok()
+
+        # All pending commands have been acknowledged.
+        self.assertEqual(self.controller._ok_count, 3)
+        self.assertEqual(len(self.controller._send_buf_lens), 0)
+
+    def test_max_send_buffer_size(self):
+        """ Receive buffer never overflows.
+        Grbl receive buffer has a known limited size. "OK" messages will be
+        received when Grbl has processed a command and removed it from the buffer.
+        """
+        def str_len(strings):
+            """ Returns the combined lengths of all strings in collection. """
+            len_ = 0
+            for s in strings:
+                len_ += len(s)
+            return len_
+
+        # Fill most of the buffer.
+        self.controller._command_streaming.put(b"a" * (RX_BUFFER_SIZE - 2))
+        # Now some small commands.
+        self.controller._command_streaming.put(b"b")
+        self.controller._command_streaming.put(b"c")
+        self.controller._command_streaming.put(b"d")
+
+        # Process everything in the buffer.
+        self.controller._periodic_io()
+        self.controller._periodic_io()
+        self.controller._periodic_io()
+        self.controller._periodic_io()
+        self.controller._periodic_io()
+
+        # First 2 commands made it out the serial port.
+        self.assertEqual(len(self.controller._send_buf_lens), 2)
+        # Recorded length of tracked data matches what went out the serial port.
+        self.assertEqual(sum(self.controller._send_buf_lens),
+                         str_len(self.controller._serial.written_data))
+        # Next 2 commands still waiting to go.
+        self.assertEqual(self.controller._command_streaming.qsize(), 2)
+
+        # "OK" acknowledges the first command. Will now be space for the
+        # remaining commands.
+        self.controller._incoming_ok()
+        self.controller._periodic_io()
+        self.controller._periodic_io()
+        self.controller._periodic_io()
+
+        # Recorded length of tracked data matches what went out the serial port.
+        self.assertEqual(sum(self.controller._send_buf_lens),
+                str_len(self.controller._serial.written_data[1:]))
+        # All commands have been sent.
+        self.assertEqual(self.controller._command_streaming.qsize(), 0)
+
+    def test_max_send_buffer_size_off_by_1(self):
+        """ Receive buffer never overflows.
+        Grbl receive buffer has a known limited size. "OK" messages will be
+        received when Grbl has processed a command and removed it from the buffer.
+        """
+        def str_len(strings):
+            """ Returns the combined lengths of all strings in collection. """
+            len_ = 0
+            for s in strings:
+                len_ += len(s)
+            return len_
+
+        # Fill most of the buffer.
+        self.controller._command_streaming.put(b"a" * (RX_BUFFER_SIZE - 3))
+        # Now some small commands.
+        self.controller._command_streaming.put(b"b")
+        self.controller._command_streaming.put(b"c")
+        self.controller._command_streaming.put(b"d")
+
+        # Process everything in the buffer.
+        self.controller._periodic_io()
+        self.controller._periodic_io()
+        self.controller._periodic_io()
+        self.controller._periodic_io()
+        self.controller._periodic_io()
+
+        # First 2 commands made it out the serial port.
+        self.assertEqual(len(self.controller._send_buf_lens), 2)
+        # Recorded length of tracked data matches what went out the serial port.
+        self.assertEqual(sum(self.controller._send_buf_lens),
+                         str_len(self.controller._serial.written_data))
+        # Next 2 commands still waiting to go.
+        self.assertEqual(self.controller._command_streaming.qsize(), 2)
+
+        # "OK" acknowledges the first command. Will now be space for the
+        # remaining commands.
+        self.controller._incoming_ok()
+        self.controller._periodic_io()
+        self.controller._periodic_io()
+        self.controller._periodic_io()
+
+        # Recorded length of tracked data matches what went out the serial port.
+        self.assertEqual(sum(self.controller._send_buf_lens),
+                str_len(self.controller._serial.written_data[1:]))
+        # All commands have been sent.
+        self.assertEqual(self.controller._command_streaming.qsize(), 0)
+
+    def test_send_zero_lenght(self):
+        """ Zero length commands should not be sent to Grbl. """
+        self.controller._command_streaming.put(b"a")
+        self.controller._command_streaming.put(b"")
+        self.controller._command_streaming.put(b"c")
+
+        # Process everything in the buffer.
+        self.controller._periodic_io()
+        self.controller._periodic_io()
+        self.controller._periodic_io()
+
+        # All commands have been sent.
+        self.assertEqual(self.controller._command_streaming.qsize(), 0)
+
+        # Only non-empty commands were actually sent.
+        self.assertEqual(self.controller._serial.written_data[0], b"a\n")
+        self.assertEqual(self.controller._serial.written_data[1], b"c\n")
+        self.assertEqual(len(self.controller._serial.written_data), 2)
+        self.assertEqual(sum(self.controller._send_buf_lens), 4)
 
 if __name__ == "__main__":
     unittest.main()
