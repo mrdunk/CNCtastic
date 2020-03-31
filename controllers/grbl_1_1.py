@@ -441,7 +441,7 @@ class Grbl1p1Controller(_SerialControllerBase):
         # Perform a soft reset of Grbl.
         # With a lot of testing we could avoid needing this reset and keep state
         # between disconnect/connect cycles.
-        #self._command_immediate.put(b"\x18")
+        self._command_immediate.put(b"\x18")
 
     def on_activate(self) -> None:
         """ Called whenever self.active is set True. """

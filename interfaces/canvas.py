@@ -217,44 +217,68 @@ class CanvasWidget(_InterfaceBase):
     def __init__(self, label: str = "canvasWidget") -> None:
         super().__init__(label)
 
-        self.graph_elem = sg.Graph((400, 400), (0, 0), (400, 400), key='+GRAPH+',
-                                   tooltip='Graph')
+        width = 400
+        height = 400
+        self.graph_elem = sg.Graph((width, height),
+                                   (0, 0),
+                                   (width, height),
+                                   key="+GRAPH+",
+                                   tooltip="Graph",
+                                   enable_events=True,
+                                   drag_submits=True)
 
-        self.rotate_x: float = 0.6161012
-        self.rotate_y: float = 0
-        self.rotate_z: float = 3.141 / 4
+        self.rotation: Dict[str, float] = {"x": 0.6161012, "y": 0, "z": 3.141 / 4}
         self.scale: float = 50
-
-        self.structures: Dict[str, Geometry] = {}
+        self.mouse_move: Optional[Tuple[float, float]] = None
 
         # Display a cube for debugging purposes.
+        self.structures: Dict[str, Geometry] = {}
         self.structures["test_cube"] = TestCube(self.graph_elem)
         self.structures["axis"] = Axis(self.graph_elem)
         self.structures["machine_position"] = Geometry(self.graph_elem)
-        self.machine_position = self.structures["machine_position"]
+        self.structures["gcode"] = Geometry(self.graph_elem)
+
+        self.center: Tuple[float, float, float] = self.calculate_center()
 
         self.event_subscriptions = {
             "active_controller:machine_pos": ("_machine_pos_handler", None),
             "gui:keypress": ("_keypress_handler", None),
             "gui:restart": ("redraw", None),
-            "gui:has_restarted": ("redraw", None),
+            "gui:has_restarted": ("_startup", None),
             }
+
+        self.dirty: bool = True
+
+    def _startup(self, _: Any) -> None:
+        self.graph_elem.QT_QGraphicsView.mouse_moveEvent = self.mouse_move_event
+        self.graph_elem.QT_QGraphicsView.mousePressEvent = self.mouse_press_event
+        self.graph_elem.QT_QGraphicsView.mouseReleaseEvent = self.mouse_release_event
+        self.graph_elem.QT_QGraphicsView.resizeEvent = self.resize_event
+        self.graph_elem.QT_QGraphicsView.wheelEvent = self.wheel_event
+
+        self.dirty = True
 
     def _machine_pos_handler(self, pos: Dict[str, float]) -> None:
         """ Event handler for "active_controller:machine_pos".
             Called when the machine position is updated."""
-        self.machine_position.add_nodes([(pos["x"], pos["y"], pos["z"])])
+        machine_position = self.structures["machine_position"]
+        machine_position.add_nodes([(pos["x"], pos["y"], pos["z"])])
+
+    def _gcode_handler(self, gcode: str) -> None:
+        """ Draw gcode primitives. """
+        # TODO
+        print(gcode)
 
     def _keypress_handler(self, key: Union[int, slice]) -> None:
         # TODO: Replace "special xxxx" with sensible named variable.
         if key == "special 16777234":
-            self.rotate_z += 0.01
+            self.rotation["z"] += 0.01
         elif key == "special 16777236":
-            self.rotate_z -= 0.01
+            self.rotation["z"] -= 0.01
         elif key == "special 16777235":
-            self.rotate_x -= 0.01
+            self.rotation["x"] -= 0.01
         elif key == "special 16777237":
-            self.rotate_x += 0.01
+            self.rotation["x"] += 0.01
         elif key == "+":
             self.scale *= 1.1
         elif key == "-":
@@ -317,11 +341,51 @@ class CanvasWidget(_InterfaceBase):
         for structure in self.structures.values():
             structure.redraw()
 
+    def mouse_move_event(self, event: Any) -> None:
+        """ Called on mouse button move inside canvas element. """
+        if self.mouse_move:
+            move = (event.x() - self.mouse_move[0], event.y() - self.mouse_move[1])
+            self.mouse_move = (event.x(), event.y())
+
+        self.center = (self.center[0] + move[0] / 10, self.center[1] + move[1] / 10, self.center[2])
+        self.dirty = True
+
+    def mouse_press_event(self, event: Any) -> None:
+        """ Called on mouse button down inside canvas element. """
+        print("There are", len(self.graph_elem.QT_QGraphicsView.items(event.pos())),
+              "items at position", self.graph_elem.QT_QGraphicsView.mapToScene(event.pos()))
+        self.graph_elem.QT_QGraphicsView.setDragMode(
+            self.graph_elem.QT_QGraphicsView.ScrollHandDrag)
+
+        self.mouse_move = (event.x(), event.y())
+
+    def mouse_release_event(self, event: Any) -> None:
+        """ Called on mouse button release inside canvas element. """
+        self.graph_elem.QT_QGraphicsView.setDragMode(self.graph_elem.QT_QGraphicsView.NoDrag)
+
+        self.mouse_move = None
+
+    def resize_event(self, event: Any) -> None:
+        """ Called on window resize. """
+        print(event)
+        #self.dirty = True
+
+    def wheel_event(self, event: Any) -> None:
+        """ Called on mousewheel inside canvas element. """
+        self.scale += float(event.delta()) / 4
+        if self.scale < 1:
+            self.scale = 1
+        else:
+            self.dirty = True
+
     def update(self) -> None:
         """ Update all Geometry objects. """
         super().update()
 
-        rotate = (self.rotate_x, self.rotate_y, self.rotate_z)
+        if self.dirty:
+            self.redraw()
+
+        rotate = (self.rotation["x"], self.rotation["y"], self.rotation["z"])
 
         for structure in self.structures.values():
-            structure.update(self.scale, rotate, self.calculate_center())
+            structure.update(self.scale, rotate, self.center)
