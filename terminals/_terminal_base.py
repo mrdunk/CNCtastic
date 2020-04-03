@@ -3,7 +3,7 @@
 
 from typing import Dict, Any, Type
 
-from component import _ComponentBase
+from core.component import _ComponentBase
 from interfaces._interface_base import _InterfaceBase
 from controllers._controller_base import _ControllerBase
 

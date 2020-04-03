@@ -7,7 +7,7 @@
 
 import unittest
 import loader  # pylint: disable=E0401,W0611
-from coordinator.coordinator import Coordinator
+from core.coordinator import Coordinator
 from controllers.debug import DebugController
 from controllers.mock_controller import MockController
 from interfaces.jog import JogWidget

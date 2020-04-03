@@ -2,7 +2,7 @@
 
 from typing import List
 from PySimpleGUIQt_loader import sg
-from component import _ComponentBase
+from core.component import _ComponentBase
 
 class _InterfaceBase(_ComponentBase):
     """ A base class for user input objects used for controlling the machine. """

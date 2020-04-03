@@ -8,7 +8,7 @@ import sys
 import inspect
 
 #from controllers import debug
-from component import _ComponentBase
+from core.component import _ComponentBase
 
 BASEDIR = os.path.dirname(sys.argv[0])
 

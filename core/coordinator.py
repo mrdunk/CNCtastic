@@ -11,7 +11,7 @@ import pprint
 # pylint: disable=E1101  # Module 'PySimpleGUIQt' has no 'XXXX' member (no-member)
 from ruamel.yaml import YAML, YAMLError  # type: ignore
 
-from component import _ComponentBase
+from core.component import _ComponentBase
 from terminals._terminal_base import _TerminalBase
 from interfaces._interface_base import _InterfaceBase
 from controllers._controller_base import _ControllerBase

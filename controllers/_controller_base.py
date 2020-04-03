@@ -12,7 +12,7 @@ from pygcode import Block, GCode, Line
 # pylint: disable=E1101  # Module 'PySimpleGUIQt' has no 'XXXX' member (no-member)
 from PySimpleGUIQt_loader import sg
 
-from component import _ComponentBase
+from core.component import _ComponentBase
 from definitions import ConnectionState
 from controllers.state_machine import StateMachineBase, keys_to_lower
 

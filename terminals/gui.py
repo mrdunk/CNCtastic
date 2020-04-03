@@ -6,7 +6,7 @@ from enum import Enum
 # pylint: disable=E1101  # Module 'PySimpleGUIQt' has no 'XXXX' member (no-member)
 from PySimpleGUIQt_loader import sg
 
-import common
+import core.common
 from terminals._terminal_base import _TerminalBase, diff_dicts
 from interfaces._interface_base import _InterfaceBase
 from controllers._controller_base import _ControllerBase
@@ -56,7 +56,7 @@ class Gui(_TerminalBase):
         sg.theme("DarkGrey")
 
         if not self.sub_components:
-            class_pages = common.load_plugins("gui_pages")
+            class_pages = core.common.load_plugins("gui_pages")
             self.sub_components = {page.label: page(interfaces, controllers, controller_classes)
                                    for _, page in class_pages}
 

@@ -9,8 +9,8 @@ Uses plugins for different operating modes. (Eg. Jog, run GCode file, etc.)
 from typing import List, Type
 import argparse
 
-import common
-from coordinator.coordinator import Coordinator
+import core.common
+from core.coordinator import Coordinator
 from terminals._terminal_base import _TerminalBase
 from controllers._controller_base import _ControllerBase
 from interfaces._interface_base import _InterfaceBase
@@ -20,9 +20,9 @@ def main() -> None:
     """ Main program loop. """
 
     # Component plugin classes.
-    class_terminals = common.load_plugins("terminals")
-    class_controllers = common.load_plugins("controllers")
-    class_interfaces = common.load_plugins("interfaces")
+    class_terminals = core.common.load_plugins("terminals")
+    class_controllers = core.common.load_plugins("controllers")
+    class_interfaces = core.common.load_plugins("interfaces")
 
     # Component plugin instances.
     terminals: List[_TerminalBase] = \
