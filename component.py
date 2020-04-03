@@ -8,7 +8,9 @@ class _ComponentBase:
 
     Event = Tuple[str, Any]
     # Single shared instance for all components.
+    _delayed_event_queue: Deque[Event] = deque()
     _event_queue: Deque[Event] = deque()
+    _delay_events = [False,]
 
     # Unique copy per instance.
     event_subscriptions: Dict[str, Any]
@@ -53,13 +55,21 @@ class _ComponentBase:
 
     def publish(self, event_name: str, event_value: Any) -> None:
         """ Distribute an event to all subscribed components. """
-        self._event_queue.append((event_name, event_value))
+        if self._delay_events[0]:
+            print("##delayed", (event_name, event_value))
+            self._delayed_event_queue.append((event_name, event_value))
+        else:
+            self._event_queue.append((event_name, event_value))
 
     def receive(self) -> None:
         """ Receive events this object is subscribed to. """
         #print(self.label, "receive", self._event_queue)
         if not hasattr(self, "event_subscriptions"):
             return
+
+        # Put any events that arrive from now on in the `_delayed_event_queue`
+        # instead of the regular `_event_queue`.
+        self._delay_events[0] = True
 
         for event, value in self._event_queue:
             if event in self.event_subscriptions:

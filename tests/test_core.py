@@ -328,7 +328,7 @@ class TestCoordinator(unittest.TestCase):
                       self.coordinator.controllers["tiger"])
 
         # "_on_activate_controller" changes the default controller.
-        self.coordinator._on_activate_controller("owl:active", True)
+        self.coordinator._on_activate_controller("owl:set_active", True)
 
         self.assertTrue(self.coordinator.controllers["owl"].active)
         self.assertFalse(self.coordinator.controllers["tiger"].active)
@@ -358,7 +358,7 @@ class TestCoordinator(unittest.TestCase):
 
         # "_on_activate_controller" un-sets the currently active.
         # The default controller ("debug") will be made the active.
-        self.coordinator._on_activate_controller("tiger:active", False)
+        self.coordinator._on_activate_controller("tiger:set_active", False)
 
         self.assertFalse(self.coordinator.controllers["owl"].active)
         self.assertFalse(self.coordinator.controllers["tiger"].active)
@@ -482,6 +482,7 @@ class TestEvents(unittest.TestCase):
     def tearDown(self):
         self.mock_widget._event_queue.clear()
         self.assertEqual(len(self.mock_controller._event_queue), 0)
+        self.mock_controller._delay_events[0] = False
 
     def test_publish_event_basic(self):
         """ Subscribe to some events on one component, publish on another. """
@@ -622,6 +623,48 @@ class TestEvents(unittest.TestCase):
 
         # No value specified by `publish(...)` so use the one in `event_subscriptions`.
         self.assertEqual(self.mock_widget.subscribed_value_2, "default_2")
+
+    def test_publish_while_processing_events(self):
+        """ If an event is published while the coordinator is performing `receive()`
+        on it's components, event will go into a different queue and be deferred until
+        next pass. """
+
+        def coordinator_load_config(instance: Coordinator, filename: str) -> None:
+            """ Override Coordinator._load_config for test. """
+            instance.config =  {'controllers': {'mockController': {'type': 'MockController'}}}
+        Coordinator._load_config = coordinator_load_config
+        self.coordinator = Coordinator([], [self.mock_widget], [MockController])
+        self.coordinator._event_queue.clear()
+
+        # The _event_queue is shared between all components.
+        self.assertIs(self.coordinator._event_queue, self.mock_widget._event_queue)
+        self.assertIs(self.coordinator._delayed_event_queue,
+                      self.mock_widget._delayed_event_queue)
+        self.assertEqual(len(self.mock_widget._event_queue), 0)
+        self.assertEqual(len(self.mock_widget._delayed_event_queue), 0)
+
+        # Events are published as normal.
+        self.coordinator.publish("pubSub1", "root")
+        self.assertEqual(len(self.mock_widget._event_queue), 1)
+
+        # Once we start processing the _event_queue, we need to temporarily put
+        # new events in a different queue.
+        self.coordinator.receive()
+        self.assertTrue(self.coordinator._delay_events[0])
+
+        self.coordinator.publish("pubSub2", "toot")
+        # No change in regular queue.
+        self.assertEqual(len(self.mock_widget._event_queue), 1)
+        # New event has gone in _delayed_event_queue.
+        self.assertEqual(len(self.mock_widget._delayed_event_queue), 1)
+
+        # When the coordinator clears the _event_queue the contents of _delayed_event_queue
+        # is copied to _event_queue.
+        self.coordinator._clear_events()
+        self.assertEqual(len(self.mock_widget._event_queue), 1)
+        self.assertEqual(len(self.mock_widget._delayed_event_queue), 0)
+        self.assertEqual(self.mock_widget._event_queue[0], ("pubSub2", "toot"))
+
 
 if __name__ == '__main__':
     unittest.main()

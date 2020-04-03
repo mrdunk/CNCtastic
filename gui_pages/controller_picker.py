@@ -25,11 +25,19 @@ class ControllerPicker(_GuiPageBase):
 
         # Repopulate GUI fields after a GUI restart.
         self.event_subscriptions["gui:has_restarted"] = ("redraw", None)
+        for controller in self.controllers:
+            self.event_subscriptions["%s:active" % controller] = \
+                ("_on_activated_controller", controller)
+        self.event_subscriptions["__coordinator__:new_controller"] = \
+                ("_on_new_controller", None)
+        self.event_subscriptions["##new_controller:picker"] = \
+                ("_on_activated_controller", "##new_controller")
+
 
     def _button(self, label: str) -> sg.Button:
         """ Return a button widget for selecting which controller is selected. """
-        key = self.key_gen("select_%s" % label)
-        self.event_subscriptions[key] = ("_select_controller", label)
+        key = "%s:active_buttonpress" % label
+        self.event_subscriptions[key] = ("_on_button_press", label)
 
         if label == self.enabled:
             color = ("white ", "red")
@@ -44,6 +52,14 @@ class ControllerPicker(_GuiPageBase):
         self.controller_buttons[key] = button
 
         return button
+
+    def _on_button_press(self, event_name: str, controller_label: str) -> None:
+        """ Called in response to `_button()` press."""
+        if controller_label == "##new_controller":
+            self._on_activated_controller(event_name, controller_label)
+            return
+
+        self.publish("%s:set_active" % controller_label, True)
 
     def _configure_widget(self, label: str, controller: _ControllerBase) -> sg.Frame:
         """ Return a widget for configuring a controller. """
@@ -108,9 +124,13 @@ class ControllerPicker(_GuiPageBase):
             ]
         return output
 
-    def _select_controller(self, _: str, label: str) -> None:
+    def _on_activated_controller(self, event_name: str, event_value: str) -> None:
         """ Display GUI for a particular controller. """
-        self.publish("%s:active" % label, True)
+        #print("gui_pages._on_activated_controller", event_name, event_value)
+        if not event_value:
+            return
+        label = event_name.split(":", 1)[0]
+
         self.enabled = label
 
         widget_key = self.key_gen("view_%s" % label)
@@ -120,19 +140,27 @@ class ControllerPicker(_GuiPageBase):
             else:
                 widget.Update(visible=False)
 
-        button_key = self.key_gen("select_%s" % label)
+        button_key = "%s:active_buttonpress" % label
         for key, button in self.controller_buttons.items():
             if button_key == key:
                 button.Update(button_color=("white ", "red"))
             else:
                 button.Update(button_color=("white ", "green"))
 
-    def _new_controller(self, _: str, label: str) -> None:
-        """ Delegate creating a new controller to the coordinator. """
-        self.enabled = "new"
-        self.publish("gui:request_new_controller", label)
+        self.publish("gui:set_tab", self.label)
 
     def redraw(self, _: str = "", __: Any = None) -> None:
         """ Publish events of all controller parameters to re-populate page. """
         for controller in self.controllers.values():
             controller.sync()
+
+    def _new_controller(self, _: str, label: str) -> None:
+        """ Delegate creating a new controller to the coordinator. """
+        self.enabled = "new"
+        self.publish("request_new_controller", label)
+
+    def _on_new_controller(self, _: str, label: str) -> None:
+        """ Response to a __coordinator__:new_controller event. """
+
+        self.event_subscriptions["%s:active" % label] = \
+            ("_on_activated_controller", label)

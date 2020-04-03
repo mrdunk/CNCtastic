@@ -60,11 +60,6 @@ class Coordinator(_ComponentBase):
 
         self.running = True
 
-        # Change which controller is active in response to event.
-        for controller in self.controllers:
-            self.event_subscriptions["%s:active" % controller] = \
-                ("_on_activate_controller", controller)
-
     def _setup_controllers(self) -> None:
         self.controllers = {}
         self.all_components = list(
@@ -96,6 +91,14 @@ class Coordinator(_ComponentBase):
                 self.all_components.append(instance)
 
         self.activate_controller()
+
+        # Change which controller is active in response to event.
+        for controller in self.controllers:
+            self.event_subscriptions["%s:set_active" % controller] = \
+                ("_on_activate_controller", None)
+
+        self.event_subscriptions["request_new_controller"] = \
+            ("_new_controller", None)
 
     def _load_config(self, filename: str) -> None:
         path = Path(filename)
@@ -131,15 +134,22 @@ class Coordinator(_ComponentBase):
 
         self.all_components += list(self.terminal_sub_components.values())
 
-        for terminal_label in self.terminals:
-            self.event_subscriptions["%s:request_new_controller" % terminal_label] = \
-                ("_new_controller", None)
-
     def _clear_events(self) -> None:
         """ Clear the event queue after all events have been delivered. """
         #if(self._event_queue):
         #    print("Clearing event queue: ", self._event_queue)
+
+        self._delay_events[0] = False
         self._event_queue.clear()
+
+        # Move any events that arrived during `self.receive()` to the main queue.
+        while True:
+            try:
+                event = self._delayed_event_queue.pop()
+            except IndexError:
+                break
+            print("#####copying delayed event.", event)
+            self._event_queue.append(event)
 
     def _debug_display_events(self) -> None:
         """ Display all events to console. """
@@ -216,18 +226,22 @@ class Coordinator(_ComponentBase):
         self.active_controller = controller
         _only_one_active()
 
-    def _on_activate_controller(self, event_name: str, event_value: bool) -> None:
+    def _on_activate_controller(self, event: str, event_value: bool) -> None:
         """ Make whichever controller has it's "active" property set the active
             one. """
+        #print("coordinator._on_activate_controller", event, event_value)
 
-        event_controller_name, event_name = event_name.split(":", maxsplit=1)
-        assert event_name == "active", "Unexpected event name: %s" % event_name
+        event_controller_name, event_name = event.split(":", maxsplit=1)
+        assert event_name == "set_active", "Unexpected event name: %s" % event_name
+        assert isinstance(event_value, bool), "Expected value should be boolean."
 
         if self.controllers[event_controller_name].active == event_value:
             # No change
+            self.publish("%s:active" % event_controller_name, event_value)
             return
 
-        print("New active controller: %s is %s" % (event_controller_name, event_value))
+        print("Controller: %s is %s" %
+              (event_controller_name, "active" if event_value else "inactive"))
 
         assert event_controller_name in self.controllers, \
                 "Event received from invalid controller."
@@ -288,6 +302,8 @@ class Coordinator(_ComponentBase):
         self._clear_events()
 
         self._update()
+        #if self._delivered:
+        #    print(self.label, self._delivered)
         self._delivered.clear()
         for component in self.all_components:
             #if component._delivered:
@@ -315,3 +331,5 @@ class Coordinator(_ComponentBase):
         self.all_components.append(instance)
         self.activate_controller(controller=instance)
         self.publish(self.key_gen("new_controller"), instance.label)
+        self.event_subscriptions["new:set_active"] = \
+            ("_on_activate_controller", None)

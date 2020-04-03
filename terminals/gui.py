@@ -68,9 +68,11 @@ class Gui(_TerminalBase):
 
         tabs: List[List[sg.Element]] = []
         for label, layout in layouts.items():
-            tabs.append(sg.Tab(label, layout, key="tabs_%s" % len(tabs)))
+            tabs.append(sg.Tab(label, layout, key="tabs_%s" % label))
 
-        self.layout = [[sg.TabGroup([tabs], key="tabs")]]
+
+        self.layout = [[sg.Menu(self._menu_bar(), key=self.key_gen("menubar")),
+                        sg.TabGroup([tabs], key=self.key_gen("tabs"))]]
 
         self.window = sg.Window("CNCtastic",
                                 self.layout,
@@ -92,9 +94,51 @@ class Gui(_TerminalBase):
 
         self.event_subscriptions[self.key_gen("restart")] = ("_restart", None)
         self.event_subscriptions["__coordinator__:new_controller"] = ("_restart", None)
+        self.event_subscriptions["gui:set_tab"] = ("_set_tab", True)
 
         self._setup_done = True
         self._first_pass_done = False
+
+    def _menu_bar(self) -> List[Any]:
+        """ Layout of window menu bar. """
+        controllers = []
+        for label in self.controllers:
+            controllers.append("%s::__FILE_OPEN_CONTROLLER_%s" % (label, label))
+
+        menu = [['&File', ['&Open', ['&Gcode::__FILE_OPEN_GCODE',
+                                     '&Controller::__FILE_OPEN_CONTROLLER', controllers],
+                           '&Save', ['&Gcode::__FILE_SAVE_GCODE',
+                                     '&Controller::__FILE_SAVE_CONTROLLER'],
+                           '&New', ['&Gcode::__FILE_NEW_GCODE',
+                                    '&Controller::__FILE_NEW_CONTROLLER'],
+                           '---',
+                           'E&xit::_EXIT_']
+                ],
+                ['&Edit', ['Paste', ['Special', 'Normal',], 'Undo'],],
+                ['&Help', '&About...'],]
+        return menu
+
+    def _on_menubar(self, event, value) -> None:
+        print("_on_menubar", event, value)
+        if not value:
+            return
+        label, key = value.split("::__", 1)
+        tokens = key.split("_")
+        if tokens[0] == "FILE":
+            if tokens[1] == "OPEN":
+                if tokens[2] == "GCODE":
+                    # TODO
+                    pass
+                elif tokens[2] == "CONTROLLER":
+                    self.publish("%s:set_active" % label, True)
+            elif tokens[1] == "NEW":
+                if tokens[2] == "GCODE":
+                    # TODO
+                    pass
+                elif tokens[2] == "CONTROLLER":
+                    self.publish("##new_controller:picker", "##new_controller")
+        #self.publish("request_new_controller", label)
+
 
     def early_update(self) -> bool:
         """ To be called once per frame.
@@ -105,7 +149,7 @@ class Gui(_TerminalBase):
             return False
 
         event, values = self.window.read(timeout=10)
-        if event is None or values is None:
+        if event is None or values in [None, "_EXIT_"]:
             print("Quitting via %s" % self.label)
             return False
 
@@ -161,6 +205,12 @@ class Gui(_TerminalBase):
             if event in (self.key_gen("restart"), "__coordinator__:new_controller"):
                 self._restart()
                 continue
+            if event == "gui:set_tab":
+                self._set_tab(value)
+                continue
+            if not self.window.FindElement(event, silent_on_error=True):
+                print("WARNING: Unexpected event: %s" % event)
+                continue
 
             if(hasattr(self.window[event], "metadata") and
                self.window[event].metadata and
@@ -174,9 +224,13 @@ class Gui(_TerminalBase):
                 if int(value) == value:
                     value = int(value)
                 self.window[event].update(value)
+            elif event == self.key_gen("menubar"):
+                self._on_menubar(event, value)
             else:
                 try:
                     self.window[event].update(value)
+                except IndexError:
+                    pass
                 except AttributeError:
                     # Some PySimpleGUI element types can't be updates until they
                     # have been populated with data. eg: the "Graph" element in
@@ -184,7 +238,7 @@ class Gui(_TerminalBase):
                     pass
 
     def _restart(self) -> None:
-        self.selected_tab_key = self.window["tabs"].get()
+        self.selected_tab_key = self.window[self.key_gen("tabs")].get()
         #self.size = self.window.Size
         self.size = self.window.QT_QMainWindow.size().toTuple()
         #self.position = self.window.CurrentLocation()
@@ -207,3 +261,8 @@ class Gui(_TerminalBase):
 
     def __del__(self) -> None:
         self.close()
+
+    def _set_tab(self, tab_key: str) -> None:
+        """ Set which tab is active in response to "set_tab" event. """
+        self.selected_tab_key = "tabs_%s" % tab_key
+        self.window[self.selected_tab_key].select()

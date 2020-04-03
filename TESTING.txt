@@ -1,3 +1,4 @@
-python3 -m pylint *.py */*.py
+python3 -m pylint *.py controllers/*.py coordinator/*.py gui_pages/*.py interfaces/*.py terminals/*.py
 
-/home/duncan/.local/bin/mypy --strict --ignore-missing-imports *.py */*.py
+/home/duncan/.local/bin/mypy --strict --ignore-missing-imports *.py controllers/*.py coordinator/*.py gui_pages/*.py interfaces/*.py terminals/*.py
+
