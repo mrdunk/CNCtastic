@@ -33,7 +33,6 @@ class ControllerPicker(_GuiPageBase):
         self.event_subscriptions["##new_controller:picker"] = \
                 ("_on_activated_controller", "##new_controller")
 
-
     def _button(self, label: str) -> sg.Button:
         """ Return a button widget for selecting which controller is selected. """
         key = "%s:active_buttonpress" % label
