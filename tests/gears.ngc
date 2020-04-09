@@ -1,15 +1,10 @@
-(Block-name: Header)
-(Block-expand: 0)
-(Block-enable: 1)
+(section: Header)
 M3 S12000
 G4 P3
 G0 Z10
-(Block-name: 0)
-(Block-expand: 0)
-(Block-enable: 1)
+(section: big cog)
 G0 X119.7651 Y65.7947
 G0 Z0
-(pass 0.000000)
 G1 X120.5655 Y66.0685 Z0 f750
 G1 X121.7272 Y66.3341 Z0
 G1 X122.6478 Y66.4453 Z0
@@ -390,14 +385,10 @@ G1 X120.1487 Y63.437 Z0
 G1 X119.4721 Y63.9447 Z0
 G1 X119.5458 Y64.8812 Z0
 G1 X119.7651 Y65.7947 Z0
-(exiting)
 G0 Z5
-(Block-name: 0)
-(Block-expand: 0)
-(Block-enable: 1)
+(section: big cog hole)
 G0 X145.7787 Y64.2336
 G0 Z0
-(pass 0.000000)
 G1 X146.5864 Y64.4501 Z0 f750
 G1 X147.4215 Y64.4938 Z0
 G1 X148.2474 Y64.363 Z0
@@ -410,6 +401,7 @@ G1 X151.2067 Y60.7086 Z0
 G1 X151.1629 Y59.8736 Z0
 G1 X150.9465 Y59.0658 Z0
 G1 X150.5669 Y58.3207 Z0
+something that isn't gcode
 G1 X150.0406 Y57.6709 Z0
 G1 X149.3907 Y57.1446 Z0
 G1 X148.6456 Y56.765 Z0
@@ -428,14 +420,10 @@ G1 X143.8575 Y62.6779 Z0
 G1 X144.3837 Y63.3277 Z0
 G1 X145.0336 Y63.854 Z0
 G1 X145.7787 Y64.2336 Z0
-(exiting)
 G0 Z5
-(Block-name: OpenJsCad)
-(Block-expand: 0)
-(Block-enable: 1)
+(section: little cog)
 G0 X113.3948 Y51.1313
 G0 Z0
-(pass 0.000000)
 G1 X112.4541 Y50.8901 Z0 f750
 G1 X111.4473 Y50.6874 Z0
 G1 X110.562 Y50.557 Z0
@@ -1196,14 +1184,10 @@ G1 X112.8963 Y53.6817 Z0
 G1 X113.7164 Y53.1616 Z0
 G1 X113.6355 Y52.1338 Z0
 G1 X113.3948 Y51.1313 Z0
-(exiting)
 G0 Z5
-(Block-name: OpenJsCad)
-(Block-expand: 0)
-(Block-enable: 1)
+(section: little cog hole)
 G0 X61.6494 Y56.5867
 G0 Z0
-(pass 0.000000)
 G1 X60.8178 Y56.4993 Z0 f750
 G1 X59.9862 Y56.5867 Z0
 G1 X59.1909 Y56.8451 Z0
@@ -1234,10 +1218,7 @@ G1 X63.7904 Y57.8228 Z0
 G1 X63.1689 Y57.2632 Z0
 G1 X62.4447 Y56.8451 Z0
 G1 X61.6494 Y56.5867 Z0
-(exiting)
 G0 Z5
-(Block-name: Footer)
-(Block-expand: 0)
-(Block-enable: 1)
+(section: Footer)
 M5
 G0 Z20

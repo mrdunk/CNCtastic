@@ -46,6 +46,7 @@ def load_plugins(directory: str) -> Set[Any]:
         for finder, name, ispkg in pkgutil.iter_modules([full_mod_path])
         if name and not name.startswith('_')
         ]
+    # print(discovered_plugins)
 
     for module in discovered_plugins:
         for thing in get_component_from_module(module):

@@ -11,10 +11,12 @@ import pprint
 # pylint: disable=E1101  # Module 'PySimpleGUIQt' has no 'XXXX' member (no-member)
 from ruamel.yaml import YAML, YAMLError  # type: ignore
 
+import core.common
 from core.component import _ComponentBase
 from terminals._terminal_base import _TerminalBase
 from interfaces._interface_base import _InterfaceBase
 from controllers._controller_base import _ControllerBase
+from core_components._core_component_base import _CoreComponentBase
 
 class Coordinator(_ComponentBase):
     """ Coordinator handles interactions between components.
@@ -42,6 +44,9 @@ class Coordinator(_ComponentBase):
         self.controllers: Dict[str, _ControllerBase] = {}
         self.terminal_sub_components: Dict[str, Any] = {}
 
+        self.core_components: Dict[str, _CoreComponentBase] = {}
+        self._load_core_components()
+
         self.debug_show_events = debug_show_events
 
         self.active_controller: Optional[_ControllerBase] = None
@@ -50,15 +55,21 @@ class Coordinator(_ComponentBase):
         self.all_components: List[_ComponentBase] = []
         self.all_components += list(terminals)
         self.all_components += list(interfaces)
+        self.all_components += list(self.core_components.values())
 
         self.event_subscriptions = {}
 
         self._load_config("config.yaml")
         self._setup_controllers()
-
         self._setup_terminals()
 
         self.running = True
+
+    def _load_core_components(self) -> None:
+        """ Load and instantiate core_component plugins. """
+        core_components = core.common.load_plugins("core_components")
+        for _, core_component in core_components:
+            self.core_components[core_component.label] = core_component()
 
     def _setup_controllers(self) -> None:
         self.controllers = {}
@@ -287,6 +298,9 @@ class Coordinator(_ComponentBase):
 
         for interface in self.interfaces.values():
             interface.early_update()
+
+        for core_component in self.core_components.values():
+            core_component.update()
 
         for controller in self.controllers.values():
             controller.early_update()
