@@ -1,19 +1,20 @@
+""" Parse and process gcode supplied in text format by event. """
 
-from typing import Any, List, Dict, Tuple
+from typing import Any, List
 
-from core_components._core_component_base import _CoreComponentBase
-
+from collections import namedtuple
+import numpy as np
 from pygcode import Line, GCodeMotion
 from pygcode.exceptions import GCodeWordStrError
-import numpy as np
-from collections import namedtuple
+
+from core_components._core_component_base import _CoreComponentBase
 
 Section = namedtuple("Section", ["name", "lines", "errors"])
 ParsedLine = namedtuple("ParsedLine", ["raw", "section", "gcode", "errors", "metadata"])
 ParsedLineMetadata = namedtuple("ParsedLineMetadata", ["point", "distance"])
 
 class CoreGcode(_CoreComponentBase):
-
+    """ Parse and process gcode supplied in text format by event. """
     # Set this True for any derived class that is to be used as a plugin.
     is_valid_plugin = True
 
@@ -25,21 +26,21 @@ class CoreGcode(_CoreComponentBase):
         self.gcode_raw: List[str] = []
         self.gcode_raw_error: bool = False
 
-        self.gcode_parsed: List[List[Any]] = []
+        self.gcode_parsed: List[Section] = []
 
-        self.event_subscriptions["core_gcode:raw_gcode_loaded"] = (
-                "_on_raw_gcode", "")
-    
-    def _on_raw_gcode(self, event: str, raw_gcode: Any) -> None:
+        self.event_subscriptions["core_gcode:gcode_raw_loaded"] = (
+            "_on_gcode_raw", "")
 
-        self.raw_gcode = raw_gcode
+    def _on_gcode_raw(self, _: str, gcode_raw: Any) -> None:
+
+        self.gcode_raw = gcode_raw
+        self.gcode_parsed = []
 
         section_name = "unnamed"
-        section = []
-        section_errors = []
+        section: List[ParsedLine] = []
+        section_errors: List[str] = []
         last_point = np.array([np.nan, np.nan, np.nan])
-        point = np.array([np.nan, np.nan, np.nan])
-        for line in raw_gcode:
+        for line in gcode_raw:
             parsed_line = self._gcode_parse_line(section_name, last_point, line)
             if parsed_line.section != section_name:
                 # New section.
@@ -57,8 +58,8 @@ class CoreGcode(_CoreComponentBase):
 
                 section.append(parsed_line)
                 if parsed_line.errors:
-                    for e in parsed_line.errors:
-                        section_errors.append("%s: %s" % (e, line))
+                    for error_ in parsed_line.errors:
+                        section_errors.append("%s: %s" % (error_, line))
 
         if section:
             # Save remainder of section.
@@ -78,11 +79,11 @@ class CoreGcode(_CoreComponentBase):
             gcode_line = Line(line)
         except GCodeWordStrError:
             errors.append("Invalid gcode")
-        
+
         if gcode_line:
             point, point_errors = self._gcode_to_point(gcode_line, last_point)
             errors += point_errors
-            
+
             distance = self._dist_between_points(last_point, point)
             if np.isnan(distance):
                 distance = None
@@ -100,7 +101,7 @@ class CoreGcode(_CoreComponentBase):
         """ Add new comment or append to existing comment. """
         line.comment = "%s ; %s" % (line.comment, comment)
 
-    def _dist_between_points(self, point_1: np.array, point_2: np.array) -> None:
+    def _dist_between_points(self, point_1: np.array, point_2: np.array) -> Any:
         return np.linalg.norm(point_1 - point_2)
 
     def _gcode_to_point(self, line: Line, last: np.array) -> np.array:
@@ -123,4 +124,3 @@ class CoreGcode(_CoreComponentBase):
                     return_value[2] = params["Z"]
 
         return (return_value, errors)
-

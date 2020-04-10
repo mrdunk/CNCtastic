@@ -119,7 +119,8 @@ class Gui(_TerminalBase):
                 ['&Help', '&About...'],]
         return menu
 
-    def _on_menubar(self, event, value) -> None:
+    def _on_menubar(self, event: str, value: Any) -> None:
+        """ Called in response to a "menubar" event. """
         print("_on_menubar", event, value)
         if not value:
             return
@@ -129,7 +130,7 @@ class Gui(_TerminalBase):
             if tokens[1] == "OPEN":
                 if tokens[2] == "GCODE":
                     # TODO
-                    pass
+                    self.publish("gui:select_file_gcode", None)
                 elif tokens[2] == "CONTROLLER":
                     self.publish("%s:set_active" % label, True)
             elif tokens[1] == "NEW":
