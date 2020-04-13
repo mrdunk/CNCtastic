@@ -12,7 +12,9 @@ from gui_pages._page_base import _GuiPageBase
 from PySimpleGUIQt_loader import sg
 
 Section = namedtuple("Section", ["name", "lines", "errors"])
-ParsedLine = namedtuple("ParsedLine", ["raw", "section", "gcode", "errors", "metadata"])
+ParsedLine = namedtuple("ParsedLine", ["raw", "gcode_word_key", "count", "iterations"])
+GcodeIteration = namedtuple("GcodeIteration", ["gcode", "errors", "metadata"])
+GcodeMetadata = namedtuple("GcodeMetadata", ["point", "distance"])
 
 
 # Icons from here:
@@ -73,8 +75,8 @@ class GcodeLoader(_GuiPageBase):
 
         treedata = sg.TreeData()
         self.widgets["tree"] = sg.Tree(data=treedata,
-                                       headings=["distance", "status", "test"],
-                                       visible_column_map=[True, True, False],
+                                       headings=["distance", "status", "count"],
+                                       #visible_column_map=[False, True, False],
                                        change_submits=True,
                                        enable_events=True,
                                        auto_size_columns=True,
@@ -84,6 +86,7 @@ class GcodeLoader(_GuiPageBase):
                                        key='_TREE_',
                                        #show_expanded=True,
                                        size=(800, 300),
+                                       #debug_key=True,
                                        )
 
         return self.widgets["tree"]
@@ -99,7 +102,7 @@ class GcodeLoader(_GuiPageBase):
 
     def _on_tree(self, event: str, value: str) -> None:
         """ Called whenever the selected line on the tree widget changes. """
-        print("_on_tree", event, value)
+        #print("_on_tree", event, value)
 
     def _on_file_picked(self, _: str, event_value: Any) -> None:
         """ Called in response to gcode file being selected. """
@@ -147,23 +150,23 @@ class GcodeLoader(_GuiPageBase):
                 block_key = self.key_gen("block__%s__%s" % (section_name, counter))
 
                 data = ""
-                if parsed_line.gcode:
-                    data = str(parsed_line.gcode)
+                if parsed_line.iterations[0].gcode:
+                    data = str(parsed_line.iterations[0].gcode)
                 else:
                     data = parsed_line.raw
 
                 icon = OK
-                if parsed_line.errors:
+                if parsed_line.iterations[0].errors:
                     icon = ERROR
-                    data += " : %s" % str(parsed_line.errors)
+                    data += " : %s" % str(parsed_line.iterations[0].errors)
 
-                distance = str(parsed_line.metadata.distance)
+                distance = str(parsed_line.iterations[0].metadata.distance)
                 if distance == "None":
                     distance = ""
                 treedata.Insert(section_key,
                                 block_key,
                                 data,
-                                [distance, icon],
+                                [distance, icon, parsed_line.count],
                                 )
                 counter += 1
 

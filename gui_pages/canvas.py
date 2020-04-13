@@ -2,12 +2,17 @@
 
 """ Display Gcode and machine movement in the GUI. """
 
-from typing import List, Tuple, Dict, Union, Optional, Any
+from typing import List, Tuple, Dict, Union, Optional, Any, Type
 
 import numpy as np
+from PySide2.QtCore import Qt, QRectF
+from PySide2.QtGui import QPainter
 from PySimpleGUIQt_loader import sg
+from pygcode import GCodeRapidMove
 
 from interfaces._interface_base import _InterfaceBase
+from controllers._controller_base import _ControllerBase
+from gui_pages._page_base import _GuiPageBase
 
 NODE_SIZE = 3
 
@@ -26,12 +31,12 @@ class Geometry:
 
     def calculate_nodes_center(self) -> Tuple[float, float, float]:
         """ Return the center of all the nodes. """
-        extremities = self.calculate_nodes_extremities()
+        extremities = self.calculate_bounding_box()
         return (-(extremities[0][0] + extremities[1][0]) / 2,
                 -(extremities[0][1] + extremities[1][1]) / 2,
                 -(extremities[0][2] + extremities[1][2]) / 2)
 
-    def calculate_nodes_extremities(self) -> \
+    def calculate_bounding_box(self) -> \
             Tuple[Tuple[float, float, float], Tuple[float, float, float]]:
         """ Return the maximum and minimum values for each axis. """
         if not self.nodes.any():
@@ -157,10 +162,13 @@ class Geometry:
                scale: float,
                rotate: Tuple[float, float, float],
                center: Tuple[float, float, float]
-               ) -> None:
-        """ Draw/redraw any nodes and edges that have been added since last update. """
+               ) -> bool:
+        """ Draw/redraw any nodes and edges that have been added since last update.
+        Returns: Boolean value indicating if anything was done. """
+        work_done = False
         color: Optional[str]
         if len(self.nodes) > len(self.display_nodes):
+            work_done = True
             update_nodes_from = len(self.display_nodes)
             new_nodes = self.transform(
                 self.nodes[update_nodes_from:], scale, rotate, center)
@@ -172,15 +180,16 @@ class Geometry:
             self.display_nodes = np.vstack((self.display_nodes, new_nodes))
 
         if self.update_edges_from < len(self.edges):
+            work_done = True
             for edge in self.edges[self.update_edges_from:]:
                 color = "blue"
                 if len(edge) > 2:
                     color = edge[2]
                 node_0 = self.display_nodes[edge[0]]
                 node_1 = self.display_nodes[edge[1]]
-                self.graph_elem.DrawLine(node_0[:2], node_1[:2], width=1, color=color)
+                self.graph_elem.DrawLine(node_0[:2], node_1[:2], width=10, color=color)
             self.update_edges_from = len(self.edges)
-
+        return work_done
 
 class TestCube(Geometry):
     """ A Geometry object with some sample data added. """
@@ -207,23 +216,29 @@ class Axis(Geometry):
         self.calculate_center_include = False
 
 
-class CanvasWidget(_InterfaceBase):
+class CanvasWidget(_GuiPageBase):
     """ Allows user to directly control various machine settings. eg: Jog the
     head to given coordinates. """
 
     # Set this True for any derived class that is to be used as a plugin.
     is_valid_plugin = True
 
-    def __init__(self, label: str = "canvasWidget") -> None:
-        super().__init__(label)
+    label = "canvasWidget"
 
-        width = 400
-        height = 400
+    def __init__(self,
+                 interfaces: Dict[str, _InterfaceBase],
+                 controllers: Dict[str, _ControllerBase],
+                 controller_classes: Dict[str, Type[_ControllerBase]]) -> None:
+        super().__init__(interfaces, controllers, controller_classes)
+
+        width = 800
+        height = 800
         self.graph_elem = sg.Graph((width, height),
                                    (0, 0),
                                    (width, height),
                                    key="+GRAPH+",
                                    tooltip="Graph",
+                                   background_color="white",
                                    enable_events=True,
                                    drag_submits=True)
 
@@ -239,12 +254,13 @@ class CanvasWidget(_InterfaceBase):
         self.structures["gcode"] = Geometry(self.graph_elem)
 
         self.center: Tuple[float, float, float] = self.calculate_center()
-
+        
         self.event_subscriptions = {
             "active_controller:machine_pos": ("_machine_pos_handler", None),
             "gui:keypress": ("_keypress_handler", None),
             "gui:restart": ("redraw", None),
             "gui:has_restarted": ("_startup", None),
+            "core_gcode:parsed_gcode_loaded": ("_gcode_handler", None),
             }
 
         self.dirty: bool = True
@@ -255,6 +271,13 @@ class CanvasWidget(_InterfaceBase):
         self.graph_elem.QT_QGraphicsView.mouseReleaseEvent = self.mouse_release_event
         self.graph_elem.QT_QGraphicsView.resizeEvent = self.resize_event
         self.graph_elem.QT_QGraphicsView.wheelEvent = self.wheel_event
+
+        self.graph_elem.QT_QGraphicsView.DragMode = self.graph_elem.QT_QGraphicsView.ScrollHandDrag
+        self.graph_elem.QT_QGraphicsView.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
+        self.graph_elem.QT_QGraphicsView.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
+        self.graph_elem.QT_QGraphicsView.setRenderHints(
+                QPainter.Antialiasing|QPainter.SmoothPixmapTransform)
+        #self.graph_elem.QT_QGraphicsView.setAlignment(Qt.AlignCenter)
 
         self.dirty = True
 
@@ -267,7 +290,30 @@ class CanvasWidget(_InterfaceBase):
     def _gcode_handler(self, gcode: str) -> None:
         """ Draw gcode primitives. """
         # TODO
-        print(gcode)
+        print("canvas._gcode_handler")
+        nodes = []
+        edges = []
+        for section in gcode:
+            print("section:", section.name)
+            for line in section.lines:
+                if line.iterations[0].errors:
+                    continue
+                if not line.gcode_word_key:
+                    continue
+                point = line.iterations[0].metadata.point
+                if np.isnan(np.sum(point)):
+                    continue
+                nodes.append(point)
+
+                color = "green"
+                if line.gcode_word_key == GCodeRapidMove().word_key:
+                    color = "red"
+                if len(nodes) > 1:
+                    edges.append((len(nodes) - 2, len(nodes) - 1, color))
+        self.structures["gcode"].add_nodes(nodes)
+        self.structures["gcode"].add_edges(edges)
+
+        self.dirty = True
 
     def _keypress_handler(self, key: Union[int, slice]) -> None:
         # TODO: Replace "special xxxx" with sensible named variable.
@@ -299,9 +345,9 @@ class CanvasWidget(_InterfaceBase):
 
         return layout
 
-    def calculate_center(self) -> Tuple[float, float, float]:
-        """ Calculate the center of all geometry. """
-
+    def calculate_bounding_box(self) -> Tuple[Tuple[float, float, float],
+                                              Tuple[float, float, float]]:
+        """ Calculate minimum and maximum coordinate values encompassing all points. """
         # Would have preferred to use None here but mypy doesn't like Optional[float].
         max_value: float = 9999999999
         combined_minimums: List[float] = [max_value, max_value, max_value]
@@ -311,7 +357,7 @@ class CanvasWidget(_InterfaceBase):
             if not structure.calculate_center_include:
                 continue
 
-            extremities = structure.calculate_nodes_extremities()
+            extremities = structure.calculate_bounding_box()
 
             mimimums = extremities[0]
             for index, value in enumerate(mimimums):
@@ -332,6 +378,13 @@ class CanvasWidget(_InterfaceBase):
             if value == -max_value:
                 return (0, 0, 0)
 
+        return (combined_minimums, combined_maximums)
+
+    def calculate_center(self) -> Tuple[float, float, float]:
+        """ Calculate the center of all geometry. """
+
+        combined_minimums, combined_maximums = self.calculate_bounding_box()
+
         return (-(combined_minimums[0] + combined_maximums[0]) / 2,
                 -(combined_minimums[1] + combined_maximums[1]) / 2,
                 -(combined_minimums[2] + combined_maximums[2]) / 2)
@@ -340,6 +393,7 @@ class CanvasWidget(_InterfaceBase):
         """ Redraw all geometry to screen. """
         for structure in self.structures.values():
             structure.redraw()
+        self.dirty = False
 
     def mouse_move_event(self, event: Any) -> None:
         """ Called on mouse button move inside canvas element. """
@@ -347,7 +401,10 @@ class CanvasWidget(_InterfaceBase):
             move = (event.x() - self.mouse_move[0], event.y() - self.mouse_move[1])
             self.mouse_move = (event.x(), event.y())
 
-        self.center = (self.center[0] + move[0] / 10, self.center[1] + move[1] / 10, self.center[2])
+        self.center = (
+                self.center[0] + move[0] / 10,
+                self.center[1] + move[1] / 10,
+                self.center[2])
         self.dirty = True
 
     def mouse_press_event(self, event: Any) -> None:
@@ -372,11 +429,28 @@ class CanvasWidget(_InterfaceBase):
 
     def wheel_event(self, event: Any) -> None:
         """ Called on mousewheel inside canvas element. """
-        self.scale += float(event.delta()) / 4
-        if self.scale < 1:
-            self.scale = 1
+        if event.delta() > 0:
+            scale = 1.1
         else:
-            self.dirty = True
+            scale = 0.9
+        self.graph_elem.QT_QGraphicsView.scale(scale, scale)
+
+        #self.scale += float(event.delta()) / 16
+        #if self.scale < 1:
+        #    self.scale = 1
+        #else:
+        #    self.dirty = True
+
+    def set_viewport(self) -> None:
+        for structure in self.structures.values():
+            if len(structure.nodes) != len(structure.display_nodes):
+                # This structure is not finished being drawn to the scene.
+                # We don't want to re-size until everything is displayed or
+                # we might flicker between scales as things are drawing.
+                return
+        self.center = self.calculate_center()
+        screenRect = self.graph_elem.QT_QGraphicsView.scene().itemsBoundingRect()
+        self.graph_elem.QT_QGraphicsView.setSceneRect(screenRect)
 
     def update(self) -> None:
         """ Update all Geometry objects. """
@@ -387,5 +461,8 @@ class CanvasWidget(_InterfaceBase):
 
         rotate = (self.rotation["x"], self.rotation["y"], self.rotation["z"])
 
+        work_done = False
         for structure in self.structures.values():
-            structure.update(self.scale, rotate, self.center)
+            work_done |= structure.update(self.scale, rotate, self.center)
+        if work_done:
+            self.set_viewport()

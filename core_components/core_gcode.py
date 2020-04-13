@@ -10,8 +10,10 @@ from pygcode.exceptions import GCodeWordStrError
 from core_components._core_component_base import _CoreComponentBase
 
 Section = namedtuple("Section", ["name", "lines", "errors"])
-ParsedLine = namedtuple("ParsedLine", ["raw", "section", "gcode", "errors", "metadata"])
-ParsedLineMetadata = namedtuple("ParsedLineMetadata", ["point", "distance"])
+ParsedLine = namedtuple("ParsedLine", ["raw", "gcode_word_key", "count", "iterations"])
+GcodeIteration = namedtuple("GcodeIteration", ["gcode", "errors", "metadata"])
+GcodeMetadata = namedtuple("GcodeMetadata", ["point", "distance"])
+
 
 class CoreGcode(_CoreComponentBase):
     """ Parse and process gcode supplied in text format by event. """
@@ -40,25 +42,27 @@ class CoreGcode(_CoreComponentBase):
         section: List[ParsedLine] = []
         section_errors: List[str] = []
         last_point = np.array([np.nan, np.nan, np.nan])
+        count = 0
         for line in gcode_raw:
-            parsed_line = self._gcode_parse_line(section_name, last_point, line)
-            if parsed_line.section != section_name:
+            section_name_parsed, parsed_line = \
+                    self._gcode_parse_line(section_name, last_point, count, line)
+            if section_name_parsed != section_name:
                 # New section.
                 if section:
                     # Save old section.
                     self.gcode_parsed.append(Section(section_name, section, section_errors))
-                    section_name = parsed_line.section
                     section = []
                     section_errors = []
-                section_name = parsed_line.section
+                section_name = section_name_parsed
             else:
-                if parsed_line.gcode:
+                if parsed_line.iterations[0].gcode:
                     # Valid gcode line containing more than just comment.
-                    last_point = parsed_line.metadata.point
+                    last_point = parsed_line.iterations[0].metadata.point
 
                 section.append(parsed_line)
-                if parsed_line.errors:
-                    for error_ in parsed_line.errors:
+                count += 1
+                if parsed_line.iterations[0].errors:
+                    for error_ in parsed_line.iterations[0].errors:
                         section_errors.append("%s: %s" % (error_, line))
 
         if section:
@@ -70,9 +74,11 @@ class CoreGcode(_CoreComponentBase):
     def _gcode_parse_line(self,
                           section_name: str,
                           last_point: np.array,
+                          count: int,
                           line: str) -> ParsedLine:
         errors = []
         point = np.array([np.nan, np.nan, np.nan])
+        gcode_word_key = None
         distance = None
         gcode_line = None
         try:
@@ -81,7 +87,7 @@ class CoreGcode(_CoreComponentBase):
             errors.append("Invalid gcode")
 
         if gcode_line:
-            point, point_errors = self._gcode_to_point(gcode_line, last_point)
+            point, point_errors, gcode_word_key = self._gcode_to_point(gcode_line, last_point)
             errors += point_errors
 
             distance = self._dist_between_points(last_point, point)
@@ -94,8 +100,9 @@ class CoreGcode(_CoreComponentBase):
                 if comment.upper().replace(" ", "").startswith("(SECTION:"):
                     section_name = comment.split(":", 1)[1].rstrip(")").strip()
                     print(">>", section_name)
-        metadata = ParsedLineMetadata(point, distance)
-        return ParsedLine(line, section_name, gcode_line, errors, metadata)
+        metadata = GcodeMetadata(point, distance)
+        gcode_iteration = GcodeIteration(gcode_line, errors, metadata)
+        return (section_name, ParsedLine(line, gcode_word_key, count, [gcode_iteration]))
 
     def _gcode_append_comment(self, line: Line, comment: str) -> None:
         """ Add new comment or append to existing comment. """
@@ -107,6 +114,7 @@ class CoreGcode(_CoreComponentBase):
     def _gcode_to_point(self, line: Line, last: np.array) -> np.array:
 
         return_value = last.copy()
+        gcode_word_key = None
         errors = []
         found_motion = False
         for gcode in line.block.gcodes:
@@ -122,5 +130,6 @@ class CoreGcode(_CoreComponentBase):
                     return_value[1] = params["Y"]
                 if "Z" in params:
                     return_value[2] = params["Z"]
+                gcode_word_key = gcode.word_key
 
-        return (return_value, errors)
+        return (return_value, errors, gcode_word_key)
