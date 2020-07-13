@@ -9,8 +9,8 @@ from PySimpleGUIQt_loader import sg
 
 class ControllerPicker(_GuiPageBase):
     """ A GUI page for selecting and configuring controllers. """
-    is_valid_plugin = True
 
+    is_valid_plugin = True
     label = "ControllerPicker"
 
     def __init__(self,

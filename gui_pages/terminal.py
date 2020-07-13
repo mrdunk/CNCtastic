@@ -3,7 +3,7 @@
 
 """ Interface to allow text entry of raw Gcode. """
 
-from typing import List, Deque, Optional
+from typing import List, Deque, Optional, Dict, Type, Tuple
 from collections import deque
 
 from pygcode import Line
@@ -11,22 +11,27 @@ from pygcode.exceptions import GCodeWordStrError
 
 from PySimpleGUIQt_loader import sg
 
-from interfaces._interface_base import _InterfaceBase
+from controllers._controller_base import _ControllerBase
+from gui_pages._page_base import _GuiPageBase
 
-class Terminal(_InterfaceBase):
+class Terminal(_GuiPageBase):
     """ Allows user to enter raw Gcode as text. """
 
     # Set this True for any derived class that is to be used as a plugin.
     is_valid_plugin = True
+    label = "terminal"
 
-    def __init__(self, label: str = "terminal") -> None:
-        super().__init__(label)
+    def __init__(self,
+                 controllers: Dict[str, _ControllerBase],
+                 controller_classes: Dict[str, Type[_ControllerBase]]) -> None:
+        super().__init__(controllers, controller_classes)
 
         # Map incoming events to local member variables and callback methods.
         self.event_subscriptions = {
             self.key_gen("gcode_newline"): ("_gcode_update", None),
             self.key_gen("gcode_submit"): ("_gcode_submit", None),
-            "user_feedback:command_state": ("_user_feedback", None)
+            "user_feedback:command_state": ("_user_feedback", None),
+            # TODO: Subscribe to other events we want to see in the terminal.
         }
 
         self.widget_log: Optional[sg.Multiline] = None
@@ -34,15 +39,16 @@ class Terminal(_InterfaceBase):
         self.newline: str = ""
         # TODO Workaround for https://github.com/PySimpleGUI/PySimpleGUI/issues/2623
         # Remove this when the `autoscroll` parameter works.
-        self.log: Deque[str] = deque()
+        self.log: Deque[Tuple[str, bool]] = deque()
 
     def _user_feedback(self, value: str) -> None:
-        self.log.append(str((value, False)))
+        self.log.append((str(value), False))
         self._update_content()
 
     def _gcode_update(self, gcode: str) -> None:
         self.newline = gcode
 
+    # pylint: disable=W0613  #  Unused argument
     def _gcode_submit(self, key: str, value: str) -> None:
         if not self.widget_newline:
             return
@@ -57,7 +63,7 @@ class Terminal(_InterfaceBase):
         valid = self._raw_gcode(self.newline)
         newline = "> %s\n" % (str(self.newline) if valid else self.newline)
 
-        self.log.append(str((newline, valid)))
+        self.log.append((str(newline), valid))
         self.newline = ""
 
         self._update_content()
@@ -112,5 +118,5 @@ class Terminal(_InterfaceBase):
         except GCodeWordStrError:
             return False
         self.publish("command:gcode", line.block)
-        print(line.block)
+        # print(line.block)
         return True
