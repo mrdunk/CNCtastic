@@ -1,7 +1,6 @@
 """ A GUI page for selecting and configuring controllers. """
 
 from typing import List, Dict, Type, Any
-from interfaces._interface_base import _InterfaceBase
 from controllers._controller_base import _ControllerBase
 from gui_pages._page_base import _GuiPageBase
 
@@ -15,10 +14,9 @@ class ControllerPicker(_GuiPageBase):
     label = "ControllerPicker"
 
     def __init__(self,
-                 interfaces: Dict[str, _InterfaceBase],
                  controllers: Dict[str, _ControllerBase],
                  controller_classes: Dict[str, Type[_ControllerBase]]) -> None:
-        super().__init__(interfaces, controllers, controller_classes)
+        super().__init__(controllers, controller_classes)
         self.controller_widgets: Dict[str, sg.Frame] = {}
         self.controller_buttons: Dict[str, sg.Button] = {}
         self.enabled: str = ""

@@ -58,7 +58,7 @@ class Gui(_TerminalBase):
         if not self.sub_components:
             class_pages = core.common.load_plugins("gui_pages")
             # Instantiate all gui_pages.
-            self.sub_components = {page.label: page(interfaces, controllers, controller_classes)
+            self.sub_components = {page.label: page(controllers, controller_classes)
                                    for _, page in class_pages}
 
         layouts = {}

@@ -10,7 +10,6 @@ from PySide2.QtGui import QPainter
 from PySimpleGUIQt_loader import sg
 from pygcode import GCodeRapidMove
 
-from interfaces._interface_base import _InterfaceBase
 from controllers._controller_base import _ControllerBase
 from gui_pages._page_base import _GuiPageBase
 
@@ -226,10 +225,9 @@ class CanvasWidget(_GuiPageBase):
     label = "canvasWidget"
 
     def __init__(self,
-                 interfaces: Dict[str, _InterfaceBase],
                  controllers: Dict[str, _ControllerBase],
                  controller_classes: Dict[str, Type[_ControllerBase]]) -> None:
-        super().__init__(interfaces, controllers, controller_classes)
+        super().__init__(controllers, controller_classes)
 
         width = 800
         height = 800
@@ -254,7 +252,7 @@ class CanvasWidget(_GuiPageBase):
         self.structures["gcode"] = Geometry(self.graph_elem)
 
         self.center: Tuple[float, float, float] = self.calculate_center()
-        
+
         self.event_subscriptions = {
             "active_controller:machine_pos": ("_machine_pos_handler", None),
             "gui:keypress": ("_keypress_handler", None),
@@ -460,7 +458,7 @@ class CanvasWidget(_GuiPageBase):
             self.redraw()
 
         rotate = (self.rotation["x"], self.rotation["y"], self.rotation["z"])
-
+        
         work_done = False
         for structure in self.structures.values():
             work_done |= structure.update(self.scale, rotate, self.center)
