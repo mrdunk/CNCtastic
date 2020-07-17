@@ -73,7 +73,11 @@ class GcodeLoader(_GuiPageBase):
 
         treedata = sg.TreeData()
         self.widgets["tree"] = sg.Tree(data=treedata,
-                                       headings=["distance", "status", "count"],
+                                       headings=["distance",
+                                                 "status",
+                                                 "count",
+                                                 "enabled",
+                                                 "expanded"],
                                        #visible_column_map=[False, True, False],
                                        change_submits=True,
                                        enable_events=True,
@@ -133,19 +137,19 @@ class GcodeLoader(_GuiPageBase):
 
         treedata = sg.TreeData()
         for section in gcode:
-            assert len(section) == 3
-            section_name = section.name
-            section_key = self.key_gen("section__%s" % section_name)
+            assert len(section) == 5
+            section_key = self.key_gen("section__%s" % section.name)
 
+            colum_data = ["", "", "", section.enabled, section.expanded]
             if section.errors:
                 # Errors present.
-                treedata.Insert("", section_key, section_name, [], MEH)
+                treedata.Insert("", section_key, section.name, colum_data, MEH)
             else:
-                treedata.Insert("", section_key, section_name, [], OK)
+                treedata.Insert("", section_key, section.name, colum_data, OK)
 
             counter = 0
             for parsed_line in section.lines:
-                block_key = self.key_gen("block__%s__%s" % (section_name, counter))
+                block_key = self.key_gen("block__%s__%s" % (section.name, counter))
 
                 data = ""
                 if parsed_line.iterations[0].gcode:
@@ -164,7 +168,9 @@ class GcodeLoader(_GuiPageBase):
                 treedata.Insert(section_key,
                                 block_key,
                                 data,
-                                [distance, icon, parsed_line.count],
+                                [distance,
+                                 icon,
+                                 parsed_line.count,]
                                 )
                 counter += 1
 
