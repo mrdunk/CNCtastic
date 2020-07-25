@@ -5,7 +5,7 @@ from controllers._controller_base import _ControllerBase
 from gui_pages._page_base import _GuiPageBase
 
 # pylint: disable=E1101  # Module 'PySimpleGUIQt' has no 'XXXX' member (no-member)
-from PySimpleGUIQt_loader import sg
+from PySimpleGUI_loader import sg
 
 class ControllerPicker(_GuiPageBase):
     """ A GUI page for selecting and configuring controllers. """
@@ -37,13 +37,13 @@ class ControllerPicker(_GuiPageBase):
         self.event_subscriptions[key] = ("_on_button_press", label)
 
         if label == self.enabled:
-            color = ("white ", "red")
+            color = ("white", "red")
         else:
-            color = ("white ", "green")
+            color = ("white", "green")
 
         button = sg.Button(label,
                            key=key,
-                           size=(150, 30),
+                           size=(15, 1),
                            pad=(0, 0),
                            button_color=color)
         self.controller_buttons[key] = button
@@ -58,8 +58,8 @@ class ControllerPicker(_GuiPageBase):
 
         self.publish("%s:set_active" % controller_label, True)
 
-    def _configure_widget(self, label: str, controller: _ControllerBase) -> sg.Frame:
-        """ Return a widget for configuring a controller. """
+    def _view_widget(self, label: str, controller: _ControllerBase) -> sg.Frame:
+        """ Return a widget for viewing/configuring a controller. """
         visible = bool(label == self.enabled)
 
         key = self.key_gen("view_%s" % label)
@@ -102,11 +102,11 @@ class ControllerPicker(_GuiPageBase):
             self.enabled = list(self.controllers.keys())[0]
 
         for label, controller in self.controllers.items():
-            button = self._button(label)
-            chooser_elements.append([button])
+            choose = self._button(label)
+            chooser_elements.append([choose])
 
-            widget = self._configure_widget(label, controller)
-            view_elements.append(widget)
+            view = self._view_widget(label, controller)
+            view_elements.append(view)
 
         button = self._button("##new_controller")
         chooser_elements.append([button])
@@ -140,9 +140,9 @@ class ControllerPicker(_GuiPageBase):
         button_key = "%s:active_buttonpress" % label
         for key, button in self.controller_buttons.items():
             if button_key == key:
-                button.Update(button_color=("white ", "red"))
+                button.Update(button_color=("white", "red"))
             else:
-                button.Update(button_color=("white ", "green"))
+                button.Update(button_color=("white", "green"))
 
         self.publish("gui:set_tab", self.label)
 

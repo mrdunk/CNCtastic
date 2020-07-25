@@ -6,7 +6,7 @@
 from typing import Dict, List
 from math import log10, floor
 
-from PySimpleGUIQt_loader import sg
+from PySimpleGUI_loader import sg
 
 from interfaces._interface_movement_base import _InterfaceMovementBase
 
@@ -133,13 +133,13 @@ class JogWidget(_InterfaceMovementBase):
         def txt(label: str, but_w: float = but_w, but_h: float = but_h) -> sg.Frame:
             """ Text output. """
             return sg.Text(
-                label, justification="center", size=(but_w, but_h),
+                label, justification="center", size=(int(but_w), int(but_h)),
                 #background_color="grey"
                 )
 
         def but(label: str, key: str) -> sg.Button:
             """ Square button. """
-            return sg.Button(label, key=self.key_gen(key), size=(but_w, but_h))
+            return sg.Button(label, key=self.key_gen(key), size=(int(but_w), int(but_h)))
 
         def drp(key: str) -> sg.Drop:
             """ Drop down chooser for feed rates. """
@@ -155,7 +155,7 @@ class JogWidget(_InterfaceMovementBase):
             """ Text field for workspace coordinate positions. """
             return sg.InputText(key,
                                 key=self.key_gen(key),
-                                size=(coord_w, coord_h),
+                                size=(int(coord_w), int(coord_h)),
                                 justification="right",
                                 pad=(0, 0),
                                 #background_color="grey",
@@ -165,7 +165,7 @@ class JogWidget(_InterfaceMovementBase):
             """ Text field for machine coordinate positions. (Not updatable) """
             return sg.InputText(key,
                                 key="active_controller:%s" % key,
-                                size=(coord_w, coord_h),
+                                size=(int(coord_w), int(coord_h)),
                                 justification="right",
                                 pad=(0, 0),
                                 disabled=True,
@@ -176,7 +176,7 @@ class JogWidget(_InterfaceMovementBase):
             """ Text field for feed rate coordinate values. (Not updatable) """
             return sg.InputText(key,
                                 key="active_controller:%s" % key,
-                                size=(coord_w / 2, coord_h),
+                                size=(int(coord_w / 2), int(coord_h)),
                                 justification="right",
                                 pad=(0, 0),
                                 disabled=True,

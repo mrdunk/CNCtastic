@@ -10,7 +10,7 @@ from collections import deque
 from pygcode import Block, GCode, Line
 
 # pylint: disable=E1101  # Module 'PySimpleGUIQt' has no 'XXXX' member (no-member)
-from PySimpleGUIQt_loader import sg
+from PySimpleGUI_loader import sg
 
 from core.component import _ComponentBase
 from definitions import ConnectionState
@@ -116,9 +116,9 @@ class _ControllerBase(_ComponentBase):
             sg.Button("Delete", size=(10, 1), pad=(2, 2)),
             ]
         components["view_connection"] = [
-            sg.Text("Connection state (desired/actual):", size=(20, 1)),
-            sg.Text(key=self.key_gen("desired_connection_status"), pad=(0, 0)),
-            sg.Text(key=self.key_gen("connection_status"), pad=(0, 0), justification="left"),
+            sg.Text("Connection state (desired/actual):", size=(24, 1)),
+            sg.Text(key=self.key_gen("desired_connection_status"), size=(15, 1), pad=(0, 0)),
+            sg.Text(key=self.key_gen("connection_status"), size=(15, 1), pad=(0, 0), justification="left"),
             ]
 
         self.__edit_buttons = components["edit_buttons"]

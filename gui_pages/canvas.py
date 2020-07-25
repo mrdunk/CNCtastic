@@ -7,7 +7,7 @@ from typing import List, Tuple, Dict, Union, Optional, Any, Type
 import numpy as np
 from PySide2.QtCore import Qt, QRectF
 from PySide2.QtGui import QPainter
-from PySimpleGUIQt_loader import sg
+from PySimpleGUI_loader import sg
 from pygcode import GCodeRapidMove
 
 from controllers._controller_base import _ControllerBase
@@ -175,7 +175,7 @@ class Geometry:
             color = "blue"
             for node in new_nodes:
                 corrected = node + self.node_circle_offset
-                self.graph_elem.DrawCircle(corrected[:2], NODE_SIZE, color)
+                self.graph_elem.DrawCircle(tuple(corrected[:2]), NODE_SIZE, color)
             self.display_nodes = np.vstack((self.display_nodes, new_nodes))
 
         if self.update_edges_from < len(self.edges):
@@ -186,7 +186,10 @@ class Geometry:
                     color = edge[2]
                 node_0 = self.display_nodes[edge[0]]
                 node_1 = self.display_nodes[edge[1]]
-                self.graph_elem.DrawLine(node_0[:2], node_1[:2], width=10, color=color)
+                self.graph_elem.DrawLine(tuple(node_0[:2]),
+                                         tuple(node_1[:2]),
+                                         width=10,
+                                         color=color)
             self.update_edges_from = len(self.edges)
         return work_done
 
@@ -264,18 +267,22 @@ class CanvasWidget(_GuiPageBase):
         self.dirty: bool = True
 
     def _startup(self, _: Any) -> None:
-        self.graph_elem.QT_QGraphicsView.mouse_moveEvent = self.mouse_move_event
-        self.graph_elem.QT_QGraphicsView.mousePressEvent = self.mouse_press_event
-        self.graph_elem.QT_QGraphicsView.mouseReleaseEvent = self.mouse_release_event
-        self.graph_elem.QT_QGraphicsView.resizeEvent = self.resize_event
-        self.graph_elem.QT_QGraphicsView.wheelEvent = self.wheel_event
+        try:
+            self.graph_elem.QT_QGraphicsView.mouse_moveEvent = self.mouse_move_event
+            self.graph_elem.QT_QGraphicsView.mousePressEvent = self.mouse_press_event
+            self.graph_elem.QT_QGraphicsView.mouseReleaseEvent = self.mouse_release_event
+            self.graph_elem.QT_QGraphicsView.resizeEvent = self.resize_event
+            self.graph_elem.QT_QGraphicsView.wheelEvent = self.wheel_event
 
-        self.graph_elem.QT_QGraphicsView.DragMode = self.graph_elem.QT_QGraphicsView.ScrollHandDrag
-        self.graph_elem.QT_QGraphicsView.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
-        self.graph_elem.QT_QGraphicsView.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
-        self.graph_elem.QT_QGraphicsView.setRenderHints(
-                QPainter.Antialiasing|QPainter.SmoothPixmapTransform)
-        #self.graph_elem.QT_QGraphicsView.setAlignment(Qt.AlignCenter)
+            self.graph_elem.QT_QGraphicsView.DragMode = \
+                    self.graph_elem.QT_QGraphicsView.ScrollHandDrag
+            self.graph_elem.QT_QGraphicsView.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
+            self.graph_elem.QT_QGraphicsView.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
+            self.graph_elem.QT_QGraphicsView.setRenderHints(
+                    QPainter.Antialiasing|QPainter.SmoothPixmapTransform)
+            #self.graph_elem.QT_QGraphicsView.setAlignment(Qt.AlignCenter)
+        except AttributeError:
+            pass
 
         self.dirty = True
 
@@ -447,8 +454,12 @@ class CanvasWidget(_GuiPageBase):
                 # we might flicker between scales as things are drawing.
                 return
         self.center = self.calculate_center()
-        screenRect = self.graph_elem.QT_QGraphicsView.scene().itemsBoundingRect()
-        self.graph_elem.QT_QGraphicsView.setSceneRect(screenRect)
+        try:
+            # If we are using QT...
+            screenRect = self.graph_elem.QT_QGraphicsView.scene().itemsBoundingRect()
+            self.graph_elem.QT_QGraphicsView.setSceneRect(screenRect)
+        except AttributeError:
+            pass
 
     def update(self) -> None:
         """ Update all Geometry objects. """
@@ -458,7 +469,7 @@ class CanvasWidget(_GuiPageBase):
             self.redraw()
 
         rotate = (self.rotation["x"], self.rotation["y"], self.rotation["z"])
-        
+
         work_done = False
         for structure in self.structures.values():
             work_done |= structure.update(self.scale, rotate, self.center)

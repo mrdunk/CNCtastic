@@ -15,7 +15,7 @@ import serial
 import serial.tools.list_ports
 
 # pylint: disable=E1101  # Module 'PySimpleGUIQt' has no 'XXXX' member (no-member)
-from PySimpleGUIQt_loader import sg
+from PySimpleGUI_loader import sg
 
 from controllers._controller_base import _ControllerBase
 from definitions import ConnectionState

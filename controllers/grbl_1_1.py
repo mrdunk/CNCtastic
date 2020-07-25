@@ -10,7 +10,7 @@ from queue import Queue, Empty
 from collections import deque
 
 from pygcode import GCode, Block
-from PySimpleGUIQt_loader import sg
+from PySimpleGUI_loader import sg
 
 from definitions import ConnectionState
 from controllers._controller_serial_base import _SerialControllerBase
@@ -119,7 +119,9 @@ class Grbl1p1Controller(_SerialControllerBase):
             [sg.Multiline(default_text="Machine state",
                           size=(60, 10),
                           key=self.key_gen("state"),
-                          autoscroll=True, disabled=True)],
+                          autoscroll=True,
+                          disabled=True,
+                          ),],
             components["view_connection"],
             components["view_buttons"],
             ]

@@ -8,7 +8,7 @@ from controllers._controller_base import _ControllerBase
 from gui_pages._page_base import _GuiPageBase
 
 # pylint: disable=E1101  # Module 'PySimpleGUIQt' has no 'XXXX' member (no-member)
-from PySimpleGUIQt_loader import sg
+from PySimpleGUI_loader import sg
 
 Section = namedtuple("Section", ["name", "lines", "errors"])
 ParsedLine = namedtuple("ParsedLine", ["raw", "gcode_word_key", "count", "iterations"])
@@ -78,7 +78,6 @@ class GcodeLoader(_GuiPageBase):
                                                  "count",
                                                  "enabled",
                                                  "expanded"],
-                                       #visible_column_map=[False, True, False],
                                        change_submits=True,
                                        enable_events=True,
                                        auto_size_columns=True,
@@ -86,10 +85,9 @@ class GcodeLoader(_GuiPageBase):
                                        col0_width=50,
                                        def_col_width=50,
                                        key='_TREE_',
-                                       #show_expanded=True,
-                                       size=(800, 300),
-                                       #debug_key=True,
+                                       #size=(800, 300),
                                        )
+        self.widgets["tree"].Size = (800, 300)
 
         return self.widgets["tree"]
 

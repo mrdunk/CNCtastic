@@ -9,7 +9,7 @@ from collections import deque
 from pygcode import Line
 from pygcode.exceptions import GCodeWordStrError
 
-from PySimpleGUIQt_loader import sg
+from PySimpleGUI_loader import sg
 
 from controllers._controller_base import _ControllerBase
 from gui_pages._page_base import _GuiPageBase

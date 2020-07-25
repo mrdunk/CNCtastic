@@ -14,7 +14,7 @@ from collections import deque
 from pygcode import Machine, GCodeCoordSystemOffset, \
                     GCodeResetCoordSystemOffset, Block
 
-from PySimpleGUIQt_loader import sg
+from PySimpleGUI_loader import sg
 
 from definitions import ConnectionState
 from controllers._controller_base import _ControllerBase
@@ -73,7 +73,9 @@ class DebugController(_ControllerBase):
                           size=(60, 10),
                           key=self.key_gen("gcode"),
                           autoscroll=True,
-                          disabled=True)],
+                          disabled=True,
+                          enable_events=False,
+                          ),],
             components["view_connection"],
             components["view_buttons"],
             ]

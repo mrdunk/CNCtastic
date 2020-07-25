@@ -4,7 +4,7 @@ from typing import List, Dict, Any, Type
 from enum import Enum
 
 # pylint: disable=E1101  # Module 'PySimpleGUIQt' has no 'XXXX' member (no-member)
-from PySimpleGUIQt_loader import sg
+from PySimpleGUI_loader import sg
 
 import core.common
 from terminals._terminal_base import _TerminalBase, diff_dicts
@@ -220,6 +220,7 @@ class Gui(_TerminalBase):
                 # GUI widget has "skip_update" set so will not use the default
                 # update method.
                 continue
+
             if isinstance(value, Enum):
                 self.window[event].update(value.name)
             elif isinstance(value, float):
@@ -228,9 +229,11 @@ class Gui(_TerminalBase):
                 self.window[event].update(value)
             elif event == self.key_gen("menubar"):
                 self._on_menubar(event, value)
+            elif value == (None, None):
+                continue
             else:
                 try:
-                    self.window[event].update(value)
+                    self.window[event].update(value.rstrip())
                 except IndexError:
                     pass
                 except AttributeError:
@@ -241,11 +244,14 @@ class Gui(_TerminalBase):
 
     def _restart(self) -> None:
         self.selected_tab_key = self.window[self.key_gen("tabs")].get()
-        #self.size = self.window.Size
-        self.size = self.window.QT_QMainWindow.size().toTuple()
-        #self.position = self.window.CurrentLocation()
-        geom = self.window.QT_QMainWindow.frameGeometry()
-        self.position = (geom.left(), geom.top())
+        try:
+            # If using QT...
+            self.size = self.window.QT_QMainWindow.size().toTuple()
+            geom = self.window.QT_QMainWindow.frameGeometry()
+            self.position = (geom.left(), geom.top())
+        except AttributeError:
+            self.size = self.window.Size
+            self.position = self.window.CurrentLocation()
         print("restart",
               self.position,
               self.size,

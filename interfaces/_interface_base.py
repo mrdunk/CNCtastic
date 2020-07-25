@@ -1,7 +1,7 @@
 """ Plugin providing interface to control of some aspect of the active controller. """
 
 from typing import List
-from PySimpleGUIQt_loader import sg
+from PySimpleGUI_loader import sg
 from core.component import _ComponentBase
 
 class _InterfaceBase(_ComponentBase):
